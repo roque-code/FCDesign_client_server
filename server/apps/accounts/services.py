@@ -1,0 +1,311 @@
+"""Alta, sesión y restablecimiento. La contraseña solo pasa por el hasher de Django."""
+
+from smtplib import SMTPException
+from urllib.parse import urlencode
+
+from django.conf import settings
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import PasswordResetTokenGenerator, default_token_generator
+from django.core.exceptions import ValidationError
+from django.core.mail import send_mail
+from django.core.validators import validate_email
+from django.db import transaction
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+
+from apps.accounts.models import Profile, User
+from apps.audit.services import record
+from apps.editor.models import EditorPreference
+from apps.projects.examples import seed_examples
+from config.errors import DomainError
+from config.ratelimit import allow
+
+
+def clean_email(value: object) -> str:
+    if not isinstance(value, str):
+        raise DomainError("El correo no es válido.")
+    email = value.strip().casefold()
+    try:
+        validate_email(email)
+    except ValidationError as exc:
+        raise DomainError("El correo no es válido.") from exc
+    return email
+
+
+def clean_label(value: object, *, field: str, limit: int, required: bool) -> str:
+    if value is None or value == "":
+        if required:
+            raise DomainError(f"Falta {field}.")
+        return ""
+    if not isinstance(value, str):
+        raise DomainError(f"{field} no es válido.")
+    text = value.strip()
+    if required and not text:
+        raise DomainError(f"Falta {field}.")
+    if any(ord(ch) < 32 for ch in text):
+        raise DomainError(f"{field} contiene caracteres de control.")
+    if len(text) > limit:
+        raise DomainError(f"{field} es demasiado largo.")
+    return text
+
+
+def ensure_password(password: object, user: User | None = None) -> str:
+    if not isinstance(password, str) or password == "":
+        raise DomainError("La contraseña no es válida.")
+    try:
+        validate_password(password, user)
+    except ValidationError as exc:
+        raise DomainError(" ".join(exc.messages)) from exc
+    return password
+
+
+def clean_role(value: object) -> str:
+    if value in (Profile.STUDENT, Profile.TEACHER):
+        return value
+    raise DomainError("El perfil debe ser docente o estudiante.")
+
+
+class EmailConfirmTokenGenerator(PasswordResetTokenGenerator):
+    """Caduca al confirmar: el hash incluye email_confirmed."""
+
+    def _make_hash_value(self, user: User, timestamp: int) -> str:
+        return f"{user.pk}{user.email}{user.email_confirmed}{timestamp}"
+
+
+email_confirm_token = EmailConfirmTokenGenerator()
+
+
+def confirmation_notice() -> str:
+    message = "Te enviamos un enlace para confirmar el correo. Ábrelo para activar la cuenta."
+    mailbox = settings.TRAZA_MAIL_UI
+    if mailbox:
+        message += f" En este entorno el mensaje está en {mailbox}."
+    return message
+
+
+def _deliver(subject: str, body: str, recipient: str) -> None:
+    try:
+        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [recipient])
+    except (OSError, SMTPException) as exc:
+        raise DomainError(
+            "No se pudo enviar el correo. Inténtalo de nuevo en unos minutos."
+        ) from exc
+
+
+def _send_confirmation(user: User) -> None:
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = email_confirm_token.make_token(user)
+    link = f"{settings.TRAZA_PUBLIC_ORIGIN}/?{urlencode({'confirmar': uid, 'token': token})}"
+    _deliver(
+        "Confirma tu correo en Traza",
+        (
+            "Para activar la cuenta confirma que este correo es tuyo.\n\n"
+            f"{link}\n\n"
+            "Si no creaste la cuenta, ignora este mensaje.\n"
+        ),
+        user.email,
+    )
+
+
+def standing_of(user: User) -> dict[str, int]:
+    points = Profile.objects.values_list("points", flat=True).get(user=user)
+    rank = Profile.objects.filter(points__gt=points).count() + 1
+    return {"points": int(points), "rank": rank}
+
+
+def user_payload(user: User) -> dict[str, object]:
+    profile = user.profile
+    standing = standing_of(user)
+    return {
+        "id": user.pk,
+        "email": user.email,
+        "display_name": profile.display_name,
+        "institution": profile.institution,
+        "role": profile.role,
+        "points": standing["points"],
+        "rank": standing["rank"],
+    }
+
+
+@transaction.atomic
+def register_user(
+    *,
+    email: object,
+    password: object,
+    display_name: object = None,
+    institution: object = None,
+    role: object = None,
+    ip_address: str | None = None,
+) -> User:
+    cleaned = clean_email(email)
+    secret = ensure_password(password)
+    visible = clean_label(display_name, field="El nombre", limit=80, required=False)
+    school = clean_label(institution, field="La institución", limit=120, required=False)
+    chosen = Profile.STUDENT if role is None or role == "" else clean_role(role)
+    existing = User.objects.filter(email=cleaned).first()
+    if existing is not None:
+        if existing.email_confirmed or not settings.EMAIL_CONFIRMATION_REQUIRED:
+            raise DomainError("Ese correo ya está registrado.")
+        existing.set_password(secret)
+        existing.save(update_fields=["password"])
+        profile = existing.profile
+        if visible:
+            profile.display_name = visible
+        if school:
+            profile.institution = school
+        if role not in (None, ""):
+            profile.role = chosen
+        profile.save()
+        _send_confirmation(existing)
+        return existing
+    user = User.objects.create_user(
+        email=cleaned,
+        password=secret,
+        email_confirmed=not settings.EMAIL_CONFIRMATION_REQUIRED,
+    )
+    Profile.objects.create(
+        user=user,
+        display_name=visible or cleaned.split("@", 1)[0],
+        institution=school,
+        role=chosen,
+    )
+    EditorPreference.objects.create(user=user)
+    seed_examples(user)
+    record(
+        "auth.register",
+        actor=user,
+        object_type="user",
+        object_id=str(user.pk),
+        metadata={},
+        ip_address=ip_address,
+    )
+    if settings.EMAIL_CONFIRMATION_REQUIRED:
+        _send_confirmation(user)
+    return user
+
+
+def login_user(request, email: object, password: object) -> User:
+    allow("auth.login", request.META.get("REMOTE_ADDR") or "unknown")
+    cleaned = clean_email(email)
+    if not isinstance(password, str):
+        raise DomainError("Correo o contraseña incorrectos.")
+    authenticated = authenticate(request, username=cleaned, password=password)
+    if not isinstance(authenticated, User):
+        raise DomainError("Correo o contraseña incorrectos.")
+    user = authenticated
+    if not user.email_confirmed:
+        raise DomainError(
+            "Confirma el correo antes de entrar. Revisa el mensaje que te enviamos.",
+            code="email_unconfirmed",
+        )
+    login(request, user)
+    record(
+        "auth.login",
+        actor=user,
+        object_type="user",
+        object_id=str(user.pk),
+        metadata={},
+        ip_address=request.META.get("REMOTE_ADDR"),
+    )
+    return user
+
+
+def logout_user(request) -> None:
+    user = request.user if getattr(request.user, "is_authenticated", False) else None
+    logout(request)
+    if user is not None:
+        record(
+            "auth.logout",
+            actor=user,
+            object_type="user",
+            object_id=str(user.pk),
+            metadata={},
+            ip_address=request.META.get("REMOTE_ADDR"),
+        )
+
+
+def request_password_reset(email: object, ip_address: str | None) -> None:
+    try:
+        cleaned = clean_email(email)
+    except DomainError:
+        return
+    user = User.objects.filter(email=cleaned).first()
+    if user is None:
+        return
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    _deliver(
+        "Restablecer contraseña de Traza",
+        f"uid={uid}\ntoken={token}\n",
+        user.email,
+    )
+    record(
+        "auth.password_reset",
+        actor=user,
+        object_type="user",
+        object_id=str(user.pk),
+        metadata={},
+        ip_address=ip_address,
+    )
+
+
+def update_profile(user: User, data: dict) -> User:
+    if "role" in data:
+        user.profile.role = clean_role(data.get("role"))
+        user.profile.save(update_fields=["role", "updated_at"])
+    return user
+
+
+def confirm_email(uid: object, token: object, ip_address: str | None) -> User:
+    if not isinstance(uid, str) or not isinstance(token, str):
+        raise DomainError("El enlace no es válido o ya caducó.", code="invalid_token")
+    try:
+        pk = urlsafe_base64_decode(uid).decode()
+        user = User.objects.get(pk=pk)
+    except (User.DoesNotExist, ValueError, TypeError, UnicodeDecodeError) as exc:
+        raise DomainError("El enlace no es válido o ya caducó.", code="invalid_token") from exc
+    if not email_confirm_token.check_token(user, token):
+        if user.email_confirmed:
+            raise DomainError(
+                "El correo ya está confirmado. Entra con tu contraseña.",
+                code="already_confirmed",
+            )
+        raise DomainError("El enlace no es válido o ya caducó.", code="invalid_token")
+    user.email_confirmed = True
+    user.save(update_fields=["email_confirmed"])
+    record(
+        "auth.email_confirm",
+        actor=user,
+        object_type="user",
+        object_id=str(user.pk),
+        metadata={},
+        ip_address=ip_address,
+    )
+    return user
+
+
+def resend_confirmation(email: object) -> None:
+    try:
+        cleaned = clean_email(email)
+    except DomainError:
+        return
+    user = User.objects.filter(email=cleaned, email_confirmed=False).first()
+    if user is None:
+        return
+    _send_confirmation(user)
+
+
+def confirm_password_reset(uid: object, token: object, password: object) -> None:
+    if not isinstance(uid, str) or not isinstance(token, str):
+        raise DomainError("El enlace no es válido o ya caducó.", code="invalid_token")
+    try:
+        pk = urlsafe_base64_decode(uid).decode()
+        user = User.objects.get(pk=pk)
+    except (User.DoesNotExist, ValueError, TypeError, UnicodeDecodeError) as exc:
+        raise DomainError("El enlace no es válido o ya caducó.", code="invalid_token") from exc
+    if not default_token_generator.check_token(user, token):
+        raise DomainError("El enlace no es válido o ya caducó.", code="invalid_token")
+    secret = ensure_password(password, user)
+    user.set_password(secret)
+    user.save(update_fields=["password"])

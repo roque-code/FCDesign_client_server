@@ -1,0 +1,14 @@
+Algoritmo Mayor
+    Definir a, b Como Entero;
+    Leer a;
+    Leer b;
+    Si a > b Entonces
+        Escribir a;
+    Sino
+        Si a = b Entonces
+            Escribir "iguales";
+        Sino
+            Escribir b;
+        FinSi
+    FinSi
+FinAlgoritmo

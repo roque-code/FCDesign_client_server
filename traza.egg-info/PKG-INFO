@@ -1,0 +1,90 @@
+Metadata-Version: 2.4
+Name: traza
+Version: 0.1.0
+Summary: Núcleo del pseudolenguaje educativo Traza
+Author: Traza
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Provides-Extra: server
+Requires-Dist: Django<5.3,>=5.2; extra == "server"
+Requires-Dist: djangorestframework>=3.15; extra == "server"
+Requires-Dist: drf-spectacular>=0.27; extra == "server"
+Requires-Dist: gunicorn>=23; extra == "server"
+Requires-Dist: psycopg[binary]>=3.2; extra == "server"
+Requires-Dist: redis>=5.0; extra == "server"
+Provides-Extra: dev
+Requires-Dist: black>=24.0; extra == "dev"
+Requires-Dist: django-stubs<6,>=5.2; extra == "dev"
+Requires-Dist: djangorestframework-stubs<3.18,>=3.15; extra == "dev"
+Requires-Dist: mypy>=1.11; extra == "dev"
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: pytest-cov>=5.0; extra == "dev"
+Requires-Dist: pytest-django>=4.9; extra == "dev"
+Requires-Dist: ruff>=0.6; extra == "dev"
+Requires-Dist: fakeredis>=2.26; extra == "dev"
+
+# Traza
+
+Aplicación web educativa para escribir, validar, ejecutar, depurar y visualizar algoritmos en pseudocódigo estructurado en español.
+
+**Traza** es el nombre de trabajo. La identidad visual, el código y el lenguaje son propios. No se reutiliza código ni material gráfico de otras herramientas de pseudocódigo.
+
+## Estado
+
+Están hechas las fases 1 a 5. La fase 6 no empieza hasta nueva autorización: siguen pendientes el runner aislado, Docker con Nginx y Gunicorn, y el bus Redis. Las comunidades de docentes ya están; las actividades y las entregas del aula, no.
+
+El núcleo ejecuta el pseudocódigo completo del encargo: secuencia, `Si`, `Segun`, `Mientras`, `Repetir`, `Para`, arreglos, funciones, procedimientos, recursión y la biblioteca estándar. El perfil estricto es el predeterminado. Cada algoritmo puede, además, elegir si el punto y coma es obligatorio y si los índices de los arreglos empiezan en 1 o en 0. Esas dos opciones viven en el algoritmo y afectan a validar, ejecutar, depurar y al diagrama.
+
+El diagrama sale del árbol de sintaxis. React Flow lo dibuja y el cliente calcula las posiciones en `frontend/src/diagram/layout.ts`. Las figuras siguen el uso del aula: óvalo de inicio y fin, rectángulo de proceso, paralelogramo verde de `Escribir`, paralelogramo rosa de `Leer`, rombo de `Si`, hexágono de ciclo y triángulo ancho de `Segun` con una barra de casos. La rama falsa sale por la izquierda y la verdadera por la derecha. Cada llegada a otra figura entra por el centro del lado superior. Se puede descargar en SVG, PNG y PDF, e imprimir.
+
+El mismo intérprete se recorre paso a paso, con entrar, salir, continuar, pausar, detener, reiniciar y puntos de interrupción. Los eventos salen por SSE en el proceso de desarrollo. La consola muestra, en orden, lo que escribe `Escribir` y cada dato que un `Leer` acepta. Un dato rechazado no se pinta.
+
+El banco de trabajo tiene proyectos y algoritmos por cuenta, autoguardado, validación, depurador y consola con desplazamiento. Se puede renombrar un proyecto o un algoritmo, descargar el fuente como archivo y eliminar un algoritmo. El tabulador indenta el editor. La barra entre el código y el depurador muestra el estado de guardado y la línea del cursor. Proyectos y diagrama se ocultan y se vuelven a mostrar, y el ancho de proyectos, editor y diagrama se arrastra con el ratón. En la barra superior están **Funciones** (el listado de la biblioteca) y **Configuración** (perfil, cuerpo, tema, punto y coma e índice de arreglos). El perfil es docente o estudiante. Un docente crea comunidades, lista a sus alumnos y busca cuentas ya registradas, de alumnos o de otros docentes, para agregarlas. Cada cuenta nueva recibe los ejemplos 1 a 13.
+
+La pantalla avisa que, en desarrollo, la ejecución ocurre en el mismo proceso y con límites lógicos. `config.settings.production` no arranca con ese ejecutor: al importarse lanza `ImproperlyConfigured`.
+
+El detalle normativo está en [`docs/`](docs/arquitectura.md).
+
+## Documentos
+
+| Documento | Contenido |
+| --- | --- |
+| [Arquitectura](docs/arquitectura.md) | Módulos, directorios, flujo, diagrama y banco de trabajo |
+| [Gramática](docs/gramatica.md) | EBNF, léxico, operadores, perfiles |
+| [AST](docs/ast.md) | Nodos, ámbitos y diagnósticos |
+| [Modelo de datos](docs/modelo-de-datos.md) | Entidades Django, índices y borrado |
+| [Ejecución](docs/ejecucion.md) | Intérprete, depurador y aislamiento |
+| [Pruebas y roadmap](docs/pruebas-y-roadmap.md) | Cobertura, iteraciones y criterios del MVP |
+| [Decisiones](docs/decisiones-pendientes.md) | Decisiones del lenguaje y del editor, ya en el código |
+| [Laboratorio](docs/laboratorio-fase-0.md) | Aprendizaje visual. La ruta incluye Si, Mientras, Segun, Para, Repetir, arreglos y funciones. La práctica libre se guarda, se abre, se descarga, se borra y arma bloques desde un archivo |
+| [ADR](docs/adr/) | Decisiones de arquitectura |
+
+## Uso del núcleo
+
+```bash
+python3 -m pip install -e ".[dev]"
+python3 -m pytest
+python3 -m ruff check language_core
+python3 -m black --check language_core
+python3 -m mypy language_core
+```
+
+```python
+from language_core import execute_source
+
+result = execute_source(open("algoritmo.traza", encoding="utf-8").read(), ["Ana", "18"])
+print(result.output)
+```
+
+## Editor web
+
+PostgreSQL local en `127.0.0.1:5433`, base `traza`. El cliente en `http://127.0.0.1:5173` proxifica `/api` hacia Django. En esta máquina el puerto 8000 lo usa otra aplicación, así que Traza escucha en `127.0.0.1:8002` y el proxy de Vite apunta ahí.
+
+```bash
+python3 -m pip install -e ".[dev,server]"
+python3 -m pytest
+cd server && python3 manage.py migrate && python3 manage.py runserver 127.0.0.1:8002
+cd frontend && npm install && npm run dev
+cd frontend && npm run typecheck && npm run lint && npm test
+cd server && python3 -m mypy --config-file mypy.ini apps config && python3 -m pytest -q --tb=line
+```

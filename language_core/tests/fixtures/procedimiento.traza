@@ -1,0 +1,10 @@
+SubProceso Incrementar(n Por Referencia)
+    Definir n Como Entero;
+    n <- n + 1;
+FinSubProceso
+Algoritmo Incremento
+    Definir edad Como Entero;
+    edad <- 17;
+    Incrementar(edad);
+    Escribir edad;
+FinAlgoritmo

@@ -1,0 +1,20 @@
+Algoritmo Ordenar
+    Definir datos, i, j, temporal Como Entero;
+    Dimension datos[4] Como Entero;
+    datos[1] <- 4;
+    datos[2] <- 1;
+    datos[3] <- 3;
+    datos[4] <- 2;
+    Para i <- 1 Hasta 3 Hacer
+        Para j <- 1 Hasta 4 - i Hacer
+            Si datos[j] > datos[j + 1] Entonces
+                temporal <- datos[j];
+                datos[j] <- datos[j + 1];
+                datos[j + 1] <- temporal;
+            FinSi
+        FinPara
+    FinPara
+    Para i <- 1 Hasta 4 Hacer
+        Escribir datos[i];
+    FinPara
+FinAlgoritmo

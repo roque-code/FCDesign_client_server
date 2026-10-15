@@ -1,0 +1,11 @@
+Algoritmo Factorial
+    Definir n, i, resultado Como Entero;
+    Leer n;
+    resultado <- 1;
+    Si n > 1 Entonces
+        Para i <- 2 Hasta n Hacer
+            resultado <- resultado * i;
+        FinPara
+    FinSi
+    Escribir resultado;
+FinAlgoritmo

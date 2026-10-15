@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "traza"
+version = "0.1.0"
+description = "Núcleo del pseudolenguaje educativo Traza"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "Traza" }]
+
+[project.optional-dependencies]
+server = [
+    "Django>=5.2,<5.3",
+    "djangorestframework>=3.15",
+    "drf-spectacular>=0.27",
+    "gevent>=24.10",
+    "gunicorn>=23",
+    "packaging>=24",
+    "psycopg[binary]>=3.2",
+    "redis>=5.0",
+]
+dev = [
+    "black>=24.0",
+    "django-stubs>=5.2,<6",
+    "djangorestframework-stubs>=3.15,<3.18",
+    "mypy>=1.11",
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "pytest-django>=4.9",
+    "ruff>=0.6",
+    "fakeredis>=2.26",
+]
+
+[tool.setuptools.packages.find]
+include = ["language_core*"]
+exclude = ["language_core.tests*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["language_core/tests"]
+addopts = "--cov=language_core --cov-report=term-missing --cov-fail-under=90"
+
+[tool.coverage.run]
+branch = false
+source = ["language_core"]
+omit = ["language_core/tests/*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["language_core", "server", "runner"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "config", "language_core", "runner"]
+
+[tool.mypy]
+python_version = "3.12"
+packages = ["language_core"]
+exclude = ["language_core/tests"]
+disallow_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+strict_equality = true
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true

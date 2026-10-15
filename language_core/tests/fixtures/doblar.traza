@@ -1,0 +1,9 @@
+Funcion resultado <- Doblar(n)
+    Definir resultado, n Como Entero;
+    resultado <- n * 2;
+FinFuncion
+Algoritmo Doble
+    Definir numero Como Entero;
+    Leer numero;
+    Escribir Doblar(numero);
+FinAlgoritmo

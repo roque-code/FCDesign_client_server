@@ -1,0 +1,13 @@
+Funcion resultado <- Factorial(n)
+    Definir resultado, n Como Entero;
+    Si n <= 1 Entonces
+        resultado <- 1;
+    Sino
+        resultado <- n * Factorial(n - 1);
+    FinSi
+FinFuncion
+Algoritmo Recursivo
+    Definir numero Como Entero;
+    Leer numero;
+    Escribir Factorial(numero);
+FinAlgoritmo

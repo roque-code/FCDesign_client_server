@@ -1,0 +1,16 @@
+Algoritmo Promedio
+    Definir nota, suma, promedio Como Real;
+    Definir cantidad, i Como Entero;
+    Leer cantidad;
+    suma <- 0;
+    Si cantidad > 0 Entonces
+        Para i <- 1 Hasta cantidad Hacer
+            Leer nota;
+            suma <- suma + nota;
+        FinPara
+        promedio <- suma / cantidad;
+        Escribir promedio;
+    Sino
+        Escribir "sin notas";
+    FinSi
+FinAlgoritmo

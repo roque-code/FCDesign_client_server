@@ -1,0 +1,601 @@
+import { FormEvent, useEffect, useRef, useState } from "react"
+
+import { ApiError, api, type Diagnostic, type LabAttemptRecord, type LabCase, type LabSession } from "../api"
+import { editorKeywords, spellText, starterSource } from "../dialect"
+import { useLocale, useT, type MessageKey } from "../i18n"
+import { Composer } from "../compose/Composer"
+import { CodeEditor } from "../editor/CodeEditor"
+import { BlockWorkspace } from "./BlockWorkspace"
+import { formatClock, formatWhen, stagesFor, type StageName } from "./trace"
+
+const ACTIVITY: Record<string, MessageKey> = {
+  classify: "classify",
+  order: "order",
+  build: "build",
+  predict: "predict",
+}
+
+const TOOL_LABEL: Record<string, MessageKey> = {
+  codigo: "writeCode",
+  diagrama: "composeTitle",
+  bloques: "blocksTool",
+}
+
+const STAGE: Record<StageName, MessageKey> = {
+  comprender: "understand",
+  razonar: "reason",
+  construir: "build",
+  comprobar: "check",
+  explicar: "explain",
+}
+
+function AttemptHistory({ records }: { records: LabAttemptRecord[] }) {
+  const t = useT()
+  if (records.length === 0) return null
+  return (
+    <section className="attempt-history">
+      <h2>{t("attempts")}</h2>
+      <ol className="attempt-list">
+        {records.map((item) => (
+          <li key={item.id}>
+            <strong>{t("attemptN", { number: item.number })}</strong>
+            <span>{item.status === "completed" ? "Terminado" : "Sin terminar"}</span>
+            {item.score != null ? <span>{item.score} puntos</span> : null}
+            {item.elapsed_seconds != null ? <span>{formatClock(item.elapsed_seconds)}</span> : null}
+            {item.finished_at ? <time dateTime={item.finished_at}>{formatWhen(item.finished_at)}</time> : null}
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
+
+function messageOf(error: unknown, fallback: string): string {
+  return error instanceof ApiError ? error.message : fallback
+}
+
+export function ChallengePlay({
+  challengeId,
+  pathId,
+  onDone,
+  onStanding,
+}: {
+  challengeId: string
+  pathId?: string
+  onDone: () => void
+  onStanding?: (standing: { points: number; rank: number }) => void
+}) {
+  const t = useT()
+  const locale = useLocale()
+  const [session, setSession] = useState<LabSession | null>(null)
+  const [error, setError] = useState("")
+  const [note, setNote] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [text, setText] = useState("")
+  const [choices, setChoices] = useState<Record<string, string>>({})
+  const [order, setOrder] = useState<string[]>([])
+  const [reflection, setReflection] = useState("")
+  const [workspace, setWorkspace] = useState<object | null>(null)
+  const [cases, setCases] = useState<LabCase[] | null>(null)
+  const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([])
+  const [output, setOutput] = useState("")
+  const [left, setLeft] = useState<number | null>(null)
+  const [phonePane, setPhonePane] = useState<"problema" | "construccion" | "ayuda">("problema")
+  const [mode, setMode] = useState<string | null>(null)
+  const [code, setCode] = useState(() => starterSource(locale))
+  const [diagramSource, setDiagramSource] = useState("")
+  const [keywords, setKeywords] = useState<string[]>([])
+  const [stdlib, setStdlib] = useState<string[]>([])
+  const expiredOnce = useRef(false)
+  const attemptClock = session?.attempt.seconds_left ?? null
+  const attemptStatus = session?.attempt.status ?? ""
+  const attemptId = session?.attempt.id ?? ""
+
+  useEffect(() => {
+    let cancelled = false
+    void api.startAttempt(challengeId, pathId).then(
+      (result) => {
+        if (cancelled) return
+        setSession(result)
+        const items = result.challenge.task.items ?? []
+        if (result.challenge.activity_type === "order") setOrder(items.map((item) => item.id))
+      },
+      (caught: unknown) => {
+        if (!cancelled) setError(messageOf(caught, t("challengeContinueError")))
+      },
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [challengeId, pathId])
+
+  useEffect(() => {
+    if (session?.challenge.activity_type !== "build") return
+    let cancelled = false
+    void api.keywords().then(
+      (words) => {
+        if (cancelled) return
+        setKeywords(editorKeywords(locale, words.keywords))
+        setStdlib(words.stdlib)
+      },
+      () => undefined,
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [session?.challenge.activity_type, locale])
+
+  useEffect(() => {
+    expiredOnce.current = false
+    if (attemptClock == null || attemptStatus !== "open") {
+      setLeft(attemptClock)
+      return
+    }
+    const endsAt = Date.now() + attemptClock * 1000
+    const tick = () => setLeft(Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)))
+    tick()
+    const handle = window.setInterval(tick, 250)
+    return () => window.clearInterval(handle)
+  }, [attemptId, attemptClock, attemptStatus])
+
+  useEffect(() => {
+    if (!session || left !== 0 || attemptStatus !== "open" || session.attempt.time_limit_seconds == null) return
+    if (expiredOnce.current) return
+    expiredOnce.current = true
+    void run(() => api.expireAttempt(session.attempt.id))
+  }, [left, attemptId, attemptStatus, session])
+
+  function apply(result: LabSession) {
+    setSession(result)
+    setError("")
+    setNote(result.correct === false ? "Todavía no coincide." : "")
+    if (result.cases) setCases(result.cases)
+    if (result.diagnostics) setDiagnostics(result.diagnostics)
+    if (typeof result.output === "string") setOutput(result.output)
+    if (typeof result.points === "number" && typeof result.rank === "number") {
+      onStanding?.({ points: result.points, rank: result.rank })
+    }
+  }
+
+  async function run(action: () => Promise<LabSession>) {
+    setBusy(true)
+    setError("")
+    try {
+      apply(await action())
+    } catch (caught) {
+      setError(messageOf(caught, t("challengeContinueError")))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!session) {
+    return (
+      <div className="lab-challenge">
+        <div className="challenge-leave">
+          <button type="button" onClick={onDone}>
+            {t("backToRoute")}
+          </button>
+        </div>
+        <p className="notice">{t("openingChallenge")}</p>
+        <main className="lab-main">
+          {error ? <p className="error">{error}</p> : null}
+        </main>
+      </div>
+    )
+  }
+
+  const { challenge, attempt } = session
+  const activity = challenge.activity_type
+  const stages = stagesFor(activity)
+  const current = attempt.next_stage
+  const finished = attempt.status === "completed"
+  const timedOut = attempt.status === "abandoned" || (attempt.time_limit_seconds != null && left === 0)
+  const items = challenge.task.items ?? []
+  const itemText = new Map(items.map((item) => [item.id, item.text]))
+  const showCanvas = activity === "build" && (current === "construir" || current === "comprobar")
+  const tools = challenge.task.tools?.length ? challenge.task.tools : ["bloques"]
+  const specCases = challenge.task.cases ?? []
+  const buildMode = mode && tools.includes(mode) ? mode : (tools[0] ?? "bloques")
+
+  function move(index: number, delta: number) {
+    setOrder((currentOrder) => {
+      const next = currentOrder.slice()
+      const target = index + delta
+      if (target < 0 || target >= next.length) return currentOrder
+      const [item] = next.splice(index, 1)
+      next.splice(target, 0, item)
+      return next
+    })
+  }
+
+  function submitReason(event: FormEvent) {
+    event.preventDefault()
+    if (activity === "classify") {
+      void run(() => api.saveStage(attempt.id, "razonar", { choices }))
+      return
+    }
+    if (activity === "order") {
+      void run(() => api.saveStage(attempt.id, "razonar", { order }))
+      return
+    }
+    void run(() => api.saveStage(attempt.id, "razonar", { text }))
+  }
+
+  async function prove() {
+    if (buildMode === "bloques") {
+      await run(() => api.checkAttempt(attempt.id, workspace ?? {}))
+      return
+    }
+    const source = buildMode === "codigo" ? code : diagramSource
+    setBusy(true)
+    setError("")
+    try {
+      const imported = await api.importLab(source)
+      if (!imported.workspace) {
+        setDiagnostics(imported.diagnostics)
+        setNote(t("notYetMatch"))
+        return
+      }
+      apply(await api.checkAttempt(attempt.id, imported.workspace))
+    } catch (caught) {
+      setError(messageOf(caught, t("challengeContinueError")))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="lab-challenge" data-phone={phonePane}>
+      <div className="challenge-leave">
+        <button type="button" onClick={onDone}>
+          {t("backToRoute")}
+        </button>
+      </div>
+      <div className="lab-phone-tabs" role="tablist" aria-label={t("challengeSections")}>
+        {(
+          [
+            ["problema", t("problemTab")],
+            ["construccion", t("construction")],
+            ["ayuda", t("help")],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={phonePane === id}
+            onClick={() => setPhonePane(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <section className="enunciado">
+        <div className="enunciado-body">
+          <p className="enunciado-kicker">
+            {t("promptKicker")} · {ACTIVITY[activity] ? t(ACTIVITY[activity]) : activity} · {challenge.concept}
+          </p>
+          <h2>{challenge.title}</h2>
+          <p className="enunciado-text">{challenge.prompt}</p>
+        </div>
+        {attempt.status === "open" && left != null ? (
+          <p className={left <= 30 ? "timer timer-low" : "timer"} aria-live="polite">
+            <span>{t("timeWord")}</span>
+            {formatClock(left)}
+          </p>
+        ) : null}
+      </section>
+      <div className="lab-main path-play">
+        <section className="stage-column">
+          <div className="stage-pills" aria-label={t("stages")}>
+            {stages.map((stage) => {
+              const index = stages.indexOf(stage)
+              const currentIndex = stages.indexOf(current as StageName)
+              const state = finished || index < currentIndex ? "done" : index === currentIndex ? "current" : "ahead"
+              return (
+                <span key={stage} className={`stage-pill stage-${state}`}>
+                  {t(STAGE[stage])}
+                </span>
+              )
+            })}
+          </div>
+          <div className="stage-panel">
+            {timedOut ? (
+              <article className="result-card">
+                <p className="enunciado-kicker">{t("timeWord")}</p>
+                <h2>{t("timeUp")}</h2>
+                {attempt.elapsed_seconds != null ? (
+                  <p>{t("usedTime", { time: formatClock(attempt.elapsed_seconds) })}</p>
+                ) : null}
+                {attempt.finished_at ? <p>{formatWhen(attempt.finished_at)}</p> : null}
+                <p>{t("savedAgain")}</p>
+                <button type="button" className="primary" onClick={onDone}>
+                  {t("backToRoute")}
+                </button>
+              </article>
+            ) : null}
+            {finished ? (
+              <article className="result-card">
+                <p className="enunciado-kicker">{t("resultWord")}</p>
+                <h2>{t("challengeDone")}</h2>
+                {attempt.score != null ? <p className="result-score">{attempt.score}</p> : null}
+                {session.points != null && session.rank != null ? (
+                  <p>
+                    {t("scoreLine", { points: session.challenge.points, total: session.points, rank: session.rank })}
+                  </p>
+                ) : null}
+                {attempt.elapsed_seconds != null ? (
+                  <p>{t("answeredIn", { time: formatClock(attempt.elapsed_seconds) })}</p>
+                ) : null}
+                {attempt.finished_at ? <p>{formatWhen(attempt.finished_at)}</p> : null}
+                <p>{attempt.summary || t("alreadyClosed")}</p>
+                {attempt.prediction ? <p>{t("answerIs", { answer: attempt.prediction.answer })}</p> : null}
+                {attempt.reflection ? <blockquote>{attempt.reflection}</blockquote> : null}
+                <button type="button" className="primary" onClick={onDone}>
+                  {t("backToRoute")}
+                </button>
+              </article>
+            ) : null}
+            {!finished && !timedOut && current === "comprender" ? (
+              <>
+                <h2>{t("understand")}</h2>
+                <p>{t("understandNote")}</p>
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={busy}
+                  onClick={() => void run(() => api.saveStage(attempt.id, "comprender", { ack: true }))}
+                >
+                  {t("gotIt")}
+                </button>
+              </>
+            ) : null}
+            {!finished && !timedOut && current === "razonar" ? (
+              <form className="stage-form" onSubmit={submitReason}>
+                <h2>{t("reason")}</h2>
+                {challenge.task.question ? <p>{challenge.task.question}</p> : null}
+                {activity === "classify"
+                  ? items.map((item) => (
+                      <label key={item.id}>
+                        {item.text}
+                        <select
+                          value={choices[item.id] ?? ""}
+                          onChange={(event) =>
+                            setChoices((currentChoices) => ({ ...currentChoices, [item.id]: event.target.value }))
+                          }
+                        >
+                          <option value="">{t("choose")}</option>
+                          {(challenge.task.categories ?? []).map((category) => (
+                            <option key={category} value={category}>
+                              {category}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ))
+                  : null}
+                {activity === "order" ? (
+                  <ol className="order-list">
+                    {order.map((id, index) => (
+                      <li key={id} className="order-row">
+                        <span>{itemText.get(id) ?? id}</span>
+                        <button type="button" onClick={() => move(index, -1)} disabled={index === 0}>
+                          {t("moveUp")}
+                        </button>
+                        <button type="button" onClick={() => move(index, 1)} disabled={index === order.length - 1}>
+                          {t("moveDown")}
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                ) : null}
+                {activity === "build" || activity === "predict" ? (
+                  <label>
+                    {t("yourAnswer")}
+                    <input value={text} onChange={(event) => setText(event.target.value)} autoComplete="off" />
+                  </label>
+                ) : null}
+                {activity === "predict" && challenge.task.source ? (
+                  <pre className="lab-code">{spellText(locale, challenge.task.source)}</pre>
+                ) : null}
+                {note ? <p>{note}</p> : null}
+                <button
+                  type="submit"
+                  className="primary"
+                  disabled={busy || (activity === "classify" && items.some((item) => !choices[item.id]))}
+                >
+                  {activity === "build" || activity === "predict" ? t("reply") : t("check")}
+                </button>
+              </form>
+            ) : null}
+            {!finished && !timedOut && showCanvas ? (
+              <div className="build-stage">
+                <div className="build-work">
+                <h2>{current === "construir" ? t("build") : t("check")}</h2>
+                {tools.length > 1 ? (
+                  <div className="practice-actions" role="tablist" aria-label={t("tools")}>
+                    {tools.map((tool) => (
+                      <button
+                        key={tool}
+                        type="button"
+                        className={buildMode === tool ? "primary" : ""}
+                        aria-pressed={buildMode === tool}
+                        onClick={() => setMode(tool)}
+                      >
+                        {TOOL_LABEL[tool] ? t(TOOL_LABEL[tool]) : tool}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                {tools.includes("codigo") ? (
+                  <div className="stage-canvas is-build" hidden={buildMode !== "codigo"}>
+                    <CodeEditor
+                      source={code}
+                      keywords={keywords}
+                      stdlib={stdlib}
+                      fontSize={15}
+                      indentSize={4}
+                      theme="light"
+                      jump={null}
+                      breakpoints={[]}
+                      currentLine={null}
+                      onToggleBreakpoint={() => undefined}
+                      onChange={setCode}
+                      onCursor={() => undefined}
+                    />
+                  </div>
+                ) : null}
+                {tools.includes("diagrama") ? (
+                  <div className="stage-canvas is-build" hidden={buildMode !== "diagrama"}>
+                    <Composer
+                      embedded
+                      isolated
+                      active={buildMode === "diagrama"}
+                      incoming={null}
+                      allowedBlocks={challenge.allowed_blocks}
+                      onBack={() => undefined}
+                      onOpenInEditor={() => undefined}
+                      onSource={setDiagramSource}
+                    />
+                  </div>
+                ) : null}
+                {tools.includes("bloques") ? (
+                  <div className="stage-canvas is-build" hidden={buildMode !== "bloques"}>
+                    <BlockWorkspace
+                      onCount={() => undefined}
+                      onState={setWorkspace}
+                      allowed={challenge.allowed_blocks}
+                    />
+                  </div>
+                ) : null}
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={
+                    busy ||
+                    (buildMode === "bloques" && !workspace) ||
+                    (buildMode === "codigo" && code.trim() === "") ||
+                    (buildMode === "diagrama" && diagramSource.trim() === "")
+                  }
+                  onClick={() => void prove()}
+                >
+                  {t("prove")}
+                </button>
+                {cases ? (
+                  <ul className="case-list">
+                    {cases.map((item) => (
+                      <li key={item.name}>
+                        {item.passed ? t("passed") : t("mismatch")} · {item.name}
+                        <pre className="lab-output">{item.output}</pre>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                </div>
+                <aside className="build-cases" aria-label={t("testCases")}>
+                  <h3>{t("howToAdvance")}</h3>
+                  <ul className="build-spec">
+                    <li>{t("proveAll")}</li>
+                    <li>{t("outputExact")}</li>
+                    <li>{t("explainGate")}</li>
+                    <li>{t("stayCheck")}</li>
+                  </ul>
+                  {specCases.length > 0 ? (
+                    <>
+                      <h3>{t("casesWord")}</h3>
+                      <ul className="case-list">
+                        {specCases.map((item) => (
+                          <li key={item.name}>
+                            <strong>{item.name}</strong>
+                            <span>{item.inputs.length > 0 ? t("caseInputs", { values: item.inputs.join(", ") }) : t("noInputs")}</span>
+                            <pre className="lab-output">{item.expected_output}</pre>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+                </aside>
+              </div>
+            ) : null}
+            {!finished && !timedOut && activity === "predict" && current === "comprobar" ? (
+              <>
+                <h2>{t("check")}</h2>
+                <p>{t("predicted", { answer: attempt.prediction?.answer ?? "" })}</p>
+                {challenge.task.source ? <pre className="lab-code">{spellText(locale, challenge.task.source)}</pre> : null}
+                <button type="button" className="primary" disabled={busy} onClick={() => void run(() => api.runAttempt(attempt.id))}>
+                  {t("run")}
+                </button>
+              </>
+            ) : null}
+            {!finished && !timedOut && current === "explicar" ? (
+              <form
+                className="stage-form"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void run(() => api.closeAttempt(attempt.id, reflection))
+                }}
+              >
+                <h2>{t("explain")}</h2>
+                {output ? <pre className="lab-output">{output}</pre> : null}
+                {cases ? (
+                  <ul className="case-list">
+                    {cases.map((item) => (
+                      <li key={item.name}>
+                        {item.passed ? t("passed") : t("mismatch")} · {item.name}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                <label>
+                  {t("whatHappened")}
+                  <textarea value={reflection} onChange={(event) => setReflection(event.target.value)} rows={4} />
+                </label>
+                <button type="submit" className="primary" disabled={busy || reflection.trim().length < 12}>
+                  {t("finish")}
+                </button>
+              </form>
+            ) : null}
+            {diagnostics.length > 0 && !finished && !timedOut ? (
+              <ul className="lab-diagnostics">
+                {diagnostics.map((item, index) => (
+                  <li key={`${item.code}-${item.line}-${index}`} className={item.severity === "error" ? "error" : "warning"}>
+                    {item.message}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {error ? <p className="error">{error}</p> : null}
+            <AttemptHistory records={session.history ?? []} />
+          </div>
+        </section>
+        <aside className="mentor">
+          <p className="enunciado-kicker">{t("help")}</p>
+          <h2>{t("mentor")}</h2>
+          <p>
+            {attempt.hints_left} {attempt.hints_left === 1 ? t("hintOne") : t("hintMany")}
+          </p>
+          {attempt.hints.length === 0 ? <p>{t("noHelpYet")}</p> : null}
+          <ol className="hint-list">
+            {attempt.hints.map((hint, index) => (
+              <li key={`${hint.level}-${index}`} className={hint.solution ? "hint-solution" : undefined}>
+                {hint.body}
+              </li>
+            ))}
+          </ol>
+          <button
+            type="button"
+            disabled={busy || finished || timedOut || attempt.hints_left === 0}
+            onClick={() => void run(() => api.revealHint(attempt.id))}
+          >
+            {attempt.hints_left === 0
+              ? t("noHints")
+              : attempt.hints_left === 1 && attempt.solution_next
+                ? t("seeSolution")
+                : t("askHint")}
+          </button>
+        </aside>
+      </div>
+    </div>
+  )
+}

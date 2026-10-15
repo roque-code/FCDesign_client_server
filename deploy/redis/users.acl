@@ -1,0 +1,3 @@
+user default off
+user web on >traza-web-dev ~* &* +@all -@dangerous -flushall -flushdb -acl -config
+user runner on >traza-runner-dev ~traza:* &traza:* +@read +@write +@pubsub +@transaction +@connection +ping +info -@admin -flushall -flushdb -keys -acl -config

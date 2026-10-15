@@ -1,0 +1,83 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  language:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Dependencias
+        run: python -m pip install -e ".[dev,server]"
+      - name: Ruff
+        run: python -m ruff check language_core runner server
+      - name: Black
+        run: python -m black --check language_core runner server
+      - name: mypy del núcleo y del runner
+        run: python -m mypy language_core runner
+      - name: Pruebas del núcleo
+        run: python -m pytest
+      - name: Pruebas del runner
+        run: python -m pytest runner/tests -o addopts= -p no:cov
+
+  server:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: traza
+          POSTGRES_USER: traza
+          POSTGRES_PASSWORD: traza
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U traza -d traza"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: traza
+      POSTGRES_USER: traza
+      POSTGRES_PASSWORD: traza
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Dependencias
+        working-directory: .
+        run: python -m pip install -e ".[dev,server]"
+      - name: mypy del servidor
+        run: python -m mypy --config-file mypy.ini apps/executions apps/accounts apps/projects apps/audit apps/classroom apps/editor apps/flowcharts apps/language config apps/learning/runs.py apps/learning/views.py
+      - name: Pruebas del servidor
+        run: python -m pytest -q --tb=line
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Dependencias
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Pruebas
+        run: npm test
