@@ -1,0 +1,462 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		044E9B357FFAA93703F7DD61 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AAC4F049543AAFFB21A867D3 /* CoreGraphics.framework */; };
+		08934D99C7BA36A25587DC3B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4E7E30DA71D4A65DCC5E4BAB /* Assets.xcassets */; };
+		1CE217FCC37D4E1115F31DEB /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F36BDEB010F604903F352194 /* Security.framework */; };
+		53FB69319C2F054F9F44FDA7 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 39521FB744575C6B8BE9BBF4 /* main.mm */; };
+		5A5DE1115736E849718FD0F9 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2E2AE52578760A642E621093 /* UIKit.framework */; };
+		5EE748FA7935B87CAF2694C3 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = F2F8B6644381849C0624072D /* assets */; };
+		6571B6AAC6560927EC33503C /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8CB54E2386248BB59DF5C23C /* LaunchScreen.storyboard */; };
+		66EB85822F3EEB50764E37E4 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6297D5A4BC2A9A12CA3C521B /* Metal.framework */; };
+		864377C38BD79B7F34A18D26 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 98C9678D3D953C6DF2123C43 /* QuartzCore.framework */; };
+		90B1F2ADE203C8CB433028A9 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C40CEAD0FE861D9139B2D4BE /* WebKit.framework */; };
+		AA72618C6FB18EE0455DB95C /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 731BEA1077EA0C8E0C71D3AF /* libapp.a */; };
+		D0BD883626A5075456CC3BD2 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4E2BD03B94CF5381B089F029 /* MetalKit.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		154AC08400FDBE4EA52532FA /* traza-desktop_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "traza-desktop_iOS.entitlements"; sourceTree = "<group>"; };
+		2E2AE52578760A642E621093 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		39521FB744575C6B8BE9BBF4 /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
+		4E2BD03B94CF5381B089F029 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
+		4E7E30DA71D4A65DCC5E4BAB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		599EA6760D72B38A9D7056C4 /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
+		6297D5A4BC2A9A12CA3C521B /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		731BEA1077EA0C8E0C71D3AF /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
+		8CB54E2386248BB59DF5C23C /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		98C9678D3D953C6DF2123C43 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
+		AA1FE2FF072C473AF7ABDBEA /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
+		AAC4F049543AAFFB21A867D3 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
+		C40CEAD0FE861D9139B2D4BE /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
+		CD1EC6FD4BB6BD7EB7778ABA /* update.rs */ = {isa = PBXFileReference; path = update.rs; sourceTree = "<group>"; };
+		D445703FA5C8B748EA860EBD /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		D55F9E003E07BF45143076CA /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
+		F2F8B6644381849C0624072D /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
+		F36BDEB010F604903F352194 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		F8987CC3FB9BA4A3D363026F /* traza-desktop_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "traza-desktop_iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5634ABFC5254FD0FA446F63D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA72618C6FB18EE0455DB95C /* libapp.a in Frameworks */,
+				044E9B357FFAA93703F7DD61 /* CoreGraphics.framework in Frameworks */,
+				66EB85822F3EEB50764E37E4 /* Metal.framework in Frameworks */,
+				D0BD883626A5075456CC3BD2 /* MetalKit.framework in Frameworks */,
+				864377C38BD79B7F34A18D26 /* QuartzCore.framework in Frameworks */,
+				1CE217FCC37D4E1115F31DEB /* Security.framework in Frameworks */,
+				5A5DE1115736E849718FD0F9 /* UIKit.framework in Frameworks */,
+				90B1F2ADE203C8CB433028A9 /* WebKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		361EF88D48B5DD5C796E9673 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				F8987CC3FB9BA4A3D363026F /* traza-desktop_iOS.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		47EFEEE55B39441454186CAA /* bindings */ = {
+			isa = PBXGroup;
+			children = (
+				599EA6760D72B38A9D7056C4 /* bindings.h */,
+			);
+			path = bindings;
+			sourceTree = "<group>";
+		};
+		562A13DCE3A69FC0FB10AE0B = {
+			isa = PBXGroup;
+			children = (
+				F2F8B6644381849C0624072D /* assets */,
+				4E7E30DA71D4A65DCC5E4BAB /* Assets.xcassets */,
+				8CB54E2386248BB59DF5C23C /* LaunchScreen.storyboard */,
+				CDB068ACFCF081F996B5CF2F /* Externals */,
+				A677DB13CDF59F53F3752271 /* Sources */,
+				818B0C347C59A09275C56494 /* src */,
+				A1D38CED42ED4720358DB103 /* traza-desktop_iOS */,
+				9A3B5F1D150AE3F4DEDCD663 /* Frameworks */,
+				361EF88D48B5DD5C796E9673 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		818B0C347C59A09275C56494 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				D55F9E003E07BF45143076CA /* lib.rs */,
+				AA1FE2FF072C473AF7ABDBEA /* main.rs */,
+				CD1EC6FD4BB6BD7EB7778ABA /* update.rs */,
+			);
+			name = src;
+			path = ../../src;
+			sourceTree = "<group>";
+		};
+		9A3B5F1D150AE3F4DEDCD663 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				AAC4F049543AAFFB21A867D3 /* CoreGraphics.framework */,
+				731BEA1077EA0C8E0C71D3AF /* libapp.a */,
+				6297D5A4BC2A9A12CA3C521B /* Metal.framework */,
+				4E2BD03B94CF5381B089F029 /* MetalKit.framework */,
+				98C9678D3D953C6DF2123C43 /* QuartzCore.framework */,
+				F36BDEB010F604903F352194 /* Security.framework */,
+				2E2AE52578760A642E621093 /* UIKit.framework */,
+				C40CEAD0FE861D9139B2D4BE /* WebKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		A1D38CED42ED4720358DB103 /* traza-desktop_iOS */ = {
+			isa = PBXGroup;
+			children = (
+				D445703FA5C8B748EA860EBD /* Info.plist */,
+				154AC08400FDBE4EA52532FA /* traza-desktop_iOS.entitlements */,
+			);
+			path = "traza-desktop_iOS";
+			sourceTree = "<group>";
+		};
+		A5DEF79DAB6CDF90553DC4AB /* traza-desktop */ = {
+			isa = PBXGroup;
+			children = (
+				39521FB744575C6B8BE9BBF4 /* main.mm */,
+				47EFEEE55B39441454186CAA /* bindings */,
+			);
+			path = "traza-desktop";
+			sourceTree = "<group>";
+		};
+		A677DB13CDF59F53F3752271 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				A5DEF79DAB6CDF90553DC4AB /* traza-desktop */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		CDB068ACFCF081F996B5CF2F /* Externals */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Externals;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		D02BDEEBF0B1F5DA88407B12 /* traza-desktop_iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A8E0B8DC67D61F38B819ADB1 /* Build configuration list for PBXNativeTarget "traza-desktop_iOS" */;
+			buildPhases = (
+				247055E24D350FA9E2FC10ED /* Build Rust Code */,
+				90EBDA91C9127B1FB46CB340 /* Sources */,
+				D6E2D2BC31DC23EF608C06AA /* Resources */,
+				5634ABFC5254FD0FA446F63D /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "traza-desktop_iOS";
+			packageProductDependencies = (
+			);
+			productName = "traza-desktop_iOS";
+			productReference = F8987CC3FB9BA4A3D363026F /* traza-desktop_iOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		081F703E1B3003003D5731E2 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = B7048BEC39AC639F35B3912C /* Build configuration list for PBXProject "traza-desktop" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 562A13DCE3A69FC0FB10AE0B;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 361EF88D48B5DD5C796E9673 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				D02BDEEBF0B1F5DA88407B12 /* traza-desktop_iOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		D6E2D2BC31DC23EF608C06AA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				08934D99C7BA36A25587DC3B /* Assets.xcassets in Resources */,
+				6571B6AAC6560927EC33503C /* LaunchScreen.storyboard in Resources */,
+				5EE748FA7935B87CAF2694C3 /* assets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		247055E24D350FA9E2FC10ED /* Build Rust Code */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build Rust Code";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/Externals/x86_64/${CONFIGURATION}/libapp.a",
+				"$(SRCROOT)/Externals/arm64/${CONFIGURATION}/libapp.a",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "npm run -- tauri ios xcode-script -v --platform \"${PLATFORM_DISPLAY_NAME:?}\" --sdk-root \"${SDKROOT:?}\" --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration \"${CONFIGURATION:?}\" 0 ${ARCHS:?}\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		90EBDA91C9127B1FB46CB340 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				53FB69319C2F054F9F44FDA7 /* main.mm in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		104F916BE1F5AE81784B33AF /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = release;
+		};
+		3FDF28DFDEAC51B178CA9FA3 /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = debug;
+		};
+		42B1E6B48F22E0C7A75C6DFD /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ARCHS = (
+					arm64,
+				);
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "traza-desktop_iOS/traza-desktop_iOS.entitlements";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_BITCODE = NO;
+				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\".\"",
+				);
+				INFOPLIST_FILE = "traza-desktop_iOS/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = app.traza.desktop;
+				PRODUCT_NAME = Traza;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALID_ARCHS = arm64;
+			};
+			name = release;
+		};
+		8136E5122ABD2F70DB3E3D1B /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ARCHS = (
+					arm64,
+				);
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "traza-desktop_iOS/traza-desktop_iOS.entitlements";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_BITCODE = NO;
+				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\".\"",
+				);
+				INFOPLIST_FILE = "traza-desktop_iOS/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = app.traza.desktop;
+				PRODUCT_NAME = Traza;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALID_ARCHS = arm64;
+			};
+			name = debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A8E0B8DC67D61F38B819ADB1 /* Build configuration list for PBXNativeTarget "traza-desktop_iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8136E5122ABD2F70DB3E3D1B /* debug */,
+				42B1E6B48F22E0C7A75C6DFD /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+		B7048BEC39AC639F35B3912C /* Build configuration list for PBXProject "traza-desktop" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3FDF28DFDEAC51B178CA9FA3 /* debug */,
+				104F916BE1F5AE81784B33AF /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 081F703E1B3003003D5731E2 /* Project object */;
+}

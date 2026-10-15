@@ -142,7 +142,8 @@ describe("conexiones", () => {
     segun.loadExtraState?.({ casos: 3 })
     expect(segun.getInput("CASO3")).toBeTruthy()
     expect(segun.getInput("HACER3")).toBeTruthy()
-    segun.getInput("CASO1")?.connection?.connect(whole.outputConnection ?? null)
+    const plug = whole.outputConnection
+    if (plug) segun.getInput("CASO1")?.connection?.connect(plug)
     const saved = Blockly.serialization.workspaces.save(ws)
     const restored = new Blockly.Workspace()
     Blockly.serialization.workspaces.load(saved, restored)

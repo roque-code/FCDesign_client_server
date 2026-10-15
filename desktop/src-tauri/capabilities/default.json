@@ -1,0 +1,12 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "La ventana carga la misma interfaz y habla con el proceso local.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:default",
+    "deep-link:default",
+    "allow-server-fetch"
+  ]
+}

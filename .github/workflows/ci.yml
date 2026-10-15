@@ -15,15 +15,17 @@ jobs:
       - name: Dependencias
         run: python -m pip install -e ".[dev,server]"
       - name: Ruff
-        run: python -m ruff check language_core runner server
+        run: python -m ruff check language_core runner server local_host
       - name: Black
-        run: python -m black --check language_core runner server
+        run: python -m black --check language_core runner server local_host
       - name: mypy del núcleo y del runner
-        run: python -m mypy language_core runner
+        run: python -m mypy language_core runner local_host
       - name: Pruebas del núcleo
         run: python -m pytest
       - name: Pruebas del runner
         run: python -m pytest runner/tests -o addopts= -p no:cov
+      - name: Pruebas del intérprete local
+        run: python -m pytest local_host/tests -o addopts= -p no:cov
 
   server:
     runs-on: ubuntu-latest

@@ -2,16 +2,25 @@ import { useEffect, useState, type FormEvent } from "react"
 
 import { api, ApiError, type Account, type PendingConfirmation, type Role } from "../api"
 import { useT } from "../i18n"
+import { launchSearch } from "../runtime"
 
-type Mode = "entrar" | "crear" | "recuperar"
+type Mode = "entrar" | "crear" | "recuperar" | "nueva"
 
 function isPending(value: Account | PendingConfirmation): value is PendingConfirmation {
   return "pending_confirmation" in value && value.pending_confirmation
 }
 
+function readLaunch(): URLSearchParams {
+  const raw = launchSearch()
+  return new URLSearchParams(raw.startsWith("?") ? raw.slice(1) : raw)
+}
+
 export function AuthScreen({ onSuccess }: { onSuccess: (account: Account) => void }) {
   const t = useT()
-  const [mode, setMode] = useState<Mode>("entrar")
+  const launch = readLaunch()
+  const resetUid = launch.get("restablecer")
+  const resetToken = launch.get("token")
+  const [mode, setMode] = useState<Mode>(resetUid && resetToken ? "nueva" : "entrar")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [displayName, setDisplayName] = useState("")
@@ -22,7 +31,7 @@ export function AuthScreen({ onSuccess }: { onSuccess: (account: Account) => voi
   const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
+    const params = readLaunch()
     const uid = params.get("confirmar")
     const token = params.get("token")
     if (!uid || !token) return
@@ -63,6 +72,15 @@ export function AuthScreen({ onSuccess }: { onSuccess: (account: Account) => voi
     setMessage("")
     setPendingEmail("")
     try {
+      if (mode === "nueva") {
+        if (!resetUid || !resetToken) return
+        await api.confirmReset(resetUid, resetToken, password)
+        window.history.replaceState({}, "", window.location.pathname)
+        setPassword("")
+        setMode("entrar")
+        setMessage(t("passwordUpdated"))
+        return
+      }
       if (mode === "entrar") onSuccess(await api.login({ email, password }))
       if (mode === "crear") {
         const created = await api.register({ email, password, display_name: displayName, role })
@@ -117,6 +135,7 @@ export function AuthScreen({ onSuccess }: { onSuccess: (account: Account) => voi
               </label>
             </>
           )}
+          {mode !== "nueva" && (
           <label>
             {t("email")}
             <input
@@ -127,6 +146,7 @@ export function AuthScreen({ onSuccess }: { onSuccess: (account: Account) => voi
               required
             />
           </label>
+          )}
           {mode !== "recuperar" && (
             <label>
               {t("password")}
@@ -148,7 +168,7 @@ export function AuthScreen({ onSuccess }: { onSuccess: (account: Account) => voi
             </button>
           )}
           <button className="primary" type="submit">
-            {mode === "entrar" ? t("signIn") : mode === "crear" ? t("createAccount") : t("sendInstructions")}
+            {mode === "entrar" ? t("signIn") : mode === "crear" ? t("createAccount") : mode === "nueva" ? t("password") : t("sendInstructions")}
           </button>
         </form>
       </section>

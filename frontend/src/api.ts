@@ -466,10 +466,25 @@ function readCookie(name: string): string {
   return ""
 }
 
+let memoryCsrf = ""
+
+function csrfToken(): string {
+  return memoryCsrf || readCookie("csrftoken")
+}
+
+export function attemptCheckPath(attemptId: string): string {
+  return `/api/v1/learning/attempts/${attemptId}/check/`
+}
+
+function desktopProxyEnabled(): boolean {
+  return typeof window !== "undefined" && (window as Window & { __TRAZA_DESKTOP_PROXY__?: boolean }).__TRAZA_DESKTOP_PROXY__ === true
+}
+
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  if (desktopProxyEnabled()) return desktopRequest<T>(path, init)
   const headers = new Headers(init.headers)
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json")
-  const token = readCookie("csrftoken")
+  const token = csrfToken()
   if (token) headers.set("X-CSRFToken", token)
   const response = await fetch(path, {
     ...init,
@@ -486,6 +501,31 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
       error.code ?? "invalid",
       error.message ?? "No se pudo completar la solicitud.",
     )
+  }
+  return data as T
+}
+
+type ProxyReply = { status: number; body: string; csrf: string }
+
+async function desktopRequest<T>(path: string, init: RequestInit): Promise<T> {
+  const internals = (window as Window & { __TAURI_INTERNALS__?: { invoke: (command: string, args: Record<string, unknown>) => Promise<ProxyReply> } }).__TAURI_INTERNALS__
+  if (!internals) throw new ApiError(0, "local_missing", "El intérprete local no está disponible.")
+  const headers: Record<string, string> = {}
+  const token = csrfToken()
+  if (token) headers["X-CSRFToken"] = token
+  if (init.body) headers["Content-Type"] = "application/json"
+  const reply = await internals.invoke("server_fetch", {
+    path,
+    method: init.method ?? "GET",
+    body: typeof init.body === "string" ? init.body : null,
+    headers,
+  })
+  if (reply.csrf) memoryCsrf = reply.csrf
+  if (reply.status === 204) return undefined as T
+  const data = JSON.parse(reply.body || "{}") as { error?: { code?: string; message?: string } }
+  if (reply.status < 200 || reply.status >= 300) {
+    const error = data.error ?? {}
+    throw new ApiError(reply.status, error.code ?? "invalid", error.message ?? "No se pudo completar la solicitud.")
   }
   return data as T
 }
@@ -536,6 +576,11 @@ export const api = {
     request<{ message: string }>("/api/v1/auth/password-reset/", {
       method: "POST",
       body: JSON.stringify({ email }),
+    }),
+  confirmReset: (uid: string, token: string, password: string) =>
+    request<{ message: string }>("/api/v1/auth/password-reset/confirm/", {
+      method: "POST",
+      body: JSON.stringify({ uid, token, password }),
     }),
   projects: () => request<Page<Project>>("/api/v1/projects/?page_size=100"),
   createProject: (name: string) =>
@@ -711,7 +756,7 @@ export const api = {
       body: JSON.stringify({}),
     }),
   checkAttempt: (attemptId: string, workspace: object) =>
-    request<LabSession>(`/api/v1/learning/attempts/${attemptId}/check/`, {
+    request<LabSession>(attemptCheckPath(attemptId), {
       method: "POST",
       body: JSON.stringify({ workspace }),
     }),

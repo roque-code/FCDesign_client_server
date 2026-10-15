@@ -8,5 +8,8 @@ __pycache__/
 htmlcov/
 .env
 server/staticfiles/
-frontend/node_modules/
-frontend/dist/
+desktop/node_modules/
+desktop/src-tauri/target/
+desktop/src-tauri/binaries/
+desktop/src-tauri/gen/schemas/
+

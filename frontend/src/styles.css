@@ -932,15 +932,23 @@ button.fold {
   .diagram-print { display: block; width: 100%; height: auto; }
 }
 
-@media (max-width: 900px) {
-  body { overflow: auto; }
-  .shell { height: auto; min-height: 100%; overflow: visible; }
-  .workspace, .workspace.projects-hidden { grid-template-columns: 1fr; overflow: visible; }
-  .splitter { display: none; }
-  .workspace.diagram-hidden .diagram { height: auto; }
-  .stage { height: auto; overflow: visible; grid-template-rows: auto minmax(16rem, 42vh) auto 0 minmax(8rem, 22vh); }
-  .insight { height: auto; overflow: visible; grid-template-rows: auto 0 minmax(12rem, 40vh); }
-  .diagram { height: 70vh; border-left: 0; border-top: 1px solid var(--line); }
-  .panel { grid-template-columns: 1fr; height: auto; }
-  .sidebar, .panel { border-right: 0; border-bottom: 1px solid var(--line); }
+.zone-switch { display: none; align-items: center; gap: 0.2rem; padding: 0.16rem; border: 1px solid var(--line); border-radius: 12px; background: var(--sheet); }
+.zone-switch button { border: 0; background: transparent; border-radius: 8px; padding: 0.28rem 0.6rem; font-weight: 650; }
+.zone-switch button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+
+@media (max-width: 720px) {
+  .zone-switch { display: flex; }
+  .shell { height: 100%; overflow: hidden; }
+  .workspace, .workspace.projects-hidden {
+    grid-template-columns: minmax(0, 1fr);
+    overflow: hidden;
+  }
+  .workspace[data-zone="editor"] { grid-template-rows: auto minmax(0, 1fr); }
+  .workspace[data-zone="diagram"] { grid-template-rows: minmax(0, 1fr); }
+  .workspace > .splitter { display: none; }
+  .workspace[data-zone="editor"] .insight { display: none; }
+  .workspace[data-zone="diagram"] .sidebar,
+  .workspace[data-zone="diagram"] .stage { display: none; }
+  .workspace[data-zone="editor"] .sidebar { max-height: 34%; overflow: auto; }
+  .stage, .insight { height: 100%; min-height: 0; overflow: hidden; }
 }

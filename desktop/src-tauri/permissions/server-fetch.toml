@@ -1,0 +1,9 @@
+[[permission]]
+identifier = "allow-server-fetch"
+description = "La ventana pide al proceso local que hable con el servidor."
+commands.allow = ["server_fetch"]
+
+[[permission]]
+identifier = "deny-server-fetch"
+description = "Impide que la ventana hable con el servidor a través del proceso local."
+commands.deny = ["server_fetch"]

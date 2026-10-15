@@ -5,6 +5,7 @@ import { editorKeywords, spellText, starterSource } from "../dialect"
 import { useLocale, useT, type MessageKey } from "../i18n"
 import { Composer } from "../compose/Composer"
 import { CodeEditor } from "../editor/CodeEditor"
+import { inInstalledApp, localImport } from "../runtime"
 import { BlockWorkspace } from "./BlockWorkspace"
 import { formatClock, formatWhen, stagesFor, type StageName } from "./trace"
 
@@ -231,7 +232,7 @@ export function ChallengePlay({
     setBusy(true)
     setError("")
     try {
-      const imported = await api.importLab(source)
+      const imported = inInstalledApp() ? await localImport(source) : await api.importLab(source)
       if (!imported.workspace) {
         setDiagnostics(imported.diagnostics)
         setNote(t("notYetMatch"))

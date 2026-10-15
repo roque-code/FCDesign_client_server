@@ -1,0 +1,83 @@
+name: desktop
+
+on:
+  workflow_dispatch:
+
+jobs:
+  package:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Windows x64
+            runner: windows-latest
+            triple: x86_64-pc-windows-msvc
+          - label: Windows ARM
+            runner: windows-11-arm
+            triple: aarch64-pc-windows-msvc
+          - label: Mac M
+            runner: macos-latest
+            triple: aarch64-apple-darwin
+          - label: Mac Intel
+            runner: macos-15-intel
+            triple: x86_64-apple-darwin
+          - label: Linux x64
+            runner: ubuntu-24.04
+            triple: x86_64-unknown-linux-gnu
+          - label: Linux ARM
+            runner: ubuntu-24.04-arm
+            triple: aarch64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Firma, si hay certificados
+        shell: bash
+        run: sh desktop/scripts/sign.sh
+      - name: PyInstaller con el CPython del corredor
+        env:
+          TRAZA_TARGET_TRIPLE: ${{ matrix.triple }}
+        run: |
+          python -m pip install pyinstaller
+          python desktop/scripts/freeze_host.py
+      - name: Interfaz
+        working-directory: frontend
+        run: npm ci
+      - name: CLI de Tauri
+        working-directory: desktop
+        run: npm ci
+      - name: Icono
+        working-directory: desktop
+        run: npx tauri icon icons/icon.png
+      - name: Paquete
+        working-directory: desktop
+        shell: bash
+        env:
+          TRAZA_TARGET_TRIPLE: ${{ matrix.triple }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          for name in APPLE_SIGNING_IDENTITY APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD WINDOWS_CERTIFICATE WINDOWS_CERTIFICATE_PASSWORD TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD; do
+            eval "value=\${$name-}"
+            if [ -z "$value" ]; then
+              unset "$name"
+            fi
+          done
+          npx tauri build --config '{"bundle":{"externalBin":["binaries/traza-host"]}}'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: traza-${{ matrix.triple }}
+          path: |
+            desktop/src-tauri/target/release/bundle/**

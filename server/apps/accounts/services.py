@@ -76,6 +76,13 @@ class EmailConfirmTokenGenerator(PasswordResetTokenGenerator):
 email_confirm_token = EmailConfirmTokenGenerator()
 
 
+def _open_links(kind: str, uid: str, token: str) -> str:
+    """La web sigue siendo el enlace principal. El esquema abre la aplicación si está instalada."""
+    web = f"{settings.TRAZA_PUBLIC_ORIGIN}/?{urlencode({kind: uid, 'token': token})}"
+    app = f"traza://open/?{urlencode({kind: uid, 'token': token})}"
+    return f"{web}\n{app}"
+
+
 def confirmation_notice() -> str:
     message = "Te enviamos un enlace para confirmar el correo. Ábrelo para activar la cuenta."
     mailbox = settings.TRAZA_MAIL_UI
@@ -96,12 +103,11 @@ def _deliver(subject: str, body: str, recipient: str) -> None:
 def _send_confirmation(user: User) -> None:
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = email_confirm_token.make_token(user)
-    link = f"{settings.TRAZA_PUBLIC_ORIGIN}/?{urlencode({'confirmar': uid, 'token': token})}"
     _deliver(
         "Confirma tu correo en Traza",
         (
             "Para activar la cuenta confirma que este correo es tuyo.\n\n"
-            f"{link}\n\n"
+            f"{_open_links('confirmar', uid, token)}\n\n"
             "Si no creaste la cuenta, ignora este mensaje.\n"
         ),
         user.email,
@@ -237,7 +243,7 @@ def request_password_reset(email: object, ip_address: str | None) -> None:
     token = default_token_generator.make_token(user)
     _deliver(
         "Restablecer contraseña de Traza",
-        f"uid={uid}\ntoken={token}\n",
+        f"uid={uid}\ntoken={token}\n{_open_links('restablecer', uid, token)}\n",
         user.email,
     )
     record(

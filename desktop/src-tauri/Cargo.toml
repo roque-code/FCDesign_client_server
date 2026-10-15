@@ -1,0 +1,22 @@
+[package]
+name = "traza-desktop"
+version = "0.2.0"
+edition = "2021"
+description = "Ventana de escritorio de Traza"
+rust-version = "1.77"
+
+[lib]
+name = "traza_desktop"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+getrandom = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = [] }
+tauri-plugin-deep-link = "2"
+tauri-plugin-shell = "2"
+ureq = { version = "2", features = ["json"] }

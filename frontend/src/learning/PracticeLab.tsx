@@ -14,6 +14,16 @@ import { applyConsoleOutput } from "../console/output"
 import { editorKeywords, spellText } from "../dialect"
 import { useLocale, useT, type MessageKey } from "../i18n"
 import { highlightSource } from "../editor/highlight"
+import {
+  inInstalledApp,
+  localControlLab,
+  localImport,
+  localInputLab,
+  localLabRun,
+  localPreview,
+  localStartLab,
+  openLabEvents,
+} from "../runtime"
 import { keywordSet } from "../words"
 import { BlockWorkspace } from "./BlockWorkspace"
 import { canvasSignature } from "./canvasSignature"
@@ -162,7 +172,7 @@ export function PracticeLab() {
     if (signature === previewSignature.current) return
     let cancelled = false
     const handle = window.setTimeout(() => {
-      void api.previewLab(workspace).then(
+      void (inInstalledApp() ? localPreview(workspace) : api.previewLab(workspace)).then(
         (result) => {
           if (cancelled) return
           previewSignature.current = signature
@@ -286,7 +296,7 @@ export function PracticeLab() {
 
   function openStream(id: string) {
     streamRef.current?.close()
-    const sourceStream = new EventSource(`/api/v1/learning/runs/${id}/events/`)
+    const sourceStream = openLabEvents(id)
     streamRef.current = sourceStream
     const ready = new Promise<void>((resolve) => {
       const finish = () => resolve()
@@ -326,7 +336,7 @@ export function PracticeLab() {
           : current,
       )
       if (missed) {
-        void api.labRun(id).then((result) => {
+        void (inInstalledApp() ? localLabRun(id) : api.labRun(id)).then((result) => {
           seen.current = Math.max(seen.current, result.event_cursor ?? cursor)
           setRun((current) => (current && current.id === id ? { ...current, ...result, id } : current))
         })
@@ -357,11 +367,13 @@ export function PracticeLab() {
     const key = JSON.stringify(workspace)
     setFrozen(key)
     try {
-      const result = await api.startLab(workspace)
+      const result = inInstalledApp() ? await localStartLab(workspace) : await api.startLab(workspace)
       remember(result)
       if (result.status === "paused" && result.id) {
         await openStream(result.id)
-        remember(await api.controlLab(result.id, "continue"))
+        remember(
+          inInstalledApp() ? await localControlLab(result.id, "continue") : await api.controlLab(result.id, "continue"),
+        )
       } else if (result.id) {
         void openStream(result.id)
       } else {
@@ -379,7 +391,7 @@ export function PracticeLab() {
     setBusy(true)
     setRunError("")
     try {
-      remember(await api.controlLab(run.id, action))
+      remember(inInstalledApp() ? await localControlLab(run.id, action) : await api.controlLab(run.id, action))
     } catch (caught) {
       setRunError(messageOf(caught, t("labRunError")))
     } finally {
@@ -393,7 +405,7 @@ export function PracticeLab() {
     setBusy(true)
     setRunError("")
     try {
-      remember(await api.inputLab(run.id, input))
+      remember(inInstalledApp() ? await localInputLab(run.id, input) : await api.inputLab(run.id, input))
       setInput("")
     } catch (caught) {
       setRunError(messageOf(caught, t("labRunError")))
@@ -525,7 +537,7 @@ export function PracticeLab() {
         setSaveNote("")
         return
       }
-      const imported = await api.importLab(source)
+      const imported = inInstalledApp() ? await localImport(source) : await api.importLab(source)
       if (!imported.workspace) {
         const text = imported.diagnostics
           .map((item) => item.message)

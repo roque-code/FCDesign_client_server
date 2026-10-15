@@ -17,6 +17,19 @@ import { FlowView } from "../diagram/FlowView"
 import { CodeEditor } from "../editor/CodeEditor"
 import { editorKeywords } from "../dialect"
 import { useLocale, useT, type Locale } from "../i18n"
+import {
+  inInstalledApp,
+  localControl,
+  localDebug,
+  localExecute,
+  localExecution,
+  localFlowchart,
+  localInput,
+  localInspect,
+  localValidate,
+  openEditorEvents,
+  type LanguageBody,
+} from "../runtime"
 import { AccountIdentity } from "../shell/Identity"
 import { CommunitiesPanel } from "./Communities"
 import { stdlibHelp } from "./stdlibHelp"
@@ -77,6 +90,8 @@ export function Workbench({
   const [projectsWidth, setProjectsWidth] = useState(256)
   const [diagramOpen, setDiagramOpen] = useState(true)
   const [diagramWidth, setDiagramWidth] = useState(448)
+  const [zone, setZone] = useState<"editor" | "diagram">("editor")
+  const [narrow, setNarrow] = useState(() => window.matchMedia("(max-width: 720px)").matches)
   const [consoleHeight, setConsoleHeight] = useState(176)
   const [debugHeight, setDebugHeight] = useState(220)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -105,6 +120,8 @@ export function Workbench({
   const streamRef = useRef<EventSource | null>(null)
   const seen = useRef(0)
   const diagramToken = useRef(0)
+  const sourceRef = useRef("")
+  const profileKey = useRef("strict")
   const pendingSave = useRef<{ id: string; text: string } | null>(null)
   const consoleRef = useRef<HTMLPreElement>(null)
   const settingsRef = useRef<HTMLDivElement>(null)
@@ -126,6 +143,14 @@ export function Workbench({
   useEffect(() => {
     document.documentElement.dataset.theme = prefs.theme
   }, [prefs.theme])
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 720px)")
+    const apply = () => setNarrow(query.matches)
+    apply()
+    query.addEventListener("change", apply)
+    return () => query.removeEventListener("change", apply)
+  }, [])
 
   useEffect(() => {
     if (account.role !== "teacher") setCommunitiesOpen(false)
@@ -231,6 +256,8 @@ export function Workbench({
       .then((algorithm) => {
         if (selectedId.current !== algorithm.id) return
         sourceOwner.current = algorithm.id
+        sourceRef.current = algorithm.source
+        profileKey.current = algorithm.language_profile || "strict"
         setSource(algorithm.source)
         languageChoice.current = {
           requireSemicolons: algorithm.require_semicolons,
@@ -320,10 +347,20 @@ export function Workbench({
     setDiagnostics(result.diagnostics)
   }
 
+  function currentProfile(): LanguageBody {
+    return {
+      profile_key: profileKey.current,
+      require_semicolons: languageChoice.current.requireSemicolons,
+      index_base: languageChoice.current.indexBase,
+    }
+  }
+
   function loadDiagram(id: string) {
     const token = ++diagramToken.current
-    return api
-      .flowchart(id)
+    const pending = inInstalledApp()
+      ? localFlowchart(sourceRef.current, currentProfile())
+      : api.flowchart(id)
+    return pending
       .then((payload) => {
         if (selectedId.current !== id || token !== diagramToken.current) return
         setGraph(payload.graph)
@@ -335,11 +372,11 @@ export function Workbench({
 
   function openStream(id: string) {
     streamRef.current?.close()
-    const source = new EventSource(`/api/v1/executions/${id}/events/`)
-    streamRef.current = source
+    const stream = openEditorEvents(id)
+    streamRef.current = stream
     const ready = new Promise<void>((resolve) => {
       const finish = () => resolve()
-      source.addEventListener("open", finish, { once: true })
+      stream.addEventListener("open", finish, { once: true })
       window.setTimeout(finish, 400)
     })
     const apply = (event: Event) => {
@@ -376,15 +413,16 @@ export function Workbench({
       )
       if (missed && data.execution_id) {
         const executionId = data.execution_id
-        void api.execution(executionId).then((result) => {
+        const read = inInstalledApp() ? localExecution(executionId) : api.execution(executionId)
+        void read.then((result) => {
           seen.current = Math.max(seen.current, result.event_cursor ?? cursor)
           setExecution((current) => (current && current.id === executionId ? { ...current, ...result } : current))
         })
       }
-      if (["completed", "error", "cancelled", "timeout"].includes(data.status)) source.close()
+      if (["completed", "error", "cancelled", "timeout"].includes(data.status)) stream.close()
     }
     for (const name of ["paused", "output", "input_requested", "finished", "error", "cancelled"]) {
-      source.addEventListener(name, apply)
+      stream.addEventListener(name, apply)
     }
     return ready
   }
@@ -395,6 +433,7 @@ export function Workbench({
 
   function edit(next: string) {
     sourceOwner.current = algorithmId
+    sourceRef.current = next
     setSource(next)
     setDirty(true)
   }
@@ -492,6 +531,7 @@ export function Workbench({
   function clearOpenAlgorithm() {
     selectedId.current = ""
     setAlgorithmId("")
+    sourceRef.current = ""
     setSource("")
     setDirty(false)
     setSaveState({ kind: "idle" })
@@ -529,7 +569,9 @@ export function Workbench({
   async function validate() {
     setError("")
     await flushSource()
-    const result = await api.validate(algorithmId)
+    const result = inInstalledApp()
+      ? await localValidate(source, currentProfile())
+      : await api.validate(algorithmId)
     setDiagnostics(result.diagnostics)
   }
 
@@ -539,11 +581,15 @@ export function Workbench({
     setPlaying(true)
     try {
       await flushSource()
-      const result = await api.execute(algorithmId)
+      const result = inInstalledApp()
+        ? await localExecute(source, currentProfile())
+        : await api.execute(algorithmId)
       remember(result)
       if (result.status === "paused") {
         await openStream(result.id)
-        const finished = await api.control(result.id, "continue")
+        const finished = inInstalledApp()
+          ? await localControl(result.id, "continue")
+          : await api.control(result.id, "continue")
         remember(finished)
       }
     } catch (caught) {
@@ -559,7 +605,9 @@ export function Workbench({
     setSlice("")
     try {
       await flushSource()
-      const result = await api.debug(algorithmId, breakpoints)
+      const result = inInstalledApp()
+        ? await localDebug(source, currentProfile(), breakpoints)
+        : await api.debug(algorithmId, breakpoints)
       remember(result)
       openStream(result.id)
     } catch (caught) {
@@ -571,7 +619,9 @@ export function Workbench({
     if (!execution) return
     setError("")
     try {
-      const result = await api.control(execution.id, action, breakpoints)
+      const result = inInstalledApp()
+        ? await localControl(execution.id, action, breakpoints)
+        : await api.control(execution.id, action, breakpoints)
       remember(result)
     } catch (caught) {
       setError(messageOf(caught, t("requestError")))
@@ -585,7 +635,7 @@ export function Workbench({
     setBreakpoints(next)
     if (algorithmId) marks.current[algorithmId] = next
     if (execution?.debug && execution.status === "paused") {
-      void api.control(execution.id, "breakpoints", next).then(remember).catch((caught: unknown) => {
+      void (inInstalledApp() ? localControl(execution.id, "breakpoints", next) : api.control(execution.id, "breakpoints", next)).then(remember).catch((caught: unknown) => {
         setError(messageOf(caught, t("requestError")))
       })
     }
@@ -593,14 +643,18 @@ export function Workbench({
 
   async function showArray(name: string) {
     if (!execution) return
-    const chunk = await api.inspect(execution.id, name)
+    const chunk = inInstalledApp()
+      ? await localInspect(execution.id, name)
+      : await api.inspect(execution.id, name)
     setSlice(`${name} [${chunk.base + chunk.start}…]: ${chunk.values.join(", ")}`)
   }
 
   async function sendInput(event: FormEvent) {
     event.preventDefault()
     if (!execution) return
-    const result = await api.sendInput(execution.id, input)
+    const result = inInstalledApp()
+      ? await localInput(execution.id, input)
+      : await api.sendInput(execution.id, input)
     setExecution(result)
     setDiagnostics(result.diagnostics)
     setInput("")
@@ -648,7 +702,13 @@ export function Workbench({
           savedLanguage.current = { ...languageChoice.current }
           setRequireSemicolons(algorithm.require_semicolons)
           setIndexBase(algorithm.index_base)
-          const checked = await api.validate(algorithm.id)
+          const checked = inInstalledApp()
+            ? await localValidate(source, {
+                profile_key: profileKey.current,
+                require_semicolons: snapshot.requireSemicolons,
+                index_base: snapshot.indexBase,
+              })
+            : await api.validate(algorithm.id)
           setDiagnostics(checked.diagnostics)
           await loadDiagram(algorithm.id)
         }
@@ -778,6 +838,14 @@ export function Workbench({
           <AccountIdentity account={account} />
         </div>
         <div className="actions">
+          <div className="zone-switch" role="tablist" aria-label={t("editor")}>
+            <button type="button" aria-pressed={zone === "editor"} onClick={() => setZone("editor")}>
+              {t("editor")}
+            </button>
+            <button type="button" aria-pressed={zone === "diagram"} onClick={() => setZone("diagram")}>
+              {t("diagram")}
+            </button>
+          </div>
           <button className="top-action" type="button" onClick={onOpenLab}>
             {t("lab")}
           </button>
@@ -957,6 +1025,7 @@ export function Workbench({
       {meta?.notice && <p className="notice">{meta.notice}</p>}
       <div
         className={["workspace", projectsOpen ? "" : "projects-hidden", diagramOpen ? "" : "diagram-hidden"].filter(Boolean).join(" ")}
+        data-zone={narrow ? zone : "both"}
         ref={workspaceRef}
         style={{ "--projects-width": `${projectsWidth}px`, "--diagram-width": `${diagramWidth}px` } as CSSProperties}
       >
