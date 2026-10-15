@@ -38,6 +38,11 @@ jobs:
         with:
           node-version: "22"
       - uses: dtolnay/rust-toolchain@stable
+      - name: Librerías de Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
       - name: Firma, si hay certificados
         shell: bash
         run: sh desktop/scripts/sign.sh
@@ -75,7 +80,11 @@ jobs:
               unset "$name"
             fi
           done
-          npx tauri build --config '{"bundle":{"externalBin":["binaries/traza-host"]}}'
+          if [ "$(uname -s)" = "Linux" ]; then
+            npx tauri build --config '{"bundle":{"externalBin":["binaries/traza-host"],"targets":["deb","appimage"]}}'
+          else
+            npx tauri build --config '{"bundle":{"externalBin":["binaries/traza-host"]}}'
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: traza-${{ matrix.triple }}
