@@ -6,8 +6,10 @@ import json
 import threading
 import urllib.error
 import urllib.request
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
+from local_host.proxy import ApiProxy
 from local_host.serve import LocalServer
 
 SOURCE = """Algoritmo Demo
@@ -142,3 +144,48 @@ def test_the_proxy_refuses_paths_outside_the_api() -> None:
             assert exc.code == 404
     finally:
         server.shutdown()
+
+
+class _CsrfApi(BaseHTTPRequestHandler):
+    def log_message(self, fmt: str, *args: object) -> None:
+        return
+
+    def do_GET(self) -> None:  # noqa: N802
+        body = b'{"ok":true}'
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Set-Cookie", "csrftoken=token-fijo; Path=/")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_POST(self) -> None:  # noqa: N802
+        cookie = self.headers.get("Cookie", "")
+        token = self.headers.get("X-CSRFToken", "")
+        ok = cookie == "csrftoken=token-fijo" and token == "token-fijo"
+        body = b'{"ok":true}' if ok else b'{"error":"csrf"}'
+        self.send_response(200 if ok else 403)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+
+def test_an_unsafe_call_fetches_csrf_when_the_jar_is_empty() -> None:
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), _CsrfApi)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    try:
+        port = httpd.server_address[1]
+        proxy = ApiProxy(f"http://127.0.0.1:{port}")
+        status, payload, csrf = proxy.forward(
+            "/api/v1/auth/login/",
+            "POST",
+            b"{}",
+            {"X-CSRFToken": ""},
+        )
+        assert status == 200
+        assert json.loads(payload) == {"ok": True}
+        assert csrf == "token-fijo"
+    finally:
+        httpd.shutdown()

@@ -27,6 +27,7 @@ _HOP = frozenset(
         "content-length",
     }
 )
+_UNSAFE = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 
 class ApiProxy:
@@ -52,13 +53,9 @@ class ApiProxy:
         }
         request_body = body if chosen != "GET" else None
         with self._lock:
-            token = _csrf(self._jar)
-            if (
-                token
-                and "X-CSRFToken" not in outbound
-                and not any(key.lower() == "x-csrftoken" for key in outbound)
-            ):
-                outbound["X-CSRFToken"] = token
+            if chosen in _UNSAFE:
+                self._prime_csrf()
+            _stamp_csrf(outbound, _csrf(self._jar))
             request = urllib.request.Request(
                 url, data=request_body, headers=outbound, method=chosen
             )
@@ -72,6 +69,28 @@ class ApiProxy:
             except (urllib.error.URLError, TimeoutError) as exc:
                 raise HostError("No se alcanzó el servidor.", code="conflict", status=409) from exc
             return status, payload, _csrf(self._jar)
+
+    def _prime_csrf(self) -> None:
+        """Pide la cookie si el arranque no alcanzó el servidor."""
+        if _csrf(self._jar):
+            return
+        request = urllib.request.Request(f"{self.origin}/api/v1/auth/csrf/", method="GET")
+        try:
+            with self._opener.open(request, timeout=30) as response:
+                response.read()
+        except urllib.error.HTTPError as exc:
+            exc.read()
+        except (urllib.error.URLError, TimeoutError) as exc:
+            raise HostError("No se alcanzó el servidor.", code="conflict", status=409) from exc
+
+
+def _stamp_csrf(headers: dict[str, str], token: str) -> None:
+    if not token:
+        return
+    stale = [key for key in headers if key.lower() == "x-csrftoken"]
+    for key in stale:
+        del headers[key]
+    headers["X-CSRFToken"] = token
 
 
 def _csrf(jar: http.cookiejar.CookieJar) -> str:

@@ -943,12 +943,26 @@ button.fold {
     grid-template-columns: minmax(0, 1fr);
     overflow: hidden;
   }
-  .workspace[data-zone="editor"] { grid-template-rows: auto minmax(0, 1fr); }
+  /* La fila no puede medirse con el contenido: si no, proyectos crece,
+     el editor queda debajo del borde y el hueco se ve como un bloque gris. */
+  .workspace[data-zone="editor"] { grid-template-rows: minmax(0, 34%) minmax(0, 1fr); }
   .workspace[data-zone="diagram"] { grid-template-rows: minmax(0, 1fr); }
   .workspace > .splitter { display: none; }
   .workspace[data-zone="editor"] .insight { display: none; }
   .workspace[data-zone="diagram"] .sidebar,
   .workspace[data-zone="diagram"] .stage { display: none; }
-  .workspace[data-zone="editor"] .sidebar { max-height: 34%; overflow: auto; }
+  .workspace[data-zone="editor"] .sidebar {
+    height: 100%;
+    max-height: none;
+    min-height: 0;
+    overflow: auto;
+  }
   .stage, .insight { height: 100%; min-height: 0; overflow: hidden; }
+  .stage {
+    grid-template-rows: auto minmax(0, 1fr) auto 6px minmax(3.25rem, 0.42fr);
+  }
+  .insight {
+    grid-template-rows: minmax(0, 1fr) 6px minmax(3.25rem, var(--debug-height, 14rem));
+  }
+  .toolbar { flex-wrap: nowrap; overflow-x: auto; }
 }
