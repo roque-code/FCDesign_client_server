@@ -42,7 +42,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf pkg-config fakeroot libfuse2
       - name: Firma, si hay certificados
         shell: bash
         run: sh desktop/scripts/sign.sh
@@ -73,6 +73,7 @@ jobs:
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPIMAGE_EXTRACT_AND_RUN: "1"
         run: |
           for name in APPLE_SIGNING_IDENTITY APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD WINDOWS_CERTIFICATE WINDOWS_CERTIFICATE_PASSWORD TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD; do
             eval "value=\${$name-}"
@@ -80,8 +81,36 @@ jobs:
               unset "$name"
             fi
           done
+          report() {
+            title="$1"
+            level="$2"
+            file="$3"
+            tail -n 40 "$file"
+            tail -n 25 "$file" | while IFS= read -r line; do
+              line=${line//::/.}
+              echo "::$level title=$title::$line"
+            done
+          }
           if [ "$(uname -s)" = "Linux" ]; then
-            npx tauri build --config '{"bundle":{"externalBin":["binaries/traza-host"],"targets":["deb","appimage"]}}'
+            set +e
+            npx tauri build --config '{"bundle":{"externalBin":["binaries/traza-host"],"targets":["deb"]}}' >"$RUNNER_TEMP/deb.log" 2>&1
+            code=$?
+            set -e
+            if [ "$code" -ne 0 ]; then
+              report "Paquete deb" error "$RUNNER_TEMP/deb.log"
+              exit "$code"
+            fi
+            tail -n 20 "$RUNNER_TEMP/deb.log"
+            set +e
+            npx tauri build --bundles appimage --config '{"bundle":{"externalBin":["binaries/traza-host"]}}' >"$RUNNER_TEMP/appimage.log" 2>&1
+            code=$?
+            set -e
+            if [ "$code" -ne 0 ]; then
+              report "AppImage" warning "$RUNNER_TEMP/appimage.log"
+              echo "El .deb quedó listo. El AppImage no se generó."
+            else
+              tail -n 20 "$RUNNER_TEMP/appimage.log"
+            fi
           else
             npx tauri build --config '{"bundle":{"externalBin":["binaries/traza-host"]}}'
           fi
