@@ -4,6 +4,7 @@ from apps.projects.views import (
     AlgorithmDetailView,
     AlgorithmListView,
     AlgorithmSaveView,
+    AlgorithmTranslateView,
     AlgorithmValidateView,
     FolderDetailView,
     FolderListView,
@@ -34,6 +35,11 @@ urlpatterns = [
         "algorithms/<uuid:algorithm_id>/validate/",
         AlgorithmValidateView.as_view(),
         name="algorithm-validate",
+    ),
+    path(
+        "algorithms/<uuid:algorithm_id>/translate/",
+        AlgorithmTranslateView.as_view(),
+        name="algorithm-translate",
     ),
     path(
         "algorithms/<uuid:algorithm_id>/versions/",

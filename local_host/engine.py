@@ -16,6 +16,7 @@ from language_core.flowchart import build
 from language_core.grammar import LanguageProfile, profile_from_mapping
 from language_core.interpreter import compile_source
 from language_core.runtime import Limits
+from language_core.translate import translate_source
 from runner.protocol import TERMINAL_EVENTS, diagnostic_to_json, sse_frame
 
 MAX_SOURCE = 64 * 1024
@@ -66,6 +67,22 @@ class Host:
         source, profile = _source_and_profile(body)
         compiled = compile_source(source, profile)
         return {"diagnostics": [_diagnostic(item) for item in compiled.diagnostics]}
+
+    def translate(self, body: dict[str, Any]) -> dict[str, object]:
+        source, profile = _source_and_profile(body)
+        result = translate_source(source, profile)
+        return {
+            "diagnostics": [_diagnostic(item) for item in result.diagnostics],
+            "translations": [
+                {
+                    "language": item.language,
+                    "label": item.label,
+                    "extension": item.extension,
+                    "code": item.code,
+                }
+                for item in result.translations
+            ],
+        }
 
     def flowchart(self, body: dict[str, Any]) -> dict[str, object]:
         source, profile = _source_and_profile(body)

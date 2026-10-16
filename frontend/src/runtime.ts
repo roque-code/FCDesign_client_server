@@ -1,4 +1,12 @@
-import { ApiError, type Diagnostic, type Execution, type FlowGraph, type LabPreview, type LabRun } from "./api"
+import {
+  ApiError,
+  type Diagnostic,
+  type Execution,
+  type FlowGraph,
+  type LabPreview,
+  type LabRun,
+  type TranslationResult,
+} from "./api"
 
 export type LocalEndpoint = {
   origin: string
@@ -75,6 +83,10 @@ export function launchSearch(): string {
 
 export function localValidate(source: string, profile: LanguageBody): Promise<{ diagnostics: Diagnostic[] }> {
   return localJson("/local/v1/validate", { source, profile })
+}
+
+export function localTranslate(source: string, profile: LanguageBody): Promise<TranslationResult> {
+  return localJson("/local/v1/translate", { source, profile })
 }
 
 export function localFlowchart(

@@ -55,6 +55,18 @@ export type Algorithm = {
   updated_at: string
 }
 
+export type Translation = {
+  language: string
+  label: string
+  extension: string
+  code: string
+}
+
+export type TranslationResult = {
+  diagnostics: Diagnostic[]
+  translations: Translation[]
+}
+
 export type Diagnostic = {
   severity: string
   code: string
@@ -618,6 +630,8 @@ export const api = {
     }),
   validate: (id: string) =>
     request<{ diagnostics: Diagnostic[] }>(`/api/v1/algorithms/${id}/validate/`, { method: "POST" }),
+  translate: (id: string) =>
+    request<TranslationResult>(`/api/v1/algorithms/${id}/translate/`, { method: "POST" }),
   execute: (id: string) => request<Execution>(`/api/v1/algorithms/${id}/execute/`, { method: "POST" }),
   execution: (id: string) => request<Execution>(`/api/v1/executions/${id}/`),
   debug: (id: string, breakpoints: number[]) =>

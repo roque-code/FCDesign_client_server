@@ -34,6 +34,7 @@ from apps.projects.services import (
 )
 from config.pagination import TrazaPagination
 from language_core import compile_source
+from language_core.translate import translate_source
 
 
 class ProjectListView(APIView):
@@ -140,6 +141,27 @@ class AlgorithmValidateView(APIView):
         compiled = compile_source(algorithm.source, profile)
         return Response(
             {"diagnostics": [diagnostic_payload(item) for item in compiled.diagnostics]}
+        )
+
+
+class AlgorithmTranslateView(APIView):
+    def post(self, request: Request, algorithm_id) -> Response:
+        algorithm = get_algorithm(request.user, algorithm_id)
+        profile, _config = profile_for_algorithm(algorithm)
+        result = translate_source(algorithm.source, profile)
+        return Response(
+            {
+                "diagnostics": [diagnostic_payload(item) for item in result.diagnostics],
+                "translations": [
+                    {
+                        "language": item.language,
+                        "label": item.label,
+                        "extension": item.extension,
+                        "code": item.code,
+                    }
+                    for item in result.translations
+                ],
+            }
         )
 
 

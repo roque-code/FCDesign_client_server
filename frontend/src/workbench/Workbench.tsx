@@ -7,6 +7,7 @@ import {
   type Algorithm,
   type Diagnostic,
   type Execution,
+  type Translation,
   type FlowGraph,
   type Meta,
   type Preferences,
@@ -26,12 +27,14 @@ import {
   localFlowchart,
   localInput,
   localInspect,
+  localTranslate,
   localValidate,
   openEditorEvents,
   type LanguageBody,
 } from "../runtime"
 import { AccountIdentity } from "../shell/Identity"
 import { CommunitiesPanel } from "./Communities"
+import { TranslateDialog } from "./TranslateDialog"
 import { stdlibHelp } from "./stdlibHelp"
 
 const AUTOSAVE_MS = 3000
@@ -103,6 +106,9 @@ export function Workbench({
   const [breakpoints, setBreakpoints] = useState<number[]>([])
   const [slice, setSlice] = useState("")
   const [playing, setPlaying] = useState(false)
+  const [translateOpen, setTranslateOpen] = useState(false)
+  const [translations, setTranslations] = useState<Translation[]>([])
+  const [translateBusy, setTranslateBusy] = useState(false)
   const [graph, setGraph] = useState<FlowGraph | null>(null)
   const [diagramNote, setDiagramNote] = useState("")
   const [requireSemicolons, setRequireSemicolons] = useState(true)
@@ -578,6 +584,26 @@ export function Workbench({
       ? await localValidate(source, currentProfile())
       : await api.validate(algorithmId)
     setDiagnostics(result.diagnostics)
+  }
+
+  async function translate() {
+    setError("")
+    setTranslateOpen(true)
+    setTranslateBusy(true)
+    setTranslations([])
+    try {
+      await flushSource()
+      const result = inInstalledApp()
+        ? await localTranslate(source, currentProfile())
+        : await api.translate(algorithmId)
+      setDiagnostics(result.diagnostics)
+      setTranslations(result.translations)
+    } catch (caught) {
+      setError(messageOf(caught, t("requestError")))
+      setTranslateOpen(false)
+    } finally {
+      setTranslateBusy(false)
+    }
   }
 
   async function execute() {
@@ -1225,6 +1251,9 @@ export function Workbench({
               <button type="button" onClick={() => void validate()} disabled={!algorithmId || playing}>
                 {t("validate")}
               </button>
+              <button type="button" onClick={() => void translate()} disabled={!algorithmId || playing || translateBusy}>
+                {t("translate")}
+              </button>
               <button className="primary" type="button" onClick={() => void execute()} disabled={!algorithmId || playing}>
                 {t("run")}
               </button>
@@ -1445,6 +1474,15 @@ export function Workbench({
           </aside>
         </div>
       </div>
+      {translateOpen && (
+        <TranslateDialog
+          translations={translations}
+          diagnostics={diagnostics}
+          busy={translateBusy}
+          filename={algorithms.find((item) => item.id === algorithmId)?.name || "algoritmo"}
+          onClose={() => setTranslateOpen(false)}
+        />
+      )}
     </div>
   )
 }

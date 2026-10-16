@@ -293,6 +293,26 @@ def test_autosave_versions_and_restore(client):
     )
 
 
+def test_translate_returns_python_without_creating_an_execution(client):
+    register(client)
+    project_id = _project_id(client)
+    algorithm_id = client.post(
+        "/api/v1/algorithms/",
+        {
+            "project_id": project_id,
+            "name": "Hola",
+            "source": 'Algoritmo Hola\n    Escribir "Hola";\nFinAlgoritmo\n',
+        },
+        format="json",
+    ).json()["id"]
+    translated = client.post(f"/api/v1/algorithms/{algorithm_id}/translate/")
+    assert translated.status_code == 200
+    body = translated.json()
+    python = next(item for item in body["translations"] if item["language"] == "python")
+    assert 'print("Hola")' in python["code"]
+    assert Execution.objects.count() == 0
+
+
 def test_validate_does_not_execute_and_errors_keep_line(client):
     register(client)
     project_id = _project_id(client)

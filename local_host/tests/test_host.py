@@ -51,6 +51,15 @@ def _call(
 def test_validate_flowchart_and_debug_use_the_same_event_envelope() -> None:
     server, origin = _server()
     try:
+        status, translated = _call(
+            origin, "POST", "/local/v1/translate", {"source": SOURCE, "profile": {}}
+        )
+        assert status == 200
+        assert any(
+            item["language"] == "python" and "print" in item["code"]
+            for item in translated["translations"]
+        )
+
         status, checked = _call(
             origin, "POST", "/local/v1/validate", {"source": SOURCE, "profile": {}}
         )

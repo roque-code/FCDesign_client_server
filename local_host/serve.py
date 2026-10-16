@@ -63,6 +63,9 @@ class LocalHandler(BaseHTTPRequestHandler):
             if self.command == "POST" and path == "/local/v1/validate":
                 self._json(200, self.server.host_engine.validate(body))
                 return
+            if self.command == "POST" and path == "/local/v1/translate":
+                self._json(200, self.server.host_engine.translate(body))
+                return
             if self.command == "POST" and path == "/local/v1/flowchart":
                 self._json(200, self.server.host_engine.flowchart(body))
                 return

@@ -9,6 +9,7 @@ from __future__ import annotations
 import unicodedata
 from dataclasses import dataclass
 from decimal import Decimal
+from typing import Literal
 
 from language_core.ast_nodes import SourceSpan
 from language_core.diagnostics import Diagnostic, make_diagnostic
@@ -20,11 +21,21 @@ MAX_NUMBER_DIGITS = 4096
 
 
 @dataclass(frozen=True)
+class SourceComment:
+    """Comentario conservado para traducirlo. No es un token del parser."""
+
+    kind: Literal["line", "block"]
+    text: str
+    span: SourceSpan
+
+
+@dataclass(frozen=True)
 class LexResult:
-    """Tokens, incluido EOF, y los diagnósticos léxicos."""
+    """Tokens, incluido EOF, diagnósticos y comentarios."""
 
     tokens: tuple[Token, ...]
     diagnostics: tuple[Diagnostic, ...]
+    comments: tuple[SourceComment, ...] = ()
 
 
 class Lexer:
@@ -38,6 +49,7 @@ class Lexer:
         self.col = 1
         self.tokens: list[Token] = []
         self.diagnostics: list[Diagnostic] = []
+        self.comments: list[SourceComment] = []
 
     def scan(self) -> LexResult:
         while not self._eof():
@@ -47,7 +59,7 @@ class Lexer:
             self._scan_token()
         eof_span = SourceSpan(self.line, self.col, self.line, self.col)
         self.tokens.append(Token(TokenKind.EOF, "", "", eof_span))
-        return LexResult(tuple(self.tokens), tuple(self.diagnostics))
+        return LexResult(tuple(self.tokens), tuple(self.diagnostics), tuple(self.comments))
 
     def _eof(self) -> bool:
         return self.pos >= self.length
@@ -91,24 +103,38 @@ class Lexer:
                 self._advance()
                 continue
             if ch == "/" and self._peek(1) == "/":
-                while not self._eof() and self._peek() not in "\n\r":
-                    self._advance()
+                self._scan_line_comment()
                 continue
             if ch == "/" and self._peek(1) == "*":
-                self._skip_block_comment()
+                self._scan_block_comment()
                 continue
             break
 
-    def _skip_block_comment(self) -> None:
+    def _scan_line_comment(self) -> None:
         start_line, start_col = self.line, self.col
         self._advance()
         self._advance()
+        chars: list[str] = []
+        while not self._eof() and self._peek() not in "\n\r":
+            chars.append(self._advance())
+        self.comments.append(
+            SourceComment("line", "".join(chars), self._span_from(start_line, start_col))
+        )
+
+    def _scan_block_comment(self) -> None:
+        start_line, start_col = self.line, self.col
+        self._advance()
+        self._advance()
+        chars: list[str] = []
         while not self._eof():
             if self._peek() == "*" and self._peek(1) == "/":
                 self._advance()
                 self._advance()
+                self.comments.append(
+                    SourceComment("block", "".join(chars), self._span_from(start_line, start_col))
+                )
                 return
-            self._advance()
+            chars.append(self._advance())
         self._error(
             "E0103",
             "El comentario que empieza aquí no tiene cierre.",
