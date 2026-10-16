@@ -26,6 +26,7 @@ export function LearningLab({
   const [mode, setMode] = useState<Mode>("path")
   const [challengeId, setChallengeId] = useState<string | null>(null)
   const [pathId, setPathId] = useState<string | null>(null)
+  const [reloadToken, setReloadToken] = useState(0)
 
   return (
     <div className="shell lab">
@@ -81,15 +82,18 @@ export function LearningLab({
               {t("progress")}
             </button>
           ) : null}
+          <button className="top-action" type="button" onClick={() => setReloadToken((token) => token + 1)}>
+            {t("refresh")}
+          </button>
           <button className="top-leave" type="button" onClick={onBack}>
             {t("backToEditor")}
           </button>
         </div>
       </header>
-      {mode === "practice" ? <PracticeLab /> : null}
+      {mode === "practice" ? <PracticeLab key={reloadToken} /> : null}
       {mode === "challenge" && challengeId ? (
         <ChallengePlay
-          key={challengeId}
+          key={`${challengeId}-${reloadToken}`}
           challengeId={challengeId}
           pathId={pathId ?? undefined}
           onStanding={(standing) => onAccount({ ...account, ...standing })}
@@ -99,11 +103,12 @@ export function LearningLab({
           }}
         />
       ) : null}
-      {mode === "roster" && account.role === "teacher" ? <TeacherRoster /> : null}
-      {mode === "routes" && account.role === "teacher" ? <TeacherPaths /> : null}
-      {mode === "bank" && account.role === "teacher" ? <BankView /> : null}
+      {mode === "roster" && account.role === "teacher" ? <TeacherRoster key={reloadToken} /> : null}
+      {mode === "routes" && account.role === "teacher" ? <TeacherPaths key={reloadToken} /> : null}
+      {mode === "bank" && account.role === "teacher" ? <BankView key={reloadToken} /> : null}
       {mode === "path" ? (
         <PathHome
+          key={reloadToken}
           initialPathId={pathId}
           onOpen={(id, selectedPath) => {
             setChallengeId(id)

@@ -97,6 +97,7 @@ export function Workbench({
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [functionsOpen, setFunctionsOpen] = useState(false)
   const [communitiesOpen, setCommunitiesOpen] = useState(false)
+  const [reloadToken, setReloadToken] = useState(0)
   const [algorithmName, setAlgorithmName] = useState("")
   const [renaming, setRenaming] = useState<{ kind: "project" | "algorithm"; id: string; name: string } | null>(null)
   const [breakpoints, setBreakpoints] = useState<number[]>([])
@@ -112,6 +113,8 @@ export function Workbench({
   const savedLanguage = useRef({ requireSemicolons: true, indexBase: 1 as 0 | 1 })
   const savingChoice = useRef(false)
   const selectedId = useRef("")
+  const projectIdRef = useRef("")
+  projectIdRef.current = projectId
   const sourceOwner = useRef("")
   const wantedAlgorithm = useRef<string | null>(null)
   const focusRef = useRef(focus)
@@ -206,12 +209,14 @@ export function Workbench({
       setMeta(info)
       setKeywords(words.keywords)
       setStdlib(words.stdlib)
-      const first = projectPage.results[0]
+      const ids = new Set(projectPage.results.map((item) => item.id))
       const wanted = focusRef.current?.projectId
-      if (wanted) setProjectId(wanted)
-      else if (first) setProjectId(first.id)
+      const keep = projectIdRef.current
+      if (wanted && ids.has(wanted)) setProjectId(wanted)
+      else if (keep && ids.has(keep)) setProjectId(keep)
+      else setProjectId(projectPage.results[0]?.id ?? "")
     })().catch((caught: unknown) => setError(messageOf(caught, t("requestError"))))
-  }, [])
+  }, [reloadToken])
 
   useEffect(() => {
     if (!projectId) return
@@ -237,7 +242,7 @@ export function Workbench({
     return () => {
       current = false
     }
-  }, [projectId, focus?.token])
+  }, [projectId, focus?.token, reloadToken])
 
   useEffect(() => {
     if (!focus) return
@@ -278,7 +283,7 @@ export function Workbench({
         void loadDiagram(algorithm.id)
       })
       .catch((caught: unknown) => setError(messageOf(caught, t("requestError"))))
-  }, [algorithmId, focus?.token])
+  }, [algorithmId, focus?.token, reloadToken])
 
   function flushPending() {
     const job = pendingSave.current
@@ -838,6 +843,19 @@ export function Workbench({
           <AccountIdentity account={account} />
         </div>
         <div className="actions">
+          <button
+            className="top-action"
+            type="button"
+            onClick={() => {
+              pendingSave.current = null
+              setDirty(false)
+              streamRef.current?.close()
+              streamRef.current = null
+              setReloadToken((token) => token + 1)
+            }}
+          >
+            {t("refresh")}
+          </button>
           <div className="zone-switch" role="tablist" aria-label={t("editor")}>
             <button type="button" aria-pressed={zone === "editor"} onClick={() => setZone("editor")}>
               {t("editor")}
@@ -1021,7 +1039,7 @@ export function Workbench({
           </button>
         </div>
       </header>
-      {communitiesOpen && <CommunitiesPanel onClose={() => setCommunitiesOpen(false)} />}
+      {communitiesOpen && <CommunitiesPanel key={reloadToken} onClose={() => setCommunitiesOpen(false)} />}
       {meta?.notice && <p className="notice">{meta.notice}</p>}
       <div
         className={["workspace", projectsOpen ? "" : "projects-hidden", diagramOpen ? "" : "diagram-hidden"].filter(Boolean).join(" ")}
