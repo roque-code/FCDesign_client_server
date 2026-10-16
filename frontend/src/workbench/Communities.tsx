@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
 
 import { api, ApiError, type Community, type CommunitySummary, type Person } from "../api"
 import { useT } from "../i18n"
@@ -13,6 +13,8 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
   const [people, setPeople] = useState<Person[]>([])
   const [searched, setSearched] = useState("")
   const [error, setError] = useState("")
+  const selectedRef = useRef(selectedId)
+  selectedRef.current = selectedId
 
   async function loadList(prefer?: string) {
     const page = await api.communities()
@@ -25,9 +27,37 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
   }
 
   useEffect(() => {
-    void loadList().catch((caught: unknown) => {
+    let alive = true
+    async function pull() {
+      if (document.visibilityState === "hidden") return
+      const page = await api.communities()
+      if (!alive) return
+      setCommunities(page.results)
+      const current = selectedRef.current
+      const next = current && page.results.some((item) => item.id === current) ? current : page.results[0]?.id ?? ""
+      setSelectedId(next)
+      if (!next) {
+        setDetail(null)
+        return
+      }
+      const item = await api.community(next)
+      if (alive && selectedRef.current === next) setDetail(item)
+    }
+    void pull().catch((caught: unknown) => {
       setError(caught instanceof ApiError ? caught.message : t("communitiesLoadError"))
     })
+    const timer = window.setInterval(() => {
+      void pull().catch(() => undefined)
+    }, 5000)
+    const onShow = () => {
+      void pull().catch(() => undefined)
+    }
+    document.addEventListener("visibilitychange", onShow)
+    return () => {
+      alive = false
+      window.clearInterval(timer)
+      document.removeEventListener("visibilitychange", onShow)
+    }
   }, [])
 
   useEffect(() => {

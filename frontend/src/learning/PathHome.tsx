@@ -93,18 +93,27 @@ export function PathHome({
 
   useEffect(() => {
     let cancelled = false
-    void api.labPaths().then(
-      (result) => {
-        if (cancelled) return
-        setPaths(result.results)
-        setPathId((current) => (current && result.results.some((item) => item.id === current) ? current : null))
-      },
-      (caught: unknown) => {
-        if (!cancelled) setError(messageOf(caught, t("pathLoadError")))
-      },
-    )
+    async function load() {
+      if (document.visibilityState === "hidden") return
+      const result = await api.labPaths()
+      if (cancelled) return
+      setPaths(result.results)
+      setPathId((current) => (current && result.results.some((item) => item.id === current) ? current : null))
+    }
+    void load().catch((caught: unknown) => {
+      if (!cancelled) setError(messageOf(caught, t("pathLoadError")))
+    })
+    const timer = window.setInterval(() => {
+      void load().catch(() => undefined)
+    }, 5000)
+    const onShow = () => {
+      void load().catch(() => undefined)
+    }
+    document.addEventListener("visibilitychange", onShow)
     return () => {
       cancelled = true
+      window.clearInterval(timer)
+      document.removeEventListener("visibilitychange", onShow)
     }
   }, [])
 
