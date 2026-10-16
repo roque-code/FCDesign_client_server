@@ -113,6 +113,9 @@ jobs:
             fi
           else
             npx tauri build --config '{"bundle":{"externalBin":["binaries/traza-host"]}}'
+            if [ "$(uname -s)" = "Darwin" ]; then
+              sh scripts/macos_bundle.sh
+            fi
           fi
       - uses: actions/upload-artifact@v4
         with:
