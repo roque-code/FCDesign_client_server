@@ -109,6 +109,8 @@ export function Workbench({
   const [translateOpen, setTranslateOpen] = useState(false)
   const [translations, setTranslations] = useState<Translation[]>([])
   const [translateBusy, setTranslateBusy] = useState(false)
+  const [translateLocked, setTranslateLocked] = useState(false)
+  const [translateFailure, setTranslateFailure] = useState("")
   const [graph, setGraph] = useState<FlowGraph | null>(null)
   const [diagramNote, setDiagramNote] = useState("")
   const [requireSemicolons, setRequireSemicolons] = useState(true)
@@ -588,9 +590,16 @@ export function Workbench({
 
   async function translate() {
     setError("")
+    setTranslateFailure("")
     setTranslateOpen(true)
     setTranslateBusy(true)
     setTranslations([])
+    // Disabling the button inside this click makes Chromium and the desktop
+    // webview send the same click to the new backdrop, which closes it at once.
+    let opened = true
+    const arm = window.setTimeout(() => {
+      if (opened) setTranslateLocked(true)
+    }, 0)
     try {
       await flushSource()
       const result = inInstalledApp()
@@ -599,10 +608,12 @@ export function Workbench({
       setDiagnostics(result.diagnostics)
       setTranslations(result.translations)
     } catch (caught) {
-      setError(messageOf(caught, t("requestError")))
-      setTranslateOpen(false)
+      setTranslateFailure(messageOf(caught, t("requestError")))
     } finally {
+      opened = false
+      window.clearTimeout(arm)
       setTranslateBusy(false)
+      setTranslateLocked(false)
     }
   }
 
@@ -1251,7 +1262,7 @@ export function Workbench({
               <button type="button" onClick={() => void validate()} disabled={!algorithmId || playing}>
                 {t("validate")}
               </button>
-              <button type="button" onClick={() => void translate()} disabled={!algorithmId || playing || translateBusy}>
+              <button type="button" onClick={() => void translate()} disabled={!algorithmId || playing || translateLocked}>
                 {t("translate")}
               </button>
               <button className="primary" type="button" onClick={() => void execute()} disabled={!algorithmId || playing}>
@@ -1479,6 +1490,7 @@ export function Workbench({
           translations={translations}
           diagnostics={diagnostics}
           busy={translateBusy}
+          failure={translateFailure}
           filename={algorithms.find((item) => item.id === algorithmId)?.name || "algoritmo"}
           onClose={() => setTranslateOpen(false)}
         />

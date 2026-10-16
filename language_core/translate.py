@@ -56,6 +56,7 @@ TARGETS: tuple[tuple[str, str, str], ...] = (
     ("javascript", "JavaScript", "js"),
     ("typescript", "TypeScript", "ts"),
     ("java", "Java", "java"),
+    ("c", "C", "c"),
     ("cpp", "C++", "cpp"),
     ("csharp", "C#", "cs"),
 )
@@ -381,6 +382,48 @@ _KEYWORDS: dict[str, frozenset[str]] = {
             "Convert",
         }
     ),
+    "c": frozenset(
+        {
+            "auto",
+            "break",
+            "case",
+            "char",
+            "const",
+            "continue",
+            "default",
+            "do",
+            "double",
+            "else",
+            "enum",
+            "extern",
+            "float",
+            "for",
+            "goto",
+            "if",
+            "inline",
+            "int",
+            "long",
+            "register",
+            "restrict",
+            "return",
+            "short",
+            "signed",
+            "sizeof",
+            "static",
+            "struct",
+            "switch",
+            "typedef",
+            "union",
+            "unsigned",
+            "void",
+            "volatile",
+            "while",
+            "_Bool",
+            "true",
+            "false",
+            "NULL",
+        }
+    ),
 }
 _KEYWORDS["typescript"] = _KEYWORDS["javascript"] | {"type", "unknown", "any", "never", "undefined"}
 
@@ -405,6 +448,13 @@ _SCALAR: dict[str, dict[str, str]] = {
         "logico": "boolean",
         "caracter": "char",
         "cadena": "String",
+    },
+    "c": {
+        "entero": "int",
+        "real": "double",
+        "logico": "bool",
+        "caracter": "char",
+        "cadena": "char *",
     },
     "cpp": {
         "entero": "int",
@@ -442,7 +492,9 @@ _FILL: dict[str, dict[str, str]] = {
     "java": {"entero": "0", "real": "0.0", "logico": "false", "caracter": "' '", "cadena": '""'},
     "cpp": {"entero": "0", "real": "0.0", "logico": "false", "caracter": "' '", "cadena": '""'},
     "csharp": {"entero": "0", "real": "0.0", "logico": "false", "caracter": "' '", "cadena": '""'},
+    "c": {"entero": "0", "real": "0.0", "logico": "false", "caracter": "' '", "cadena": '""'},
 }
+
 _FILL["typescript"] = _FILL["javascript"]
 
 
@@ -658,9 +710,9 @@ class _Emitter:
         self.level = 0
         self.temp_id = 0
         self.need: set[str] = set()
-        self.reads: set[str] = set()
         self.box_types: set[TypeName] = set()
-        self.allocs: set[tuple[TypeName, int]] = set()
+        self.array_declared: set[str] = set()
+        self.c_refs: set[str] = set()
         self.scope = _signature(
             "procedure",
             program.algorithm.name,
@@ -801,6 +853,15 @@ class _Emitter:
         self.scope = sig
         self.notes = _Notes(inner)
         self.level = 0
+        self.c_refs = set()
+        self.array_declared = {
+            param.name for param in sig.params if sig.ranks.get(param.name, 0) > 0
+        }
+        if self.lang == "c":
+            for param in sig.params:
+                rank = sig.ranks.get(param.name, 0)
+                if rank == 0 and _is_ref(param, rank):
+                    self.c_refs.add(param.name)
         self._comment_list(leading)
         self.boxed = self._boxed(sig) if self._uses_box() else set()
         self._open_routine(kind, sig, self.boxed)
@@ -860,6 +921,8 @@ class _Emitter:
         )
         if kind == "algorithm" and self.lang == "java":
             return "public static void main(String[] args)"
+        if kind == "algorithm" and self.lang == "c":
+            return "int main(void)"
         if kind == "algorithm" and self.lang == "cpp":
             return "int main()"
         if kind == "algorithm" and self.lang == "csharp":
@@ -906,6 +969,10 @@ class _Emitter:
             return f"{vector}{mark} {renamed}"
         if self.lang == "csharp" and ref:
             return f"ref {self._type_name(kind, rank)} {renamed}"
+        if self.lang == "c" and rank > 0:
+            return f"{self._scalar(kind)} {renamed}[]"
+        if self.lang == "c" and rank == 0 and ref:
+            return f"{self._scalar(kind)} *{renamed}"
         return f"{self._type_name(kind, rank)} {renamed}"
 
     def _declare_locals(self, sig: _Sig, boxed: set[str], result: str | None) -> bool:
@@ -919,11 +986,11 @@ class _Emitter:
                 "entero" if name == result or sig.ranks.get(name, 0) == 0 else "entero"
             )
             rank = sig.ranks.get(name, 0)
-            self._declare(name, kind, rank, name in boxed)
-            wrote = True
+            if self._declare(name, kind, rank, name in boxed):
+                wrote = True
         return wrote
 
-    def _declare(self, name: str, kind: TypeName, rank: int, boxed: bool) -> None:
+    def _declare(self, name: str, kind: TypeName, rank: int, boxed: bool) -> bool:
         renamed = self._name(name)
         fill = self._fill(kind)
         if boxed:
@@ -939,28 +1006,18 @@ class _Emitter:
                 )
             else:
                 self.sentence(f"{_BOX[kind]} {renamed} = new {_BOX[kind]}({fill})")
-            return
-        if rank == 0:
-            if self.lang == "python":
-                self.line(f"{renamed}: {self._scalar(kind)} = {fill}")
-            elif self.lang == "javascript":
-                self.sentence(f"let {renamed} = {fill}")
-            elif self.lang == "typescript":
-                self.sentence(f"let {renamed}: {self._scalar(kind)} = {fill}")
-            elif self.lang == "cpp":
-                self.sentence(f"{self._scalar(kind)} {renamed} = {fill}")
-            else:
-                self.sentence(f"{self._scalar(kind)} {renamed} = {fill}")
-            return
-        empty = self._empty_array(kind, rank)
+            return True
+        if rank > 0:
+            return False
         if self.lang == "python":
-            self.line(f"{renamed}: list = {empty}")
+            self.line(f"{renamed}: {self._scalar(kind)} = {fill}")
         elif self.lang == "javascript":
-            self.sentence(f"let {renamed} = {empty}")
+            self.sentence(f"let {renamed} = {fill}")
         elif self.lang == "typescript":
-            self.sentence(f"let {renamed}: {self._type_name(kind, rank)} = {empty}")
+            self.sentence(f"let {renamed}: {self._scalar(kind)} = {fill}")
         else:
-            self.sentence(f"{self._type_name(kind, rank)} {renamed} = {empty}")
+            self.sentence(f"{self._scalar(kind)} {renamed} = {fill}")
+        return True
 
     def _emit_block(
         self, statements: tuple[Stmt, ...], end_line: int, *, allow_empty: bool
@@ -1019,7 +1076,12 @@ class _Emitter:
         for decl in statement.declarations:
             kind = decl.type_name or self.scope.types.get(decl.name) or "entero"
             lengths = [self.expression(length) for length in decl.lengths]
-            self.sentence(f"{self._name(decl.name)} = {self._allocate(kind, lengths)}")
+            renamed = self._name(decl.name)
+            if decl.name in self.array_declared:
+                self.sentence(self._array_assign(renamed, kind, lengths))
+                continue
+            self.sentence(self._array_declare(renamed, kind, lengths, decl.lengths))
+            self.array_declared.add(decl.name)
 
     def _assign(self, statement: AssignStmt) -> None:
         value = self.expression(statement.value)
@@ -1028,7 +1090,7 @@ class _Emitter:
             target_type == "entero"
             and isinstance(statement.value, CallExpr)
             and canonicalize(statement.value.name) == "convertiranumero"
-            and self.lang in ("java", "cpp", "csharp")
+            and self.lang in ("java", "cpp", "csharp", "c")
         ):
             value = f"({self._scalar('entero')}) ({value})"
         self.sentence(f"{self._lvalue(statement.target)} = {value}")
@@ -1036,9 +1098,91 @@ class _Emitter:
     def _read(self, statement: ReadStmt) -> None:
         for target in statement.targets:
             kind = self._lvalue_type(target) or "cadena"
-            self.reads.add(kind)
-            self.need.add("leer")
-            self.sentence(f"{self._lvalue(target)} = _traza_leer_{kind}()")
+            if self.lang == "java":
+                self.need.add("leer")
+            slot = self._lvalue(target)
+            for row in self._native_read(target, slot, kind):
+                self.sentence(row)
+
+    def _native_read(self, target: LValue, slot: str, kind: TypeName) -> list[str]:
+        if self.lang == "python":
+            if kind == "entero":
+                return [f"{slot} = int(input())"]
+            if kind == "real":
+                return [f"{slot} = float(input())"]
+            if kind == "logico":
+                return [f'{slot} = input().strip().lower() in {{"verdadero", "true"}}']
+            return [f"{slot} = input()"]
+        if self.lang in ("javascript", "typescript"):
+            if kind in ("entero", "real"):
+                return [f"{slot} = Number(prompt())"]
+            if kind == "logico":
+                return [
+                    f'{slot} = ["verdadero", "true"].includes(String(prompt() ?? "").trim().toLowerCase())'
+                ]
+            return [f'{slot} = prompt() ?? ""']
+        if self.lang == "java":
+            if kind == "entero":
+                return [f"{slot} = Integer.parseInt(_traza_entrada.nextLine().trim())"]
+            if kind == "real":
+                return [f"{slot} = Double.parseDouble(_traza_entrada.nextLine().trim())"]
+            if kind == "caracter":
+                return [f"{slot} = _traza_entrada.nextLine().charAt(0)"]
+            if kind == "logico":
+                clave = self._fresh("clave")
+                return [
+                    f"String {clave} = _traza_entrada.nextLine().trim().toLowerCase()",
+                    f'{slot} = {clave}.equals("verdadero") || {clave}.equals("true")',
+                ]
+            return [f"{slot} = _traza_entrada.nextLine()"]
+        if self.lang == "cpp":
+            if kind == "logico":
+                clave = self._fresh("clave")
+                return [
+                    f"std::string {clave}",
+                    f"std::cin >> {clave}",
+                    f'{slot} = {clave} == "Verdadero" || {clave} == "verdadero" || {clave} == "true"',
+                ]
+            return [f"std::cin >> {slot}"]
+        if self.lang == "c":
+            return self._c_read(target, slot, kind)
+        if kind == "entero":
+            return [f"{slot} = int.Parse(Console.ReadLine())"]
+        if kind == "real":
+            return [
+                f"{slot} = double.Parse(Console.ReadLine(), System.Globalization.CultureInfo.InvariantCulture)"
+            ]
+        if kind == "caracter":
+            return [f"{slot} = Console.ReadLine()[0]"]
+        if kind == "logico":
+            return [
+                f'{slot} = (Console.ReadLine() ?? "").Trim().ToLowerInvariant() is "verdadero" or "true"'
+            ]
+        return [f'{slot} = Console.ReadLine() ?? ""']
+
+    def _c_read(self, target: LValue, slot: str, kind: TypeName) -> list[str]:
+        if kind == "cadena":
+            self.need.add("calloc")
+            return [f"{slot} = calloc(1024, 1)", f'(void) scanf("%1023s", {slot})']
+        if kind == "logico":
+            clave = self._fresh("clave")
+            return [
+                f"char {clave}[32]",
+                f'(void) scanf("%31s", {clave})',
+                f'{slot} = strcmp({clave}, "Verdadero") == 0 || strcmp({clave}, "verdadero") == 0 || strcmp({clave}, "true") == 0',
+            ]
+        address = self._c_address(target)
+        spec = {"entero": "%d", "real": "%lf", "caracter": " %c"}[kind]
+        return [f'(void) scanf("{spec}", {address})']
+
+    def _c_address(self, target: LValue) -> str:
+        if (
+            not target.indexes
+            and target.name in self.c_refs
+            and self.scope.ranks.get(target.name, 0) == 0
+        ):
+            return self._name(target.name)
+        return f"&({self._lvalue(target)})"
 
     def _write(self, statement: WriteStmt) -> None:
         pieces = [self._out_piece(value) for value in statement.values]
@@ -1081,37 +1225,145 @@ class _Emitter:
         self.line(f"}} while (!({cond}));")
 
     def _for(self, statement: ForStmt) -> None:
-        number = self.temp_id + 1
-        self.temp_id += 3
-        start = f"_traza_desde_{number}"
-        end = f"_traza_hasta_{number + 1}"
-        step = f"_traza_paso_{number + 2}"
-        self._bind(start, self.expression(statement.start))
-        self._bind(end, self.expression(statement.end))
-        if statement.step is None:
-            choice = self._ternary(f"{start} <= {end}", "1", "-1")
-            self._bind(step, choice)
-        else:
-            self._bind(step, self.expression(statement.step))
-            known = const_int(statement.step)
-            if known is None or known == 0:
-                self._reject_zero(step)
-        slot = self._slot(statement.variable, self.boxed)
-        self.sentence(f"{slot} = {start}")
-        test = self._for_test(slot, end, step)
         if self.lang == "python":
-            self.line(f"while {test}:")
-        else:
-            self.line(f"while ({test}) {{")
+            self.line(f"for {self._name(statement.variable)} in {self._py_range(statement)}:")
+            self.level += 1
+            self._emit_block(statement.body, statement.span.end_line, allow_empty=False)
+            self.level -= 1
+            return
+        slot = self._slot(statement.variable, self.boxed)
+        init, test, update = self._for_header(statement, slot)
+        self.line(f"for ({init}; {test}; {update}) {{")
         self.level += 1
         self._emit_block(statement.body, statement.span.end_line, allow_empty=False)
-        self.sentence(f"{slot} = {slot} + {step}")
         self._close_cond()
 
+    def _py_range(self, statement: ForStmt) -> str:
+        start = self.expression(statement.start)
+        end = self.expression(statement.end)
+        if statement.step is None:
+            low = const_int(statement.start)
+            high = const_int(statement.end)
+            if low is not None and high is not None and low > high:
+                return f"range({start}, {self._shifted(statement.end, end, -1)}, -1)"
+            if low is not None and high is not None:
+                return f"range({start}, {self._shifted(statement.end, end, 1)})"
+            return (
+                f"range({start}, {end} + (1 if {start} <= {end} else -1), "
+                f"1 if {start} <= {end} else -1)"
+            )
+        step = self.expression(statement.step)
+        known = const_int(statement.step)
+        if known == 1:
+            return f"range({start}, {self._shifted(statement.end, end, 1)})"
+        if known is not None and known > 0:
+            return f"range({start}, {self._shifted(statement.end, end, 1)}, {step})"
+        if known is not None and known < 0:
+            return f"range({start}, {self._shifted(statement.end, end, -1)}, {step})"
+        return f"range({start}, {end} + (1 if {step} > 0 else -1), {step})"
+
+    def _shifted(self, expr: Expr, code: str, delta: int) -> str:
+        known = const_int(expr)
+        if known is not None:
+            return str(known + delta)
+        if delta > 0:
+            return f"({code}) + 1"
+        return f"({code}) - 1"
+
+    def _for_header(self, statement: ForStmt, slot: str) -> tuple[str, str, str]:
+        start = self.expression(statement.start)
+        end = self.expression(statement.end)
+        init = f"{slot} = {start}"
+        if statement.step is None:
+            low = const_int(statement.start)
+            high = const_int(statement.end)
+            if low is not None and high is not None and low > high:
+                return init, f"{slot} >= {end}", f"{slot}--"
+            if low is not None and high is not None:
+                return init, f"{slot} <= {end}", f"{slot}++"
+            test = f"({start} <= {end} ? {slot} <= {end} : {slot} >= {end})"
+            update = f"{slot} = {slot} + ({start} <= {end} ? 1 : -1)"
+            return init, test, update
+        step = self.expression(statement.step)
+        known = const_int(statement.step)
+        if known == 1:
+            return init, f"{slot} <= {end}", f"{slot}++"
+        if known is not None and known > 0:
+            return init, f"{slot} <= {end}", f"{slot} = {slot} + {step}"
+        if known == -1:
+            return init, f"{slot} >= {end}", f"{slot}--"
+        if known is not None and known < 0:
+            return init, f"{slot} >= {end}", f"{slot} = {slot} + {step}"
+        test = f"({step} > 0 ? {slot} <= {end} : {slot} >= {end})"
+        return init, test, f"{slot} = {slot} + {step}"
+
     def _switch(self, statement: SwitchStmt) -> None:
+        if not statement.cases and not statement.default_body:
+            return
         kind = self.expr_type(statement.selector) or "entero"
         temp = self._fresh("caso")
         self._bind_typed(temp, kind, self.expression(statement.selector))
+        if self._can_switch(kind):
+            if self.lang == "python":
+                self._match(statement, temp)
+            else:
+                self._switch_stmt(statement, temp)
+            return
+        self._switch_ifs(statement, temp, kind)
+
+    def _can_switch(self, kind: TypeName) -> bool:
+        if kind == "real":
+            return self.lang in ("python", "javascript", "typescript")
+        if kind == "cadena":
+            return self.lang not in ("c", "cpp")
+        if kind == "logico":
+            return self.lang != "java"
+        return True
+
+    def _match(self, statement: SwitchStmt, temp: str) -> None:
+        self.line(f"match {temp}:")
+        self.level += 1
+        for index, case in enumerate(statement.cases):
+            labels = " | ".join(self.expression(label) for label in case.labels)
+            self.line(f"case {labels}:")
+            self.level += 1
+            self._emit_block(case.body, self._case_end(statement, index), allow_empty=False)
+            self.level -= 1
+        if statement.default_body is not None:
+            self.line("case _:")
+            self.level += 1
+            self._emit_block(statement.default_body, statement.span.end_line, allow_empty=False)
+            self.level -= 1
+        self.level -= 1
+
+    def _switch_stmt(self, statement: SwitchStmt, temp: str) -> None:
+        self.line(f"switch ({temp}) {{")
+        self.level += 1
+        for index, case in enumerate(statement.cases):
+            for label in case.labels:
+                self.line(f"case {self.expression(label)}:")
+            self.level += 1
+            self._emit_block(case.body, self._case_end(statement, index), allow_empty=True)
+            self.sentence("break")
+            self.level -= 1
+        if statement.default_body is not None:
+            self.line("default:")
+            self.level += 1
+            self._emit_block(statement.default_body, statement.span.end_line, allow_empty=True)
+            self.sentence("break")
+            self.level -= 1
+        self.level -= 1
+        self.line("}")
+
+    def _case_end(self, statement: SwitchStmt, index: int) -> int:
+        cases = statement.cases
+        if index + 1 < len(cases):
+            return cases[index + 1].span.start_line
+        if statement.default_body:
+            return statement.default_body[0].span.start_line
+        return statement.span.end_line
+
+    def _switch_ifs(self, statement: SwitchStmt, temp: str, kind: TypeName) -> None:
         cases = list(statement.cases)
         for index, case in enumerate(cases):
             checks = [
@@ -1125,12 +1377,7 @@ class _Emitter:
             else:
                 self.line(f"{word} ({joined}) {{")
             self.level += 1
-            boundary = statement.span.end_line
-            if index + 1 < len(cases):
-                boundary = cases[index + 1].span.start_line
-            elif statement.default_body:
-                boundary = statement.default_body[0].span.start_line
-            self._emit_block(case.body, boundary, allow_empty=False)
+            self._emit_block(case.body, self._case_end(statement, index), allow_empty=False)
             if self.lang != "python":
                 self.level -= 1
                 self.line("}")
@@ -1182,33 +1429,6 @@ class _Emitter:
         else:
             self.sentence(f"{self._scalar(kind)} {name} = {code}")
 
-    def _reject_zero(self, step: str) -> None:
-        messages = {
-            "python": 'raise ValueError("El paso del Para no puede ser cero.")',
-            "javascript": 'throw new Error("El paso del Para no puede ser cero.");',
-            "typescript": 'throw new Error("El paso del Para no puede ser cero.");',
-            "java": 'throw new IllegalArgumentException("El paso del Para no puede ser cero.");',
-            "cpp": 'throw std::invalid_argument("El paso del Para no puede ser cero.");',
-            "csharp": 'throw new ArgumentException("El paso del Para no puede ser cero.");',
-        }
-        if self.lang == "python":
-            self.line(f"if {step} == 0:")
-            self.level += 1
-            self.line(messages[self.lang])
-            self.level -= 1
-            return
-        self.line(f"if ({step} == 0) {messages[self.lang]}")
-
-    def _for_test(self, slot: str, end: str, step: str) -> str:
-        if self.lang == "python":
-            return f"({step} > 0 and {slot} <= {end}) or ({step} < 0 and {slot} >= {end})"
-        return f"{step} > 0 ? {slot} <= {end} : {slot} >= {end}"
-
-    def _ternary(self, test: str, yes: str, no: str) -> str:
-        if self.lang == "python":
-            return f"{yes} if {test} else {no}"
-        return f"{test} ? {yes} : {no}"
-
     def _current_boxed(self) -> set[str]:
         return self.boxed
 
@@ -1216,16 +1436,20 @@ class _Emitter:
         renamed = self._name(name)
         if name in boxed and self._uses_box():
             return f"{renamed}.valor"
+        if self.lang == "c" and name in self.c_refs and self.scope.ranks.get(name, 0) == 0:
+            return f"(*{renamed})"
         return renamed
 
     def _lvalue(self, target: LValue) -> str:
-        boxed = self._current_boxed()
         if target.indexes:
-            base = self._name(target.name)
-            for index in target.indexes:
-                base += f"[{self._index(index)}]"
-            return base
-        return self._slot(target.name, boxed)
+            return self._indexed(target.name, [self._index(index) for index in target.indexes])
+        return self._slot(target.name, self._current_boxed())
+
+    def _indexed(self, name: str, indexes: list[str]) -> str:
+        renamed = self._name(name)
+        if self.lang == "csharp" and len(indexes) > 1:
+            return f"{renamed}[{', '.join(indexes)}]"
+        return renamed + "".join(f"[{index}]" for index in indexes)
 
     def _lvalue_type(self, target: LValue) -> TypeName | None:
         return self.scope.types.get(target.name)
@@ -1249,7 +1473,6 @@ class _Emitter:
         boxed = self._current_boxed()
         for param, arg in zip(sig.params, call.args, strict=False):
             rank = sig.ranks.get(param.name, 0)
-            kind = sig.types.get(param.name) or "entero"
             ref = _is_ref(param, rank)
             if rank == 0 and ref and self._uses_box() and isinstance(arg, NameExpr):
                 rendered.append(self._name(arg.name))
@@ -1257,20 +1480,18 @@ class _Emitter:
             if rank == 0 and ref and self.lang == "csharp" and isinstance(arg, NameExpr):
                 rendered.append(f"ref {self._name(arg.name)}")
                 continue
-            if rank > 0 and not ref and self.lang != "cpp":
-                rendered.append(self._copy(self.expression(arg), kind, rank))
+            if self.lang == "c" and rank > 0:
+                rendered.append(self.expression(arg))
+                continue
+            if self.lang == "c" and ref and isinstance(arg, NameExpr):
+                renamed = self._name(arg.name)
+                rendered.append(renamed if arg.name in self.c_refs else f"&{renamed}")
                 continue
             if isinstance(arg, NameExpr) and arg.name in boxed and not (rank == 0 and ref):
                 rendered.append(f"{self._name(arg.name)}.valor")
                 continue
             rendered.append(self.expression(arg))
         return ", ".join(rendered)
-
-    def _copy(self, code: str, kind: TypeName, rank: int) -> str:
-        self.need.add("copia")
-        if self.lang == "java":
-            return f"({self._type_name(kind, rank)}) _traza_copia({code})"
-        return f"_traza_copia({code})"
 
     def expression(self, node: Expr, parent_bp: int = 0, side: str = "left") -> str:
         code, binding, assoc = self._bare(node)
@@ -1284,10 +1505,8 @@ class _Emitter:
         if isinstance(node, NameExpr):
             return self._slot(node.name, self._current_boxed()), PRIMARY, "primary"
         if isinstance(node, IndexExpr):
-            base = self._name(node.name)
-            for index in node.indexes:
-                base += f"[{self._index(index)}]"
-            return base, PRIMARY, "primary"
+            code = self._indexed(node.name, [self._index(index) for index in node.indexes])
+            return code, PRIMARY, "primary"
         if isinstance(node, CallExpr):
             return self._call(node), PRIMARY, "primary"
         if isinstance(node, UnaryExpr):
@@ -1366,6 +1585,16 @@ class _Emitter:
         if self.lang == "csharp" and textual and op not in ("eq", "neq"):
             cmp = {"lt": "< 0", "lte": "<= 0", "gt": "> 0", "gte": ">= 0"}[op]
             return f"string.Compare({left}, {right}) {cmp}"
+        if self.lang == "c" and textual:
+            cmp = {
+                "eq": "== 0",
+                "neq": "!= 0",
+                "lt": "< 0",
+                "lte": "<= 0",
+                "gt": "> 0",
+                "gte": ">= 0",
+            }[op]
+            return f"strcmp({left}, {right}) {cmp}"
         return f"{left} {symbols[op]} {right}"
 
     def _idiv(self, left: str, right: str) -> str:
@@ -1398,7 +1627,13 @@ class _Emitter:
             f"Math.Pow({left}, {right})"
             if self.lang == "csharp"
             else (
-                f"std::pow({left}, {right})" if self.lang == "cpp" else f"Math.pow({left}, {right})"
+                f"pow({left}, {right})"
+                if self.lang == "c"
+                else (
+                    f"std::pow({left}, {right})"
+                    if self.lang == "cpp"
+                    else f"Math.pow({left}, {right})"
+                )
             )
         )
         if self.expr_type(node) == "entero":
@@ -1411,15 +1646,17 @@ class _Emitter:
         one = args[0] if args else ""
         two = args[1] if len(args) > 1 else ""
         if name == "abs":
-            return (
-                f"abs({one})"
-                if self.lang == "python"
-                else (
-                    f"Math.Abs({one})"
-                    if self.lang == "csharp"
-                    else f"std::abs({one})" if self.lang == "cpp" else f"Math.abs({one})"
-                )
-            )
+            if self.lang == "python":
+                return f"abs({one})"
+            if self.lang == "csharp":
+                return f"Math.Abs({one})"
+            if self.lang == "cpp":
+                return f"std::abs({one})"
+            if self.lang == "c":
+                if self.expr_type(call.args[0]) == "real":
+                    return f"fabs({one})"
+                return f"abs({one})"
+            return f"Math.abs({one})"
         if name == "raiz":
             return self._math("sqrt", one)
         if name == "sen":
@@ -1453,28 +1690,32 @@ class _Emitter:
                 return f"{one}.length()"
             if self.lang == "cpp":
                 return f"{one}.size()"
+            if self.lang == "c":
+                return f"(int) strlen({one})"
             return f"{one}.Length"
         if name == "mayusculas":
             return self._case(one, True)
         if name == "minusculas":
             return self._case(one, False)
         if name == "concatenar":
-            texts = [
-                (
-                    self._to_text(code, self.expr_type(arg))
-                    if self.expr_type(arg) not in ("cadena", "caracter")
-                    else code
-                )
-                for code, arg in zip(args, call.args, strict=False)
-            ]
+            texts = []
+            for code, arg in zip(args, call.args, strict=False):
+                kind = self.expr_type(arg)
+                if kind == "cadena" or (kind == "caracter" and self.lang != "c"):
+                    texts.append(code)
+                else:
+                    texts.append(self._to_text(code, kind))
             return self._join(texts)
         if name == "subcadena":
             self.need.add("subcadena")
             return f"_traza_subcadena({args[0]}, {args[1]}, {args[2]})"
         if name == "aleatorio":
-            self.need.add("aleatorio")
             if len(args) == 2:
+                self.need.add("aleatorio_rango" if self.lang == "c" else "aleatorio")
+                if self.lang == "c":
+                    return f"_traza_aleatorio_rango({args[0]}, {args[1]})"
                 return f"_traza_aleatorio({args[0]}, {args[1]})"
+            self.need.add("aleatorio")
             return "_traza_aleatorio()"
         if name == "convertiranumero":
             self.need.add("numero")
@@ -1489,6 +1730,8 @@ class _Emitter:
             return f"math.{name}({arg})"
         if self.lang == "cpp":
             return f"std::{name}({arg})"
+        if self.lang == "c":
+            return f"{name}({arg})"
         if self.lang == "csharp":
             method = {
                 "sqrt": "Sqrt",
@@ -1517,6 +1760,14 @@ class _Emitter:
         if self.lang == "python":
             inner = ", ".join(args)
             return f"''.join([{inner}])"
+        if self.lang == "c":
+            if not args:
+                return '""'
+            self.need.add("unir")
+            joined = args[0]
+            for extra in args[1:]:
+                joined = f"_traza_unir({joined}, {extra})"
+            return joined
         return " + ".join(args) if args else '""'
 
     def _literal(self, node: LiteralExpr) -> str:
@@ -1540,6 +1791,16 @@ class _Emitter:
 
     def _char(self, value: str) -> str:
         if self.lang in ("python", "javascript", "typescript"):
+            return quote_text(value, '"')
+        if self.lang == "c":
+            if value == "'":
+                return "'\\''"
+            if value == "\\":
+                return "'\\\\'"
+            if len(value) == 1 and ord(value) < 128:
+                return f"'{value}'"
+            if len(value) == 1:
+                return f"'\\x{ord(value):02x}'"
             return quote_text(value, '"')
         if len(value) == 1 and ord(value) < 128 and value not in "'\\":
             return f"'{value}'"
@@ -1596,49 +1857,58 @@ class _Emitter:
         if kind == "logico":
             return self._bool_word(code), "text"
         if kind == "real":
-            self.need.add("texto_real")
-            return f"_traza_texto_real({code})", "text"
-        if kind == "cadena" or (
-            kind == "caracter" and self.lang in ("python", "javascript", "typescript")
-        ):
-            return code, "text"
-        if kind == "caracter":
-            return self._to_text(code, "caracter"), "text"
+            return code, "real"
         if kind == "entero":
             return code, "entero"
+        if kind == "caracter" and self.lang not in ("python", "javascript", "typescript"):
+            return code, "caracter"
+        if kind in ("cadena", "caracter"):
+            return code, "text"
         return self._to_text(code, kind), "text"
 
     def _print(self, pieces: list[tuple[str, str]], newline: bool) -> None:
-        if len(pieces) == 1 and pieces[0][1] == "entero":
-            self._print_raw(pieces[0][0], newline)
+        if not pieces:
             return
-        texts = [code if kind == "text" else self._to_text(code, "entero") for code, kind in pieces]
+        if self.lang == "python":
+            args = ", ".join(code for code, _kind in pieces)
+            if len(pieces) > 1 and not newline:
+                self.line(f'print({args}, sep="", end="")')
+            elif len(pieces) > 1:
+                self.line(f'print({args}, sep="")')
+            elif not newline:
+                self.line(f'print({args}, end="")')
+            else:
+                self.line(f"print({args})")
+            return
+        if self.lang in ("javascript", "typescript"):
+            if len(pieces) == 1 and newline:
+                self.sentence(f"console.log({pieces[0][0]})")
+                return
+            joined = " + ".join(f"String({code})" for code, _kind in pieces)
+            if newline:
+                self.sentence(f"console.log({joined})")
+            else:
+                self.sentence(f"process.stdout.write({joined})")
+            return
         if self.lang == "cpp":
-            stream = " << ".join(texts)
+            stream = " << ".join(code for code, _kind in pieces)
             end = ' << "\\n"' if newline else ""
             self.sentence(f"std::cout << {stream}{end}")
             return
-        joined = texts[0] if len(texts) == 1 else self._join(texts)
-        self._print_raw(joined, newline)
-
-    def _print_raw(self, code: str, newline: bool) -> None:
-        if self.lang == "python":
-            end = "" if newline else ', end=""'
-            self.line(f"print({code}{end})")
-        elif self.lang in ("javascript", "typescript"):
-            if newline:
-                self.sentence(f"console.log({code})")
-            else:
-                self.sentence(f"process.stdout.write(String({code}))")
-        elif self.lang == "java":
-            method = "println" if newline else "print"
-            self.sentence(f"System.out.{method}({code})")
-        elif self.lang == "cpp":
-            end = ' << "\\n"' if newline else ""
-            self.sentence(f"std::cout << {code}{end}")
-        else:
-            method = "WriteLine" if newline else "Write"
-            self.sentence(f"Console.{method}({code})")
+        if self.lang == "c":
+            specs = {"entero": "%d", "real": "%g", "caracter": "%c", "text": "%s"}
+            for index, (code, kind) in enumerate(pieces):
+                last = index + 1 == len(pieces)
+                end = "\\n" if newline and last else ""
+                spec = specs.get(kind, "%s")
+                self.sentence(f'printf("{spec}{end}", ({code}))')
+            return
+        write = "System.out.print" if self.lang == "java" else "Console.Write"
+        write_line = "System.out.println" if self.lang == "java" else "Console.WriteLine"
+        for index, (code, _kind) in enumerate(pieces):
+            last = index + 1 == len(pieces)
+            method = write_line if newline and last else write
+            self.sentence(f"{method}({code})")
 
     def _bool_word(self, code: str) -> str:
         if self.lang == "python":
@@ -1658,6 +1928,17 @@ class _Emitter:
             if kind in ("cadena", "caracter"):
                 return code
             return f"std::to_string({code})"
+        if self.lang == "c":
+            if kind == "cadena":
+                return code
+            if kind == "caracter":
+                self.need.add("texto_caracter")
+                return f"_traza_texto_caracter({code})"
+            if kind == "real":
+                self.need.add("texto_real")
+                return f"_traza_texto_real({code})"
+            self.need.add("texto_entero")
+            return f"_traza_texto_entero({code})"
         return f"({code}).ToString()"
 
     def _equals(
@@ -1665,61 +1946,94 @@ class _Emitter:
     ) -> str:
         return self._relation("eq", temp, label, temp_type, label_type)
 
-    def _allocate(self, kind: TypeName, lengths: list[str]) -> str:
+    def _array_declare(
+        self, renamed: str, kind: TypeName, lengths: list[str], exprs: tuple[Expr, ...]
+    ) -> str:
         rank = len(lengths)
-        if self.lang in ("python", "javascript", "typescript"):
-            self.need.add("arreglo")
-            inner = ", ".join(lengths)
-            return f"_traza_arreglo({self._fill(kind)}, {inner})"
-        if self.lang == "java" and kind in ("entero", "real", "logico"):
-            dims = "".join(f"[{length}]" for length in lengths)
-            return f"new {self._scalar(kind)}{dims}"
-        if self.lang == "cpp":
-            return self._cpp_alloc(kind, lengths)
+        if self.lang == "python":
+            return f"{renamed} = {self._py_array(kind, lengths)}"
+        if self.lang == "javascript":
+            return f"let {renamed} = {self._js_array(kind, lengths)}"
+        if self.lang == "typescript":
+            shown = self._type_name(kind, rank)
+            return f"let {renamed}: {shown} = {self._js_array(kind, lengths)}"
         if self.lang == "java":
-            self.allocs.add((kind, rank))
-            self.need.add("arreglo")
-            return f"_traza_arreglo_{kind}_{rank}({', '.join(lengths)})"
-        self.allocs.add((kind, rank))
-        self.need.add("arreglo")
-        return f"_traza_arreglo_{kind}_{rank}({', '.join(lengths)})"
+            return f"{self._type_name(kind, rank)} {renamed} = {self._java_new(kind, lengths)}"
+        if self.lang == "csharp":
+            return f"{self._type_name(kind, rank)} {renamed} = {self._cs_new(kind, lengths)}"
+        if self.lang == "cpp":
+            return f"{self._cpp_vector(kind, rank)} {renamed} = {self._cpp_new(kind, lengths)}"
+        return self._c_declare(renamed, kind, lengths, exprs)
 
-    def _cpp_alloc(self, kind: TypeName, lengths: list[str]) -> str:
-        scalar = self._scalar(kind)
+    def _array_assign(self, renamed: str, kind: TypeName, lengths: list[str]) -> str:
+        if self.lang == "python":
+            return f"{renamed} = {self._py_array(kind, lengths)}"
+        if self.lang in ("javascript", "typescript"):
+            return f"{renamed} = {self._js_array(kind, lengths)}"
+        if self.lang == "java":
+            return f"{renamed} = {self._java_new(kind, lengths)}"
+        if self.lang == "csharp":
+            return f"{renamed} = {self._cs_new(kind, lengths)}"
+        if self.lang == "cpp":
+            return f"{renamed} = {self._cpp_new(kind, lengths)}"
+        self.need.add("calloc")
+        return f"{renamed} = calloc((size_t) ({lengths[0]}), sizeof(*{renamed}))"
+
+    def _py_array(self, kind: TypeName, lengths: list[str]) -> str:
         fill = self._fill(kind)
-        current_type = scalar
+        expr = f"[{fill}] * ({lengths[-1]})"
+        for length in reversed(lengths[:-1]):
+            expr = f"[{expr} for _ in range({length})]"
+        return expr
+
+    def _js_array(self, kind: TypeName, lengths: list[str]) -> str:
+        fill = self._fill(kind)
+        expr = f"Array({lengths[-1]}).fill({fill})"
+        for length in reversed(lengths[:-1]):
+            expr = f"Array.from({{length: {length}}}, () => {expr})"
+        return expr
+
+    def _java_new(self, kind: TypeName, lengths: list[str]) -> str:
+        dims = "".join(f"[{length}]" for length in lengths)
+        return f"new {self._scalar(kind)}{dims}"
+
+    def _cs_new(self, kind: TypeName, lengths: list[str]) -> str:
+        scalar = self._scalar(kind)
+        if len(lengths) == 1:
+            return f"new {scalar}[{lengths[0]}]"
+        return f"new {scalar}[{', '.join(lengths)}]"
+
+    def _cpp_new(self, kind: TypeName, lengths: list[str]) -> str:
+        current = self._scalar(kind)
         expr = ""
         for length in reversed(lengths):
             if not expr:
-                expr = f"std::vector<{current_type}>({length}, {fill})"
+                expr = f"std::vector<{current}>({length})"
             else:
-                expr = f"std::vector<{current_type}>({length}, {expr})"
-            current_type = f"std::vector<{current_type}>"
+                expr = f"std::vector<{current}>({length}, {expr})"
+            current = f"std::vector<{current}>"
         return expr
 
-    def _empty_array(self, kind: TypeName, rank: int) -> str:
-        if self.lang in ("python", "javascript", "typescript"):
-            return "[]"
-        if self.lang == "java":
-            if rank == 1:
-                return f"new {self._scalar(kind)}[0]"
-            rest = "[]" * (rank - 1)
-            return f"new {self._scalar(kind)}[0]{rest}"
-        if self.lang == "cpp":
-            return f"{self._cpp_vector(kind, rank)}()"
-        return f"new {self._scalar(kind)}[0]{'[]' * (rank - 1)}"
+    def _c_declare(
+        self, renamed: str, kind: TypeName, lengths: list[str], exprs: tuple[Expr, ...]
+    ) -> str:
+        scalar = self._scalar(kind)
+        dims = "".join(f"[{length}]" for length in lengths)
+        gap = "" if scalar.endswith("*") else " "
+        text = f"{scalar}{gap}{renamed}{dims}"
+        if all(const_int(item) is not None for item in exprs):
+            return f"{text} = {{0}}"
+        return text
 
     def _type_name(self, kind: TypeName, rank: int) -> str:
         if rank <= 0:
             return self._scalar(kind)
-        if self.lang == "typescript":
-            return self._scalar(kind) + "[]" * rank
-        if self.lang == "java":
+        if self.lang in ("typescript", "java"):
             return self._scalar(kind) + "[]" * rank
         if self.lang == "cpp":
             return self._cpp_vector(kind, rank)
         if self.lang == "csharp":
-            return self._scalar(kind) + "[]" * rank
+            return f"{self._scalar(kind)}[{',' * (rank - 1)}]"
         return "list"
 
     def _cpp_vector(self, kind: TypeName, rank: int) -> str:
@@ -1822,6 +2136,26 @@ class _Emitter:
             if "int main()" in text and "return 0;" not in text.split("int main()", 1)[1]:
                 text = _insert_before_last_brace(text, "    return 0;")
             return text if text.endswith("\n") else text + "\n"
+        if self.lang == "c":
+            rows = [*self._c_includes(), *header]
+            if self.need & {
+                "calloc",
+                "unir",
+                "texto_entero",
+                "texto_caracter",
+                "texto_real",
+                "subcadena",
+            }:
+                rows.append("// La memoria reservada no se libera.")
+            if support:
+                rows.extend(support.split("\n"))
+            for method in methods:
+                rows.extend(self._prototype(method))
+            rows.extend(chunk for chunk in body for chunk in chunk.split("\n"))
+            text = "\n".join(rows)
+            if "int main(void)" in text and "return 0;" not in text.split("int main(void)", 1)[1]:
+                text = _insert_before_last_brace(text, "    return 0;")
+            return text if text.endswith("\n") else text + "\n"
         rows = header
         if self.lang == "python" and "math" in self.need:
             rows.append("import math")
@@ -1856,6 +2190,20 @@ class _Emitter:
         ]
         return rows
 
+    def _c_includes(self) -> list[str]:
+        rows = [
+            "#include <stdio.h>",
+            "#include <stdlib.h>",
+            "#include <string.h>",
+            "#include <stdbool.h>",
+            "#include <math.h>",
+        ]
+        if "mayusculas" in self.need or "minusculas" in self.need:
+            rows.append("#include <ctype.h>")
+        if "esperar" in self.need:
+            rows.append("#include <time.h>")
+        return rows
+
     def _support(self) -> str:
         if self.lang == "python":
             return self._support_python()
@@ -1865,7 +2213,162 @@ class _Emitter:
             return self._support_java()
         if self.lang == "cpp":
             return self._support_cpp()
+        if self.lang == "c":
+            return self._support_c()
         return self._support_cs()
+
+    def _support_c(self) -> str:
+        rows: list[str] = []
+        if "mayusculas" in self.need or "minusculas" in self.need:
+            rows.extend(self._c_duplicar())
+        if "mayusculas" in self.need:
+            rows.extend(self._c_case(True))
+        if "minusculas" in self.need:
+            rows.extend(self._c_case(False))
+        if "unir" in self.need:
+            rows.extend(
+                [
+                    "static char *_traza_unir(const char *izquierda, const char *derecha) {",
+                    "    size_t largo_izq = strlen(izquierda);",
+                    "    size_t largo_der = strlen(derecha);",
+                    "    char *copia = malloc(largo_izq + largo_der + 1);",
+                    '    if (copia == NULL) return (char *) "";',
+                    "    memcpy(copia, izquierda, largo_izq);",
+                    "    memcpy(copia + largo_izq, derecha, largo_der + 1);",
+                    "    return copia;",
+                    "}",
+                ]
+            )
+        if "texto_entero" in self.need:
+            rows.extend(
+                [
+                    "static char *_traza_texto_entero(int numero) {",
+                    "    char *texto = malloc(32);",
+                    '    if (texto == NULL) return (char *) "";',
+                    '    snprintf(texto, 32, "%d", numero);',
+                    "    return texto;",
+                    "}",
+                ]
+            )
+        if "texto_caracter" in self.need:
+            rows.extend(
+                [
+                    "static char *_traza_texto_caracter(char simbolo) {",
+                    "    char *texto = malloc(2);",
+                    '    if (texto == NULL) return (char *) "";',
+                    "    texto[0] = simbolo;",
+                    "    texto[1] = '\\0';",
+                    "    return texto;",
+                    "}",
+                ]
+            )
+        if "texto_real" in self.need:
+            rows.extend(
+                [
+                    "static char *_traza_texto_real(double numero) {",
+                    "    char *texto = malloc(64);",
+                    '    if (texto == NULL) return (char *) "";',
+                    '    snprintf(texto, 64, "%.12f", numero);',
+                    "    size_t largo = strlen(texto);",
+                    "    while (largo > 0 && texto[largo - 1] == '0') texto[--largo] = '\\0';",
+                    "    if (largo > 0 && texto[largo - 1] == '.') texto[--largo] = '\\0';",
+                    '    if (texto[0] == \'\\0\' || strcmp(texto, "-") == 0 || strcmp(texto, "-0") == 0) {',
+                    "        texto[0] = '0';",
+                    "        texto[1] = '\\0';",
+                    "    }",
+                    "    return texto;",
+                    "}",
+                ]
+            )
+        if "subcadena" in self.need:
+            rows.extend(
+                [
+                    "static char *_traza_subcadena(const char *texto, int inicio, int fin) {",
+                    f"    int desde = inicio - {self.base};",
+                    "    int cantidad = fin - inicio + 1;",
+                    "    if (desde < 0) desde = 0;",
+                    "    if (cantidad < 0) cantidad = 0;",
+                    "    char *copia = malloc((size_t) cantidad + 1);",
+                    '    if (copia == NULL) return (char *) "";',
+                    "    memcpy(copia, texto + desde, (size_t) cantidad);",
+                    "    copia[cantidad] = '\\0';",
+                    "    return copia;",
+                    "}",
+                ]
+            )
+        if "redon" in self.need:
+            rows.extend(
+                [
+                    "static int _traza_redon(double numero) {",
+                    "    return (int) (numero >= 0 ? floor(numero + 0.5) : ceil(numero - 0.5));",
+                    "}",
+                ]
+            )
+        if "aleatorio" in self.need:
+            rows.extend(
+                [
+                    "static double _traza_aleatorio(void) {",
+                    "    return (double) rand() / ((double) RAND_MAX + 1.0);",
+                    "}",
+                ]
+            )
+        if "aleatorio_rango" in self.need:
+            rows.extend(
+                [
+                    "static int _traza_aleatorio_rango(int inicio, int fin) {",
+                    "    if (fin < inicio) return inicio;",
+                    "    return inicio + rand() % (fin - inicio + 1);",
+                    "}",
+                ]
+            )
+        if "numero" in self.need:
+            rows.extend(
+                [
+                    "static double _traza_numero(const char *texto) {",
+                    "    return strtod(texto, NULL);",
+                    "}",
+                ]
+            )
+        if "borrar" in self.need:
+            rows.extend(
+                ["static void _traza_borrar(void) {", '    printf("\\033[2J\\033[H");', "}"]
+            )
+        if "esperar" in self.need:
+            rows.extend(
+                [
+                    "static void _traza_esperar(double segundos) {",
+                    "    struct timespec pausa;",
+                    "    pausa.tv_sec = (time_t) segundos;",
+                    "    pausa.tv_nsec = (long) ((segundos - (double) pausa.tv_sec) * 1000000000.0);",
+                    "    nanosleep(&pausa, NULL);",
+                    "}",
+                ]
+            )
+        return "\n".join(rows).strip("\n")
+
+    def _c_duplicar(self) -> list[str]:
+        return [
+            "static char *_traza_duplicar(const char *texto) {",
+            "    size_t largo = strlen(texto);",
+            "    char *copia = malloc(largo + 1);",
+            '    if (copia == NULL) return (char *) "";',
+            "    memcpy(copia, texto, largo + 1);",
+            "    return copia;",
+            "}",
+        ]
+
+    def _c_case(self, upper: bool) -> list[str]:
+        name = "_traza_mayusculas" if upper else "_traza_minusculas"
+        letter = "toupper" if upper else "tolower"
+        return [
+            f"static char *{name}(const char *texto) {{",
+            "    char *copia = _traza_duplicar(texto);",
+            "    for (char *cursor = copia; *cursor != '\\0'; cursor++) {",
+            f"        *cursor = (char) {letter}((unsigned char) *cursor);",
+            "    }",
+            "    return copia;",
+            "}",
+        ]
 
     def _support_python(self) -> str:
         rows: list[str] = []
@@ -1878,39 +2381,6 @@ class _Emitter:
                     "",
                 ]
             )
-        if "arreglo" in self.need:
-            rows.extend(
-                [
-                    "def _traza_arreglo(relleno, *longitudes):",
-                    "    if len(longitudes) == 1:",
-                    "        return [relleno for _ in range(longitudes[0])]",
-                    "    return [_traza_arreglo(relleno, *longitudes[1:]) for _ in range(longitudes[0])]",
-                    "",
-                ]
-            )
-        if "copia" in self.need:
-            rows.extend(
-                [
-                    "def _traza_copia(arreglo):",
-                    "    if not arreglo or not isinstance(arreglo[0], list):",
-                    "        return list(arreglo)",
-                    "    return [_traza_copia(fila) for fila in arreglo]",
-                    "",
-                ]
-            )
-        if "texto_real" in self.need:
-            rows.extend(
-                [
-                    "def _traza_texto_real(numero):",
-                    "    texto = format(float(numero), 'f').rstrip('0').rstrip('.')",
-                    "    if texto in {'', '-', '-0'}:",
-                    "        return '0'",
-                    "    return texto",
-                    "",
-                ]
-            )
-        if "leer" in self.need:
-            rows.extend(self._python_reads())
         if "borrar" in self.need:
             rows.extend(["def _traza_borrar():", "    print('\\033[2J\\033[H', end='')", ""])
         if "esperar" in self.need:
@@ -1958,88 +2428,6 @@ class _Emitter:
             )
         return "\n".join(rows).strip("\n")
 
-    def _python_reads(self) -> list[str]:
-        rows = [
-            "def _traza_linea():",
-            "    try:",
-            "        return input()",
-            "    except EOFError:",
-            "        return ''",
-            "",
-        ]
-        if "entero" in self.reads:
-            rows.extend(
-                [
-                    "def _traza_leer_entero():",
-                    "    while True:",
-                    "        texto = _traza_linea()",
-                    "        try:",
-                    "            valor = int(texto.strip())",
-                    "        except ValueError:",
-                    "            continue",
-                    "        print(texto)",
-                    "        return valor",
-                    "",
-                ]
-            )
-        if "real" in self.reads:
-            rows.extend(
-                [
-                    "def _traza_leer_real():",
-                    "    while True:",
-                    "        texto = _traza_linea()",
-                    "        limpio = texto.strip()",
-                    "        if not limpio or limpio.count('.') > 1:",
-                    "            continue",
-                    "        try:",
-                    "            valor = float(limpio)",
-                    "        except ValueError:",
-                    "            continue",
-                    "        print(texto)",
-                    "        return valor",
-                    "",
-                ]
-            )
-        if "logico" in self.reads:
-            rows.extend(
-                [
-                    "def _traza_leer_logico():",
-                    "    while True:",
-                    "        texto = _traza_linea()",
-                    "        clave = texto.strip().casefold()",
-                    "        if clave in {'verdadero', 'true'}:",
-                    "            print(texto)",
-                    "            return True",
-                    "        if clave in {'falso', 'false'}:",
-                    "            print(texto)",
-                    "            return False",
-                    "",
-                ]
-            )
-        if "caracter" in self.reads:
-            rows.extend(
-                [
-                    "def _traza_leer_caracter():",
-                    "    while True:",
-                    "        texto = _traza_linea()",
-                    "        if len(texto) == 1:",
-                    "            print(texto)",
-                    "            return texto",
-                    "",
-                ]
-            )
-        if "cadena" in self.reads:
-            rows.extend(
-                [
-                    "def _traza_leer_cadena():",
-                    "    texto = _traza_linea()",
-                    "    print(texto)",
-                    "    return texto",
-                    "",
-                ]
-            )
-        return rows
-
     def _support_js(self) -> str:
         rows: list[str] = []
         typed = self.lang == "typescript"
@@ -2063,55 +2451,6 @@ class _Emitter:
                         "",
                     ]
                 )
-        if "arreglo" in self.need:
-            head = (
-                "function _traza_arreglo(relleno: unknown, ...longitudes: number[]): unknown[] {"
-                if typed
-                else "function _traza_arreglo(relleno, ...longitudes) {"
-            )
-            rows.extend(
-                [
-                    head,
-                    "    if (longitudes.length === 1) return Array(longitudes[0]).fill(relleno);",
-                    "    const [primero, ...resto] = longitudes;",
-                    "    return Array.from({ length: primero }, () => _traza_arreglo(relleno, ...resto));",
-                    "}",
-                    "",
-                ]
-            )
-        if "copia" in self.need:
-            head = (
-                "function _traza_copia(arreglo: unknown): unknown {"
-                if typed
-                else "function _traza_copia(arreglo) {"
-            )
-            rows.extend(
-                [
-                    head,
-                    "    if (!Array.isArray(arreglo)) return arreglo;",
-                    "    return arreglo.map((fila) => Array.isArray(fila) ? _traza_copia(fila) : fila);",
-                    "}",
-                    "",
-                ]
-            )
-        if "texto_real" in self.need:
-            head = (
-                "function _traza_texto_real(numero: number): string {"
-                if typed
-                else "function _traza_texto_real(numero) {"
-            )
-            rows.extend(
-                [
-                    head,
-                    "    if (!Number.isFinite(numero)) return String(numero);",
-                    "    const texto = numero.toFixed(12).replace(/0+$/, '').replace(/\\.$/, '');",
-                    "    return texto === '' || texto === '-' ? '0' : texto;",
-                    "}",
-                    "",
-                ]
-            )
-        if "leer" in self.need:
-            rows.extend(self._js_reads(typed))
         if "borrar" in self.need:
             head = "function _traza_borrar(): void {" if typed else "function _traza_borrar() {"
             rows.extend([head, "    process.stdout.write('\\x1b[2J\\x1b[H');", "}", ""])
@@ -2191,67 +2530,6 @@ class _Emitter:
             )
         return "\n".join(rows).strip("\n")
 
-    def _js_reads(self, typed: bool) -> list[str]:
-        line = "function _traza_linea(): string {" if typed else "function _traza_linea() {"
-        rows = [
-            line,
-            "    return require('readline-sync').question('');",
-            "}",
-            "",
-        ]
-        # readline-sync is not a dependency. Use a stdin line reader that works in Node without packages.
-        rows = [
-            "const _traza_fs = require('fs');",
-            "let _traza_pendiente = '';",
-            "function _traza_linea() {",
-            "    if (!_traza_pendiente) {",
-            "        try { _traza_pendiente = _traza_fs.readFileSync(0, 'utf8'); } catch (error) { _traza_pendiente = ''; }",
-            "    }",
-            "    const corte = _traza_pendiente.indexOf('\\n');",
-            "    const texto = corte < 0 ? _traza_pendiente : _traza_pendiente.slice(0, corte);",
-            "    _traza_pendiente = corte < 0 ? '' : _traza_pendiente.slice(corte + 1);",
-            "    return texto.replace(/\\r$/, '');",
-            "}",
-            "",
-        ]
-        kinds = {
-            "entero": "const valor = Number(texto.trim()); if (!Number.isInteger(valor)) continue; console.log(texto); return valor;",
-            "real": "const valor = Number(texto.trim()); if (!Number.isFinite(valor)) continue; console.log(texto); return valor;",
-            "logico": "const clave = texto.trim().toLowerCase(); if (clave === 'verdadero' || clave === 'true') { console.log(texto); return true; } if (clave === 'falso' || clave === 'false') { console.log(texto); return false; } continue;",
-            "caracter": "if ([...texto].length === 1) { console.log(texto); return texto; } continue;",
-            "cadena": "console.log(texto); return texto;",
-        }
-        for kind, body in kinds.items():
-            if kind not in self.reads:
-                continue
-            ret = {
-                "entero": "number",
-                "real": "number",
-                "logico": "boolean",
-                "caracter": "string",
-                "cadena": "string",
-            }[kind]
-            head = (
-                f"function _traza_leer_{kind}(): {ret} {{"
-                if typed
-                else f"function _traza_leer_{kind}() {{"
-            )
-            if kind == "cadena":
-                rows.extend([head, "    const texto = _traza_linea();", f"    {body}", "}", ""])
-            else:
-                rows.extend(
-                    [
-                        head,
-                        "    while (true) {",
-                        "        const texto = _traza_linea();",
-                        f"        {body}",
-                        "    }",
-                        "}",
-                        "",
-                    ]
-                )
-        return rows
-
     def _support_java(self) -> str:
         rows: list[str] = []
         if "leer" in self.need:
@@ -2268,35 +2546,6 @@ class _Emitter:
                     f"    static final class {box} {{",
                     f"        {scalar} valor;",
                     f"        {box}({scalar} valor) {{ this.valor = valor; }}",
-                    "    }",
-                ]
-            )
-        if "copia" in self.need:
-            rows.extend(
-                [
-                    "    static Object _traza_copia(Object origen) {",
-                    "        if (origen instanceof int[]) return ((int[]) origen).clone();",
-                    "        if (origen instanceof double[]) return ((double[]) origen).clone();",
-                    "        if (origen instanceof boolean[]) return ((boolean[]) origen).clone();",
-                    "        if (origen instanceof char[]) return ((char[]) origen).clone();",
-                    "        if (origen instanceof String[]) return ((String[]) origen).clone();",
-                    "        if (origen instanceof Object[]) {",
-                    "            Object[] filas = ((Object[]) origen).clone();",
-                    "            for (int i = 0; i < filas.length; i++) filas[i] = _traza_copia(filas[i]);",
-                    "            return filas;",
-                    "        }",
-                    "        return origen;",
-                    "    }",
-                ]
-            )
-        if "texto_real" in self.need:
-            rows.extend(
-                [
-                    "    static String _traza_texto_real(double numero) {",
-                    "        if (Double.isInfinite(numero) || Double.isNaN(numero)) return Double.toString(numero);",
-                    "        String texto = new java.math.BigDecimal(Double.toString(numero)).stripTrailingZeros().toPlainString();",
-                    '        if (texto.equals("-0")) return "0";',
-                    "        return texto;",
                     "    }",
                 ]
             )
@@ -2351,107 +2600,7 @@ class _Emitter:
                     "    }",
                 ]
             )
-        if "leer" in self.need:
-            rows.extend(self._java_reads())
-        for kind, rank in self._alloc_ranks():
-            rows.extend(self._java_alloc(kind, rank))
         return "\n".join(rows).strip("\n")
-
-    def _java_reads(self) -> list[str]:
-        rows = [
-            "    static String _traza_linea() {",
-            '        return _traza_entrada.hasNextLine() ? _traza_entrada.nextLine() : "";',
-            "    }",
-        ]
-        if "entero" in self.reads:
-            rows.extend(
-                [
-                    "    static int _traza_leer_entero() {",
-                    "        while (true) {",
-                    "            String texto = _traza_linea();",
-                    "            try { int valor = Integer.parseInt(texto.trim()); System.out.println(texto); return valor; }",
-                    "            catch (NumberFormatException error) { }",
-                    "        }",
-                    "    }",
-                ]
-            )
-        if "real" in self.reads:
-            rows.extend(
-                [
-                    "    static double _traza_leer_real() {",
-                    "        while (true) {",
-                    "            String texto = _traza_linea();",
-                    "            try { double valor = Double.parseDouble(texto.trim()); System.out.println(texto); return valor; }",
-                    "            catch (NumberFormatException error) { }",
-                    "        }",
-                    "    }",
-                ]
-            )
-        if "logico" in self.reads:
-            rows.extend(
-                [
-                    "    static boolean _traza_leer_logico() {",
-                    "        while (true) {",
-                    "            String texto = _traza_linea();",
-                    "            String clave = texto.trim().toLowerCase();",
-                    '            if (clave.equals("verdadero") || clave.equals("true")) { System.out.println(texto); return true; }',
-                    '            if (clave.equals("falso") || clave.equals("false")) { System.out.println(texto); return false; }',
-                    "        }",
-                    "    }",
-                ]
-            )
-        if "caracter" in self.reads:
-            rows.extend(
-                [
-                    "    static char _traza_leer_caracter() {",
-                    "        while (true) {",
-                    "            String texto = _traza_linea();",
-                    "            if (texto.codePointCount(0, texto.length()) == 1) { System.out.println(texto); return texto.charAt(0); }",
-                    "        }",
-                    "    }",
-                ]
-            )
-        if "cadena" in self.reads:
-            rows.extend(
-                [
-                    "    static String _traza_leer_cadena() {",
-                    "        String texto = _traza_linea();",
-                    "        System.out.println(texto);",
-                    "        return texto;",
-                    "    }",
-                ]
-            )
-        return rows
-
-    def _java_alloc(self, kind: TypeName, rank: int) -> list[str]:
-        scalar = self._scalar(kind)
-        fill = self._fill(kind)
-        params = ", ".join(f"int n{i}" for i in range(rank))
-        result = scalar + "[]" * rank
-        name = f"_traza_arreglo_{kind}_{rank}"
-        rows = [f"    static {result} {name}({params}) {{"]
-        if rank == 1:
-            rows.append(f"        {result} tabla = new {scalar}[n0];")
-            rows.append(f"        java.util.Arrays.fill(tabla, {fill});")
-        else:
-            rows.append(f"        {result} tabla = new {scalar}[n0]{'[]' * (rank - 1)};")
-            rows.append("        for (int i = 0; i < n0; i++) {")
-            args = ", ".join(f"n{i}" for i in range(1, rank))
-            rows.append(f"            tabla[i] = _traza_arreglo_{kind}_{rank - 1}({args});")
-            rows.append("        }")
-        rows.append("        return tabla;")
-        rows.append("    }")
-        return rows
-
-    def _alloc_ranks(self) -> list[tuple[TypeName, int]]:
-        needed = set(self.allocs)
-        pending = list(needed)
-        while pending:
-            kind, rank = pending.pop()
-            if rank > 1 and (kind, rank - 1) not in needed:
-                needed.add((kind, rank - 1))
-                pending.append((kind, rank - 1))
-        return sorted(needed, key=lambda item: (item[0], item[1]))
 
     def _support_cpp(self) -> str:
         rows: list[str] = []
@@ -2459,18 +2608,6 @@ class _Emitter:
             rows.append("#include <cctype>")
         if "aleatorio" in self.need:
             rows.append("#include <random>")
-        if "texto_real" in self.need:
-            rows.extend(
-                [
-                    "std::string _traza_texto_real(double numero) {",
-                    "    std::string texto = std::to_string(numero);",
-                    "    while (!texto.empty() && texto.back() == '0') texto.pop_back();",
-                    "    if (!texto.empty() && texto.back() == '.') texto.pop_back();",
-                    '    if (texto.empty() || texto == "-") return "0";',
-                    "    return texto;",
-                    "}",
-                ]
-            )
         if "borrar" in self.need:
             rows.extend(["void _traza_borrar() {", '    std::cout << "\\033[2J\\033[H";', "}"])
         if "esperar" in self.need:
@@ -2539,88 +2676,10 @@ class _Emitter:
                     "}",
                 ]
             )
-        if "leer" in self.need:
-            rows.extend(self._cpp_reads())
         return "\n".join(rows).strip("\n")
-
-    def _cpp_reads(self) -> list[str]:
-        rows = [
-            "std::string _traza_linea() {",
-            "    std::string texto;",
-            '    if (!std::getline(std::cin, texto)) return "";',
-            "    return texto;",
-            "}",
-        ]
-        if "entero" in self.reads:
-            rows.extend(
-                [
-                    "int _traza_leer_entero() {",
-                    "    while (true) {",
-                    "        std::string texto = _traza_linea();",
-                    '        try { size_t corte = 0; int valor = std::stoi(texto, &corte); if (corte) { std::cout << texto << "\\n"; return valor; } }',
-                    "        catch (const std::exception&) {}",
-                    "    }",
-                    "}",
-                ]
-            )
-        if "real" in self.reads:
-            rows.extend(
-                [
-                    "double _traza_leer_real() {",
-                    "    while (true) {",
-                    "        std::string texto = _traza_linea();",
-                    '        try { size_t corte = 0; double valor = std::stod(texto, &corte); if (corte) { std::cout << texto << "\\n"; return valor; } }',
-                    "        catch (const std::exception&) {}",
-                    "    }",
-                    "}",
-                ]
-            )
-        if "cadena" in self.reads:
-            rows.extend(
-                [
-                    "std::string _traza_leer_cadena() {",
-                    "    std::string texto = _traza_linea();",
-                    '    std::cout << texto << "\\n";',
-                    "    return texto;",
-                    "}",
-                ]
-            )
-        if "caracter" in self.reads:
-            rows.extend(
-                [
-                    "char _traza_leer_caracter() {",
-                    "    while (true) {",
-                    "        std::string texto = _traza_linea();",
-                    '        if (texto.size() == 1) { std::cout << texto << "\\n"; return texto[0]; }',
-                    "    }",
-                    "}",
-                ]
-            )
-        if "logico" in self.reads:
-            rows.extend(
-                [
-                    "bool _traza_leer_logico() {",
-                    "    while (true) {",
-                    "        std::string texto = _traza_linea();",
-                    '        if (texto == "Verdadero" || texto == "verdadero" || texto == "true") { std::cout << texto << "\\n"; return true; }',
-                    '        if (texto == "Falso" || texto == "falso" || texto == "false") { std::cout << texto << "\\n"; return false; }',
-                    "    }",
-                    "}",
-                ]
-            )
-        return rows
 
     def _support_cs(self) -> str:
         rows: list[str] = []
-        if "texto_real" in self.need:
-            rows.extend(
-                [
-                    "    static string _traza_texto_real(double numero) {",
-                    '        string texto = numero.ToString("0.############", System.Globalization.CultureInfo.InvariantCulture);',
-                    '        return texto == "-0" ? "0" : texto;',
-                    "    }",
-                ]
-            )
         if "borrar" in self.need:
             rows.extend(["    static void _traza_borrar() {", "        Console.Clear();", "    }"])
         if "esperar" in self.need:
@@ -2664,105 +2723,7 @@ class _Emitter:
                     "    }",
                 ]
             )
-        if "copia" in self.need:
-            rows.extend(
-                [
-                    "    static object _traza_copia(object origen) {",
-                    "        if (origen is Array arreglo) return arreglo.Clone();",
-                    "        return origen;",
-                    "    }",
-                ]
-            )
-        if "leer" in self.need:
-            rows.extend(self._cs_reads())
-        for kind, rank in self._alloc_ranks():
-            rows.extend(self._cs_alloc(kind, rank))
         return "\n".join(rows).strip("\n")
-
-    def _cs_reads(self) -> list[str]:
-        rows = [
-            "    static string _traza_linea() {",
-            '        return Console.ReadLine() ?? "";',
-            "    }",
-        ]
-        if "entero" in self.reads:
-            rows.extend(
-                [
-                    "    static int _traza_leer_entero() {",
-                    "        while (true) {",
-                    "            string texto = _traza_linea();",
-                    "            if (int.TryParse(texto.Trim(), out int valor)) { Console.WriteLine(texto); return valor; }",
-                    "        }",
-                    "    }",
-                ]
-            )
-        if "real" in self.reads:
-            rows.extend(
-                [
-                    "    static double _traza_leer_real() {",
-                    "        while (true) {",
-                    "            string texto = _traza_linea();",
-                    "            if (double.TryParse(texto.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double valor)) { Console.WriteLine(texto); return valor; }",
-                    "        }",
-                    "    }",
-                ]
-            )
-        if "logico" in self.reads:
-            rows.extend(
-                [
-                    "    static bool _traza_leer_logico() {",
-                    "        while (true) {",
-                    "            string texto = _traza_linea();",
-                    "            string clave = texto.Trim().ToLowerInvariant();",
-                    '            if (clave == "verdadero" || clave == "true") { Console.WriteLine(texto); return true; }',
-                    '            if (clave == "falso" || clave == "false") { Console.WriteLine(texto); return false; }',
-                    "        }",
-                    "    }",
-                ]
-            )
-        if "caracter" in self.reads:
-            rows.extend(
-                [
-                    "    static char _traza_leer_caracter() {",
-                    "        while (true) {",
-                    "            string texto = _traza_linea();",
-                    "            if (texto.Length == 1) { Console.WriteLine(texto); return texto[0]; }",
-                    "        }",
-                    "    }",
-                ]
-            )
-        if "cadena" in self.reads:
-            rows.extend(
-                [
-                    "    static string _traza_leer_cadena() {",
-                    "        string texto = _traza_linea();",
-                    "        Console.WriteLine(texto);",
-                    "        return texto;",
-                    "    }",
-                ]
-            )
-        return rows
-
-    def _cs_alloc(self, kind: TypeName, rank: int) -> list[str]:
-        scalar = self._scalar(kind)
-        fill = self._fill(kind)
-        params = ", ".join(f"int n{i}" for i in range(rank))
-        result = scalar + "[]" * rank
-        name = f"_traza_arreglo_{kind}_{rank}"
-        rows = [f"    static {result} {name}({params}) {{"]
-        if rank == 1:
-            rows.append(f"        {result} tabla = new {scalar}[n0];")
-            if kind in ("cadena", "caracter"):
-                rows.append(f"        for (int i = 0; i < n0; i++) tabla[i] = {fill};")
-        else:
-            rows.append(f"        {result} tabla = new {scalar}[n0]{'[]' * (rank - 1)};")
-            rows.append("        for (int i = 0; i < n0; i++) {")
-            args = ", ".join(f"n{i}" for i in range(1, rank))
-            rows.append(f"            tabla[i] = _traza_arreglo_{kind}_{rank - 1}({args});")
-            rows.append("        }")
-        rows.append("        return tabla;")
-        rows.append("    }")
-        return rows
 
 
 _HEADER = (
