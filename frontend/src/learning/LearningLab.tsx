@@ -33,7 +33,7 @@ export function LearningLab({
       <header className="topbar topbar-editor">
         <div className="brand">
           <h1>{t("lab")}</h1>
-          <AccountIdentity account={account} />
+          <AccountIdentity account={account} onAccount={onAccount} />
         </div>
         <div className="actions">
           <button

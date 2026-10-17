@@ -12,7 +12,7 @@ import {
   type LabConcept,
   type Person,
 } from "../api"
-import { useT, type MessageKey } from "../i18n"
+import { translatedMessage, useT, type MessageKey } from "../i18n"
 import { ChallengeForm } from "./ChallengeForm"
 
 const ACTIVITY: Record<string, MessageKey> = {
@@ -23,7 +23,7 @@ const ACTIVITY: Record<string, MessageKey> = {
 }
 
 function messageOf(error: unknown, fallback: string): string {
-  return error instanceof ApiError ? error.message : fallback
+  return error instanceof ApiError ? translatedMessage(error.message) : fallback
 }
 
 function audienceSize(
@@ -444,7 +444,7 @@ export function TeacherPaths() {
                             value={item.id}
                             disabled={current.challenges.some((row) => row.id === item.id)}
                           >
-                            {item.title} · {ACTIVITY[item.activity_type] ? t(ACTIVITY[item.activity_type]) : item.activity_type} · {item.points} pts
+                            {item.title} · {ACTIVITY[item.activity_type] ? t(ACTIVITY[item.activity_type]) : item.activity_type} · {t("pointsCount", { count: item.points })}
                           </option>
                         ))}
                     </optgroup>
@@ -457,7 +457,7 @@ export function TeacherPaths() {
                             value={item.id}
                             disabled={current.challenges.some((row) => row.id === item.id)}
                           >
-                            {item.title} · {ACTIVITY[item.activity_type] ? t(ACTIVITY[item.activity_type]) : item.activity_type} · {item.points} pts
+                            {item.title} · {ACTIVITY[item.activity_type] ? t(ACTIVITY[item.activity_type]) : item.activity_type} · {t("pointsCount", { count: item.points })}
                           </option>
                         ))}
                     </optgroup>
@@ -489,7 +489,7 @@ export function TeacherPaths() {
                       <p>
                         <span>{ACTIVITY[item.activity_type] ? t(ACTIVITY[item.activity_type]) : item.activity_type}</span>
                         <span>{item.concept}</span>
-                        <span>{item.points} pts</span>
+                        <span>{t("pointsCount", { count: item.points })}</span>
                         {item.withdrawn ? <span className="roster-state roster-state-locked">{t("withdrawn")}</span> : null}
                       </p>
                     </div>

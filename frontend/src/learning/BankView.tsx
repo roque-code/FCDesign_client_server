@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 
 import { ApiError, api, type CsvChallengeFormat, type LabBank, type LabBankChallenge, type LabBankShelf, type LabConcept } from "../api"
 import { spellText } from "../dialect"
-import { useLocale, useT, type MessageKey } from "../i18n"
+import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
 import { ChallengeForm } from "./ChallengeForm"
 import { formatLimit } from "./trace"
 import { TOOL_GROUPS } from "./toolbox"
@@ -14,12 +14,26 @@ const ACTIVITY: Record<string, MessageKey> = {
   predict: "predict",
 }
 
+const CSV_KIND: Record<string, MessageKey> = {
+  clasificar: "classify",
+  ordenar: "order",
+  construir: "build",
+  predecir: "predict",
+}
+
+const CSV_NOTE: Record<string, MessageKey> = {
+  clasificar: "csvNoteClassify",
+  ordenar: "csvNoteOrder",
+  construir: "csvNoteBuild",
+  predecir: "csvNotePredict",
+}
+
 const BLOCK_LABEL = new Map(
   TOOL_GROUPS.flatMap((group) => group.blocks.map((block) => [block.id, block.labelKey])),
 )
 
 function messageOf(error: unknown, fallback: string): string {
-  return error instanceof ApiError ? error.message : fallback
+  return error instanceof ApiError ? translatedMessage(error.message) : fallback
 }
 
 function ChallengeCard({
@@ -53,7 +67,7 @@ function ChallengeCard({
             </span>
             <span>{item.concept}</span>
             <span>{t("difficulty", { level: item.difficulty })}</span>
-            <span>{item.points} pts</span>
+            <span>{t("pointsCount", { count: item.points })}</span>
             <span>{item.time_limit_seconds ? formatLimit(item.time_limit_seconds) : t("noLimit")}</span>
             {item.owned ? <span>{t("yours")}</span> : null}
           </p>
@@ -351,12 +365,12 @@ export function BankView() {
             {formats.map((item) => (
               <section key={item.tipo}>
                 <header>
-                  <h3>{item.tipo}</h3>
+                  <h3>{CSV_KIND[item.tipo] ? t(CSV_KIND[item.tipo]) : item.tipo}</h3>
                   <button type="button" onClick={() => download(item)}>
                     {t("downloadTemplate")}
                   </button>
                 </header>
-                <p>{item.notes}</p>
+                <p>{CSV_NOTE[item.tipo] ? t(CSV_NOTE[item.tipo]) : item.notes}</p>
                 <h4>{t("csvColumns")}</h4>
                 <p className="csv-columns">{item.columns.join(", ")}</p>
                 <h4>{t("csvExample")}</h4>
@@ -385,7 +399,7 @@ export function BankView() {
               <header>
                 <h3>{unit.title}</h3>
                 <p>
-                  {unit.challenges.length} {unit.challenges.length === 1 ? "reto" : "retos"}
+                  {t(unit.challenges.length === 1 ? "countChallenge" : "countChallenges", { count: unit.challenges.length })}
                 </p>
               </header>
               <div className="bank-list">

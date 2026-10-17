@@ -1,3 +1,5 @@
+import { localMissingMessage } from "./i18n"
+
 export type Role = "student" | "teacher"
 
 export type Account = {
@@ -9,6 +11,7 @@ export type Account = {
   points: number
   rank: number
   translation_enabled: boolean
+  avatar: string | null
 }
 
 export type PendingConfirmation = {
@@ -528,7 +531,7 @@ function desktopProxyEnabled(): boolean {
 async function requestText(path: string): Promise<string> {
   if (desktopProxyEnabled()) {
     const internals = (window as Window & { __TAURI_INTERNALS__?: { invoke: (command: string, args: Record<string, unknown>) => Promise<ProxyReply> } }).__TAURI_INTERNALS__
-    if (!internals) throw new ApiError(0, "local_missing", "El intérprete local no está disponible.")
+    if (!internals) throw new ApiError(0, "local_missing", localMissingMessage())
     const reply = await internals.invoke("server_fetch", { path, method: "GET", body: null, headers: {} })
     if (reply.csrf) memoryCsrf = reply.csrf
     if (reply.status < 200 || reply.status >= 300) throw textError(reply.status, reply.body)
@@ -579,7 +582,7 @@ type ProxyReply = { status: number; body: string; csrf: string }
 
 async function desktopRequest<T>(path: string, init: RequestInit): Promise<T> {
   const internals = (window as Window & { __TAURI_INTERNALS__?: { invoke: (command: string, args: Record<string, unknown>) => Promise<ProxyReply> } }).__TAURI_INTERNALS__
-  if (!internals) throw new ApiError(0, "local_missing", "El intérprete local no está disponible.")
+  if (!internals) throw new ApiError(0, "local_missing", localMissingMessage())
   const headers: Record<string, string> = {}
   const token = csrfToken()
   if (token) headers["X-CSRFToken"] = token
@@ -623,8 +626,13 @@ export const api = {
     }),
   login: (body: { email: string; password: string }) =>
     request<Account>("/api/v1/auth/login/", { method: "POST", body: JSON.stringify(body) }),
-  updateAccount: (body: { role: Role }) =>
-    request<Account>("/api/v1/auth/me/", { method: "PATCH", body: JSON.stringify(body) }),
+  updateAccount: (body: {
+    role?: Role
+    display_name?: string
+    avatar?: string | null
+    current_password?: string
+    password?: string
+  }) => request<Account>("/api/v1/auth/me/", { method: "PATCH", body: JSON.stringify(body) }),
   communities: () => request<{ results: CommunitySummary[] }>("/api/v1/communities/"),
   community: (id: string) => request<Community>(`/api/v1/communities/${id}/`),
   createCommunity: (name: string) =>

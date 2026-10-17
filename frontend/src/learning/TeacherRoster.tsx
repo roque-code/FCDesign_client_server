@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 
 import { ApiError, api, type LabMemberProgress, type LabMemberWork, type LabRosterRoute } from "../api"
 import { spellText } from "../dialect"
-import { useLocale, useT, type MessageKey } from "../i18n"
+import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
 import { TeacherBoard } from "./TeacherBoard"
 import { formatClock, formatWhen } from "./trace"
 
@@ -22,7 +22,7 @@ const ACTIVITY: Record<string, MessageKey> = {
 }
 
 function messageOf(error: unknown, fallback: string): string {
-  return error instanceof ApiError ? error.message : fallback
+  return error instanceof ApiError ? translatedMessage(error.message) : fallback
 }
 
 function percent(completed: number, total: number): number {
@@ -65,7 +65,7 @@ function StudentWork({
             {t("teacherScore", { points: challenge.points, total: points, rank })}
           </p>
           {attempt.elapsed_seconds != null ? <p>{t("answeredIn", { time: formatClock(attempt.elapsed_seconds) })}</p> : null}
-          {attempt.finished_at ? <p>{formatWhen(attempt.finished_at)}</p> : null}
+          {attempt.finished_at ? <p>{formatWhen(attempt.finished_at, locale)}</p> : null}
           <p>{attempt.summary || t("alreadyClosed")}</p>
           {attempt.prediction ? <p>{t("answerIs", { answer: attempt.prediction.answer })}</p> : null}
           {attempt.reflection ? <blockquote>{attempt.reflection}</blockquote> : null}
@@ -76,7 +76,7 @@ function StudentWork({
           <p className="enunciado-kicker">{t("timeWord")}</p>
           <h2>{t("timeUp")}</h2>
           {attempt.elapsed_seconds != null ? <p>{t("usedTime", { time: formatClock(attempt.elapsed_seconds) })}</p> : null}
-          {attempt.finished_at ? <p>{formatWhen(attempt.finished_at)}</p> : null}
+          {attempt.finished_at ? <p>{formatWhen(attempt.finished_at, locale)}</p> : null}
           <p>{t("savedAgain")}</p>
         </article>
       ) : null}
@@ -127,9 +127,9 @@ function StudentWork({
   )
 }
 
-function initialOf(name: string): string {
+function initialOf(name: string, locale: "es" | "en"): string {
   const letter = name.trim().charAt(0)
-  return letter ? letter.toLocaleUpperCase("es") : "?"
+  return letter ? letter.toLocaleUpperCase(locale === "en" ? "en" : "es") : "?"
 }
 
 function progressFilename(name: string): string {
@@ -300,9 +300,9 @@ export function TeacherRoster() {
                             <strong>{item.title}</strong>
                             <p>
                               <span>{item.concept}</span>
-                              <span>{item.points} pts</span>
-                              {item.opens_at ? <span>{t("fromDate", { when: formatWhen(item.opens_at) })}</span> : null}
-                              {item.closes_at ? <span>{t("untilDate", { when: formatWhen(item.closes_at) })}</span> : null}
+                              <span>{t("pointsCount", { count: item.points })}</span>
+                              {item.opens_at ? <span>{t("fromDate", { when: formatWhen(item.opens_at, locale) })}</span> : null}
+                              {item.closes_at ? <span>{t("untilDate", { when: formatWhen(item.closes_at, locale) })}</span> : null}
                               {item.withdrawn ? <span className="roster-state roster-state-locked">{t("withdrawn")}</span> : null}
                               {item.state === "completed" && item.score != null ? <span>{t("scoreNote", { score: item.score })}</span> : null}
                             </p>
@@ -393,7 +393,7 @@ export function TeacherRoster() {
                   return (
                     <li key={student.id}>
                       <button type="button" onClick={() => void openPerson(student.id, route.id)} disabled={busy}>
-                        <span className="roster-avatar" aria-hidden="true">{initialOf(student.display_name)}</span>
+                        <span className="roster-avatar" aria-hidden="true">{initialOf(student.display_name, locale)}</span>
                         <span className="roster-person">
                           <strong>{student.display_name}</strong>
                           {student.communities.length > 0 ? (
@@ -408,7 +408,7 @@ export function TeacherRoster() {
                           </span>
                           <span className="roster-meta">
                             {student.total === 0 ? t("noChallengesShort") : t("progressCount", { done: student.completed, total: student.total })}
-                            {student.last_activity ? ` · ${formatWhen(student.last_activity)}` : ""}
+                            {student.last_activity ? ` · ${formatWhen(student.last_activity, locale)}` : ""}
                           </span>
                         </span>
                         <span className="roster-score">

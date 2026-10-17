@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react"
 
 import { api, ApiError, type Community, type CommunitySummary, type Person } from "../api"
-import { useT } from "../i18n"
+import { translatedMessage, useT } from "../i18n"
 
 export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
   const t = useT()
@@ -26,7 +26,7 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     void loadList().catch((caught: unknown) => {
-      setError(caught instanceof ApiError ? caught.message : t("communitiesLoadError"))
+      setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("communitiesLoadError"))
     })
   }, [])
 
@@ -36,7 +36,7 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
     void api.community(selectedId).then((item) => {
       if (alive) setDetail(item)
     }).catch((caught: unknown) => {
-      if (alive) setError(caught instanceof ApiError ? caught.message : t("communityOpenError"))
+      if (alive) setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("communityOpenError"))
     })
     return () => {
       alive = false
@@ -65,7 +65,7 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
       }).catch((caught: unknown) => {
         setPeople([])
         setSearched(text)
-        setError(caught instanceof ApiError ? caught.message : t("searchError"))
+        setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("searchError"))
       })
     }, 250)
     return () => window.clearTimeout(handle)
@@ -80,7 +80,7 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
       setDetail(created)
       await loadList(created.id)
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t("communityCreateError"))
+      setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("communityCreateError"))
     }
   }
 
@@ -93,7 +93,7 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
       setQuery("")
       await loadList()
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t("communityDeleteError"))
+      setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("communityDeleteError"))
     }
   }
 
@@ -106,7 +106,7 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
       setDetail(await api.community(selectedId))
       setCommunities((await api.communities()).results)
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t("addError"))
+      setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("addError"))
     }
   }
 
@@ -119,7 +119,7 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
       setDetail(await api.community(selectedId))
       setCommunities((await api.communities()).results)
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t("removeError"))
+      setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("removeError"))
     }
   }
 
@@ -138,7 +138,7 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
     try {
       remember(await api.setCommunityTranslation(selectedId, enabled))
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t("translationSaveError"))
+      setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("translationSaveError"))
     }
   }
 
@@ -148,7 +148,7 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
     try {
       remember(await api.setMemberTranslation(selectedId, person.id, enabled))
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t("translationSaveError"))
+      setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("translationSaveError"))
     }
   }
 
@@ -191,7 +191,7 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
                     }}
                   >
                     <strong>{item.name}</strong>
-                    <span>{t("studentCount", { count: item.student_count })}</span>
+                    <span>{t(item.student_count === 1 ? "countStudent" : "countStudents", { count: item.student_count })}</span>
                   </button>
                 </li>
               ))}

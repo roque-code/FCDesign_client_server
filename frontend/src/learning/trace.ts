@@ -23,10 +23,10 @@ export function formatClock(seconds: number): string {
   return `${minutes}:${String(rest).padStart(2, "0")}`
 }
 
-export function formatWhen(iso: string): string {
+export function formatWhen(iso: string, locale: "es" | "en" = "es"): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ""
-  return date.toLocaleString("es-MX", {
+  return date.toLocaleString(locale === "en" ? "en-US" : "es-MX", {
     day: "numeric",
     month: "short",
     hour: "2-digit",

@@ -75,7 +75,7 @@ class MeView(APIView):
         return Response(user_payload(current_user(request)))
 
     def patch(self, request: Request) -> Response:
-        user = update_profile(current_user(request), object_body(request.data))
+        user = update_profile(current_user(request), object_body(request.data), request)
         return Response(user_payload(user))
 
 

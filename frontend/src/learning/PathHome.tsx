@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 
 import { ApiError, api, type LabPath, type LabPathChallenge } from "../api"
-import { useT, type MessageKey } from "../i18n"
+import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
 import { formatLimit, formatWhen } from "./trace"
 
 const ACTIVITY: Record<string, MessageKey> = {
@@ -20,7 +20,7 @@ const STATE: Record<string, MessageKey> = {
 }
 
 function messageOf(error: unknown, fallback: string): string {
-  return error instanceof ApiError ? error.message : fallback
+  return error instanceof ApiError ? translatedMessage(error.message) : fallback
 }
 
 function percent(completed: number, total: number): number {
@@ -40,6 +40,7 @@ function ChallengeRow({
   onOpen: () => void
 }) {
   const t = useT()
+  const locale = useLocale()
   return (
     <li className={`path-item path-${item.state}`}>
       <span className="path-index">{item.position}</span>
@@ -50,9 +51,9 @@ function ChallengeRow({
             {ACTIVITY[item.activity_type] ? t(ACTIVITY[item.activity_type]) : item.activity_type}
           </span>
           <span>{item.concept}</span>
-          <span>{item.points} pts</span>
-          {item.opens_at ? <span>{t("fromDate", { when: formatWhen(item.opens_at) })}</span> : null}
-          {item.closes_at ? <span>{t("untilDate", { when: formatWhen(item.closes_at) })}</span> : null}
+          <span>{t("pointsCount", { count: item.points })}</span>
+          {item.opens_at ? <span>{t("fromDate", { when: formatWhen(item.opens_at, locale) })}</span> : null}
+          {item.closes_at ? <span>{t("untilDate", { when: formatWhen(item.closes_at, locale) })}</span> : null}
           {item.withdrawn ? <span className="roster-state roster-state-locked">{t("withdrawn")}</span> : null}
           {item.time_limit_seconds ? <span>{formatLimit(item.time_limit_seconds)}</span> : null}
           {item.attempt_count > 0 ? (

@@ -1,10 +1,12 @@
 """Alta, sesión y restablecimiento. La contraseña solo pasa por el hasher de Django."""
 
+import base64
+import binascii
 from smtplib import SMTPException
 from urllib.parse import urlencode
 
 from django.conf import settings
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import PasswordResetTokenGenerator, default_token_generator
 from django.core.exceptions import ValidationError
@@ -134,6 +136,7 @@ def user_payload(user: User) -> dict[str, object]:
         "points": standing["points"],
         "rank": standing["rank"],
         "translation_enabled": translation_allowed(user),
+        "avatar": _avatar_data_url(profile),
     }
 
 
@@ -259,10 +262,75 @@ def request_password_reset(email: object, ip_address: str | None) -> None:
     )
 
 
-def update_profile(user: User, data: dict) -> User:
+_AVATAR_KINDS = {
+    "image/jpeg": b"\xff\xd8\xff",
+    "image/png": b"\x89PNG\r\n\x1a\n",
+}
+_MAX_AVATAR = 120_000
+
+
+def clean_avatar(value: object) -> tuple[bytes, str] | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.startswith("data:") or "," not in value:
+        raise DomainError("La imagen no es válida.")
+    header, encoded = value.split(",", 1)
+    if ";base64" not in header:
+        raise DomainError("La imagen no es válida.")
+    kind = header[5:].split(";", 1)[0]
+    if kind not in _AVATAR_KINDS:
+        raise DomainError("La imagen debe ser JPG o PNG.")
+    try:
+        raw = base64.b64decode(encoded, validate=True)
+    except binascii.Error as exc:
+        raise DomainError("La imagen no es válida.") from exc
+    if len(raw) < 32 or len(raw) > _MAX_AVATAR or not raw.startswith(_AVATAR_KINDS[kind]):
+        raise DomainError("La imagen no es válida.")
+    return raw, kind
+
+
+def _avatar_data_url(profile: Profile) -> str | None:
+    if not profile.avatar or not profile.avatar_type:
+        return None
+    encoded = base64.b64encode(bytes(profile.avatar)).decode("ascii")
+    return f"data:{profile.avatar_type};base64,{encoded}"
+
+
+def update_profile(user: User, data: dict, request=None) -> User:
+    profile = user.profile
+    fields: list[str] = []
+    secret = None
+    if "display_name" in data:
+        profile.display_name = clean_label(
+            data.get("display_name"), field="El nombre", limit=80, required=True
+        )
+        fields.append("display_name")
+    if "avatar" in data:
+        cleaned = clean_avatar(data.get("avatar"))
+        if cleaned is None:
+            profile.avatar = None
+            profile.avatar_type = ""
+        else:
+            profile.avatar, profile.avatar_type = cleaned
+        fields.extend(["avatar", "avatar_type"])
     if "role" in data:
-        user.profile.role = clean_role(data.get("role"))
-        user.profile.save(update_fields=["role", "updated_at"])
+        profile.role = clean_role(data.get("role"))
+        fields.append("role")
+    password = data.get("password")
+    if password not in (None, ""):
+        current = data.get("current_password")
+        if not isinstance(current, str) or not user.check_password(current):
+            raise DomainError("La contraseña actual no coincide.")
+        secret = ensure_password(password, user)
+    if secret is not None:
+        user.set_password(secret)
+        user.save(update_fields=["password"])
+        http_request = getattr(request, "_request", request)
+        if http_request is not None:
+            update_session_auth_hash(http_request, user)
+    if fields:
+        fields.append("updated_at")
+        profile.save(update_fields=fields)
     return user
 
 

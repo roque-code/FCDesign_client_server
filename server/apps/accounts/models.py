@@ -50,6 +50,8 @@ class Profile(models.Model):
     institution = models.CharField(max_length=120, blank=True)
     role = models.CharField(max_length=16, default=STUDENT)
     points = models.PositiveIntegerField(default=0)
+    avatar = models.BinaryField(null=True, blank=True)
+    avatar_type = models.CharField(max_length=16, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

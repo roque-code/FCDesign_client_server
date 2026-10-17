@@ -1,5 +1,5 @@
 import { type LabRosterRoute } from "../api"
-import { useT } from "../i18n"
+import { useLocale, useT } from "../i18n"
 import { formatWhen } from "./trace"
 
 type BoardRoute = {
@@ -24,7 +24,7 @@ function percent(completed: number, total: number): number {
   return Math.min(100, Math.round((completed / total) * 100))
 }
 
-function studentsOf(routes: LabRosterRoute[]): BoardStudent[] {
+function studentsOf(routes: LabRosterRoute[], locale: "es" | "en"): BoardStudent[] {
   const grouped = new Map<number, BoardStudent>()
   for (const route of routes) {
     for (const student of route.students) {
@@ -49,7 +49,7 @@ function studentsOf(routes: LabRosterRoute[]): BoardStudent[] {
       grouped.set(student.id, current)
     }
   }
-  return [...grouped.values()].sort((left, right) => left.display_name.localeCompare(right.display_name, "es"))
+  return [...grouped.values()].sort((left, right) => left.display_name.localeCompare(right.display_name, locale))
 }
 
 function totals(student: BoardStudent): { done: number; total: number; percent: number } {
@@ -100,12 +100,13 @@ export function TeacherBoard({
   onOpen: (userId: number, routeId: string) => void
 }) {
   const t = useT()
-  const students = studentsOf(routes)
+  const locale = useLocale()
+  const students = studentsOf(routes, locale)
   if (students.length === 0) return null
   const average = Math.round(students.reduce((sum, student) => sum + totals(student).percent, 0) / students.length)
   const idle = students.filter((student) => student.last_activity == null).length
   const ranked = [...students].sort(
-    (left, right) => totals(right).percent - totals(left).percent || left.display_name.localeCompare(right.display_name, "es"),
+    (left, right) => totals(right).percent - totals(left).percent || left.display_name.localeCompare(right.display_name, locale),
   )
 
   return (
@@ -159,9 +160,9 @@ export function TeacherBoard({
                   {student.communities.length > 0 ? <span className="roster-meta">{student.communities.join(" · ")}</span> : null}
                   <span className="roster-meta">
                     {progress.total === 0 ? t("noChallengesShort") : t("progressCount", { done: progress.done, total: progress.total })}
-                    {student.last_activity ? ` · ${formatWhen(student.last_activity)}` : ""}
+                    {student.last_activity ? ` · ${formatWhen(student.last_activity, locale)}` : ""}
                   </span>
-                  <span className="roster-meta">{student.points} pts · {t("placeRank", { rank: student.rank })}</span>
+                  <span className="roster-meta">{t("placeLine", { points: student.points, rank: student.rank })}</span>
                 </span>
               </button>
               <ul>

@@ -1,14 +1,28 @@
-import type { Account } from "../api"
+import { useRef, useState } from "react"
+
+import { ApiError, api, type Account } from "../api"
 import { useT } from "../i18n"
 
-export function AccountIdentity({ account }: { account: Account }) {
+export function AccountIdentity({
+  account,
+  onAccount,
+}: {
+  account: Account
+  onAccount?: (account: Account) => void
+}) {
   const t = useT()
+  const [open, setOpen] = useState(false)
   return (
     <>
       <div className="who">
-        <span className="avatar" aria-hidden="true">
-          {initials(account.display_name)}
-        </span>
+        <button
+          className="avatar avatar-button"
+          type="button"
+          aria-label={t("customizeProfile")}
+          onClick={() => setOpen(true)}
+        >
+          {account.avatar ? <img src={account.avatar} alt="" /> : initials(account.display_name)}
+        </button>
         <span className="who-name">{account.display_name}</span>
         <span className="who-role">{account.role === "teacher" ? t("teacher") : t("student")}</span>
       </div>
@@ -24,8 +38,199 @@ export function AccountIdentity({ account }: { account: Account }) {
           <small>{t("place")}</small>
         </span>
       </div>
+      {open ? (
+        <ProfileDialog
+          account={account}
+          onClose={() => setOpen(false)}
+          onAccount={(next) => {
+            onAccount?.(next)
+            setOpen(false)
+          }}
+        />
+      ) : null}
     </>
   )
+}
+
+function ProfileDialog({
+  account,
+  onClose,
+  onAccount,
+}: {
+  account: Account
+  onClose: () => void
+  onAccount: (account: Account) => void
+}) {
+  const t = useT()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [name, setName] = useState(account.display_name)
+  const [avatar, setAvatar] = useState<string | null>(account.avatar)
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [password, setPassword] = useState("")
+  const [repeat, setRepeat] = useState("")
+  const [error, setError] = useState("")
+  const [busy, setBusy] = useState(false)
+
+  async function choosePhoto(file: File | undefined) {
+    if (!file) return
+    setError("")
+    try {
+      setAvatar(await squarePhoto(file))
+    } catch {
+      setError(t("photoError"))
+    }
+  }
+
+  async function save() {
+    if (password !== repeat) {
+      setError(t("passwordMismatch"))
+      return
+    }
+    setBusy(true)
+    setError("")
+    try {
+      const next = await api.updateAccount({
+        display_name: name.trim(),
+        avatar,
+        ...(password ? { current_password: currentPassword, password } : {}),
+      })
+      onAccount(next)
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : t("profileSaveError"))
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div
+      className="profile-dialog"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
+      <form
+        className="profile-card"
+        role="dialog"
+        aria-label={t("customizeProfile")}
+        onSubmit={(event) => {
+          event.preventDefault()
+          void save()
+        }}
+      >
+        <header>
+          <h2>{t("customizeProfile")}</h2>
+          <button type="button" onClick={onClose}>
+            {t("close")}
+          </button>
+        </header>
+        <div className="profile-photo">
+          <span className="avatar" aria-hidden="true">
+            {avatar ? <img src={avatar} alt="" /> : initials(name)}
+          </span>
+          <div>
+            <p>{t("profilePhoto")}</p>
+            <p className="note">{t("photoHint")}</p>
+            <div className="profile-photo-actions">
+              <button type="button" onClick={() => fileRef.current?.click()}>
+                {t("choosePhoto")}
+              </button>
+              {avatar ? (
+                <button type="button" onClick={() => setAvatar(null)}>
+                  {t("removePhoto")}
+                </button>
+              ) : null}
+            </div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={(event) => {
+                void choosePhoto(event.target.files?.[0])
+                event.target.value = ""
+              }}
+            />
+          </div>
+        </div>
+        <label>
+          {t("nameWord")}
+          <input value={name} maxLength={80} required onChange={(event) => setName(event.target.value)} />
+        </label>
+        <fieldset>
+          <legend>{t("password")}</legend>
+          <p className="note">{t("passwordHint")}</p>
+          <label>
+            {t("currentPassword")}
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+            />
+          </label>
+          <label>
+            {t("newPassword")}
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </label>
+          <label>
+            {t("repeatPassword")}
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={repeat}
+              onChange={(event) => setRepeat(event.target.value)}
+            />
+          </label>
+        </fieldset>
+        {error ? <p className="error">{error}</p> : null}
+        <div className="profile-actions">
+          <button type="button" onClick={onClose} disabled={busy}>
+            {t("cancel")}
+          </button>
+          <button className="primary" type="submit" disabled={busy}>
+            {t("save")}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+async function squarePhoto(file: File): Promise<string> {
+  if (!file.type.startsWith("image/") || file.type === "image/svg+xml" || file.size > 8_000_000) {
+    throw new Error("photo")
+  }
+  const bitmap = await createImageBitmap(file)
+  const side = 256
+  const scale = Math.max(side / bitmap.width, side / bitmap.height)
+  const canvas = document.createElement("canvas")
+  canvas.width = side
+  canvas.height = side
+  const context = canvas.getContext("2d")
+  if (!context) throw new Error("photo")
+  context.fillStyle = "#ffffff"
+  context.fillRect(0, 0, side, side)
+  context.drawImage(
+    bitmap,
+    (side - bitmap.width * scale) / 2,
+    (side - bitmap.height * scale) / 2,
+    bitmap.width * scale,
+    bitmap.height * scale,
+  )
+  bitmap.close()
+  let quality = 0.86
+  let url = canvas.toDataURL("image/jpeg", quality)
+  while (url.length > 150_000 && quality > 0.45) {
+    quality -= 0.1
+    url = canvas.toDataURL("image/jpeg", quality)
+  }
+  if (!url.startsWith("data:image/jpeg;base64,") || url.length > 160_000) throw new Error("photo")
+  return url
 }
 
 function initials(name: string): string {

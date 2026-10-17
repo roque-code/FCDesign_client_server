@@ -7,6 +7,7 @@ import {
   type LabRun,
   type TranslationResult,
 } from "./api"
+import { localMissingMessage } from "./i18n"
 
 export type LocalEndpoint = {
   origin: string
@@ -57,14 +58,14 @@ export function labEventUrl(id: string, local: LocalEndpoint | null = installedL
 export function openEditorEvents(id: string): EventSource {
   if (!inInstalledApp()) return new EventSource(`/api/v1/executions/${id}/events/`)
   const local = installedLocal()
-  if (!local) throw new ApiError(0, "local_missing", "El intérprete local no está disponible.")
+  if (!local) throw new ApiError(0, "local_missing", localMissingMessage())
   return new EventSource(editorEventUrl(id, local))
 }
 
 export function openLabEvents(id: string): EventSource {
   if (!inInstalledApp()) return new EventSource(`/api/v1/learning/runs/${id}/events/`)
   const local = installedLocal()
-  if (!local) throw new ApiError(0, "local_missing", "El intérprete local no está disponible.")
+  if (!local) throw new ApiError(0, "local_missing", localMissingMessage())
   return new EventSource(labEventUrl(id, local))
 }
 
@@ -156,7 +157,7 @@ function localUrl(local: LocalEndpoint, path: string): string {
 async function localJson<T>(path: string, body: unknown, method = "POST"): Promise<T> {
   const local = installedLocal()
   if (!local) {
-    throw new ApiError(0, "local_missing", "El intérprete local no está disponible.")
+    throw new ApiError(0, "local_missing", localMissingMessage())
   }
   const response = await fetch(localUrl(local, path), {
     method,

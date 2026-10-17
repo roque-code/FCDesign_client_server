@@ -165,6 +165,7 @@ export type DiagramRequest = { name?: string; source?: string; semicolons: boole
 
 export function Composer({
   account = null,
+  onAccount,
   active,
   incoming,
   onBack,
@@ -175,6 +176,7 @@ export function Composer({
   onSource,
 }: {
   account?: Account | null
+  onAccount?: (account: Account) => void
   active: boolean
   incoming: DiagramRequest | null
   onBack: () => void
@@ -424,7 +426,7 @@ export function Composer({
       <header className="topbar topbar-editor">
         <div className="brand">
           {embedded ? null : <h1>{t("composeTitle")}</h1>}
-          {embedded || !account ? null : <AccountIdentity account={account} />}
+          {embedded || !account ? null : <AccountIdentity account={account} onAccount={onAccount} />}
           <label className="composer-name">
             {t("algorithm")}
             <input
@@ -1083,7 +1085,7 @@ function SendDialog({
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (!algorithmName) {
-      setError("Escribe el nombre del algoritmo.")
+      setError(t("writeAlgorithmName"))
       return
     }
     setBusy(true)
@@ -1093,7 +1095,7 @@ function SendDialog({
       if (newProject) {
         const title = projectName.trim()
         if (!title) {
-          setError("Escribe el nombre del proyecto.")
+          setError(t("writeProjectName"))
           setBusy(false)
           return
         }
@@ -1101,7 +1103,7 @@ function SendDialog({
         destination = project.id
       }
       if (!destination) {
-        setError("Elige un proyecto.")
+        setError(t("pickProject"))
         setBusy(false)
         return
       }

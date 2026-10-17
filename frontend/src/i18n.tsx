@@ -102,6 +102,18 @@ const es = {
   errorWord: "Error",
   lineColumn: "Línea {line}, columna {column}. {message}",
   profileError: "No se pudo cambiar el perfil.",
+  customizeProfile: "Personalizar perfil",
+  profilePhoto: "Foto",
+  choosePhoto: "Elegir imagen",
+  removePhoto: "Quitar imagen",
+  photoHint: "JPG o PNG. Se guarda como un cuadrado pequeño.",
+  photoError: "Elige una imagen JPG o PNG de menos de 8 MB.",
+  currentPassword: "Contraseña actual",
+  newPassword: "Nueva contraseña",
+  repeatPassword: "Repetir contraseña",
+  passwordMismatch: "Las contraseñas nuevas no coinciden.",
+  passwordHint: "Déjalas vacías si no quieres cambiarla.",
+  profileSaveError: "No se pudo guardar el perfil.",
   requestError: "No se pudo completar la solicitud.",
   points: "puntos",
   rankTitle: "Puesto {rank}",
@@ -156,6 +168,20 @@ const es = {
   translationForStudent: "Traducción de {name}",
   translationOff: "Tu docente desactivó la traducción de código.",
   translationSaveError: "No se pudo guardar la traducción.",
+  translationFlagRequired: "Indica si la traducción queda habilitada.",
+  translationStudentsOnly: "La traducción se ajusta para un alumno.",
+  teachersManage: "Solo un docente puede gestionar comunidades.",
+  communityMissing: "No se encontró la comunidad.",
+  communityLimit: "Llegaste al máximo de comunidades.",
+  communityNameTaken: "Ya tienes una comunidad con ese nombre.",
+  personMissing: "Esa persona no está registrada.",
+  cannotAddSelf: "No puedes agregarte a tu propia comunidad.",
+  memberLimit: "La comunidad llegó al máximo de personas.",
+  alreadyMember: "Esa persona ya está en la comunidad.",
+  notAMember: "Esa persona no está en la comunidad.",
+  searchTooShort: "Escribe al menos dos letras.",
+  searchControl: "La búsqueda contiene caracteres de control.",
+  localMissing: "El intérprete local no está disponible.",
   deleteCommunity: "¿Eliminar la comunidad «{name}»?",
   composeTitle: "Armar diagrama",
   loadExample: "Cargar ejemplo",
@@ -419,6 +445,31 @@ const es = {
   contestLocked: "Estos 50 retos son del sistema. Un archivo CSV agrega retos a tu banco, en el catálogo.",
   csvColumns: "Columnas",
   csvExample: "Ejemplo",
+  csvNoteClassify: "categorias separa los nombres con |. frases usa texto => categoria y separa las frases con |.",
+  csvNoteOrder: "instrucciones van en el orden correcto, separadas con |.",
+  csvNoteBuild:
+    "respuestas separa las opciones con |. Cada caso usa casoN_entradas (valores separados con |) y casoN_salida. Los casos van del 1 al 6, sin huecos. En la salida, \\n es un salto de línea. El reto abre código, diagrama y bloques. La salida esperada es el texto completo: cada Leer también escribe el dato.",
+  csvNotePredict:
+    "respuestas separa las opciones con |. pseudocodigo es el programa. \\n es un salto de línea. El algoritmo se llama Laboratorio y no usa Leer.",
+  csvEmpty: "El archivo CSV está vacío.",
+  csvTooBig: "El archivo CSV es demasiado grande.",
+  csvRowLimit: "El archivo admite hasta {count} retos.",
+  csvImportedNone: "No se importó ningún reto. {detail}",
+  csvRowProblem: "No se importó ningún reto. Fila {line}: {detail}",
+  csvUnknownTemplate: "El tipo de plantilla no existe.",
+  csvNoHeader: "El CSV no tiene encabezado.",
+  csvMissingType: "Falta la columna tipo.",
+  csvNoRows: "El CSV no trae retos.",
+  csvUnknownKind: "El tipo de reto no existe.",
+  csvMissingConcept: "Falta el concepto.",
+  csvUnknownConcept: "El concepto no existe.",
+  csvBadField: "{field} no es válido.",
+  csvBadMinutes: "Los minutos no son válidos.",
+  csvMissingField: "Falta {field}.",
+  csvPhraseShape: "Cada frase se escribe como texto => categoria.",
+  csvCasesInOrder: "Los casos van seguidos, del 1 en adelante.",
+  csvMissingCaseOutput: "Falta la salida del caso {index}.",
+  csvNeedCase: "Agrega al menos un caso con su salida.",
   downloadTemplate: "Descargar plantilla",
   noBankMatch: "Ningún reto coincide con el filtro.",
   bankError: "No se pudo usar el banco.",
@@ -525,7 +576,14 @@ const es = {
   concept: "Concepto",
   difficultyWord: "Dificultad",
   pointsWord: "Puntos",
+  pointsCount: "{count} pts",
+  scorePoints: "{count} puntos",
+  attemptFinished: "Terminado",
+  attemptOpen: "Sin terminar",
   minutesOptional: "Minutos, opcional",
+  badMinutes: "El tiempo tiene que ser un número de minutos.",
+  needCaseOutput: "Cada caso necesita la salida esperada.",
+  challengeSaveError: "No se pudo guardar el reto.",
   categoriesPerLine: "Categorías, una por línea",
   phrase: "Frase",
   categoryWord: "Categoría",
@@ -698,6 +756,18 @@ const en: { [Key in keyof typeof es]: string } = {
   errorWord: "Error",
   lineColumn: "Line {line}, column {column}. {message}",
   profileError: "The profile could not be changed.",
+  customizeProfile: "Customize profile",
+  profilePhoto: "Photo",
+  choosePhoto: "Choose image",
+  removePhoto: "Remove image",
+  photoHint: "JPG or PNG. It is saved as a small square.",
+  photoError: "Choose a JPG or PNG image under 8 MB.",
+  currentPassword: "Current password",
+  newPassword: "New password",
+  repeatPassword: "Repeat password",
+  passwordMismatch: "The new passwords do not match.",
+  passwordHint: "Leave them empty if you do not want to change it.",
+  profileSaveError: "The profile could not be saved.",
   requestError: "The request could not be completed.",
   points: "points",
   rankTitle: "Place {rank}",
@@ -752,6 +822,20 @@ const en: { [Key in keyof typeof es]: string } = {
   translationForStudent: "Translation for {name}",
   translationOff: "Your teacher turned off code translation.",
   translationSaveError: "The translation setting could not be saved.",
+  translationFlagRequired: "Say whether translation stays enabled.",
+  translationStudentsOnly: "Translation is set for a student.",
+  teachersManage: "Only a teacher can manage communities.",
+  communityMissing: "The community was not found.",
+  communityLimit: "You reached the maximum number of communities.",
+  communityNameTaken: "You already have a community with that name.",
+  personMissing: "That person is not registered.",
+  cannotAddSelf: "You cannot add yourself to your own community.",
+  memberLimit: "The community reached the maximum number of people.",
+  alreadyMember: "That person is already in the community.",
+  notAMember: "That person is not in the community.",
+  searchTooShort: "Type at least two letters.",
+  searchControl: "The search contains control characters.",
+  localMissing: "The local interpreter is not available.",
   deleteCommunity: "Delete the community “{name}”?",
   composeTitle: "Build diagram",
   loadExample: "Load example",
@@ -1015,6 +1099,31 @@ const en: { [Key in keyof typeof es]: string } = {
   contestLocked: "These 50 challenges belong to the system. A CSV file adds challenges to your bank, in the catalog.",
   csvColumns: "Columns",
   csvExample: "Example",
+  csvNoteClassify: "categorias separates names with |. frases uses text => category and separates phrases with |.",
+  csvNoteOrder: "instrucciones lists the steps in the correct order, separated with |.",
+  csvNoteBuild:
+    "respuestas separates options with |. Each case uses casoN_entradas (values separated with |) and casoN_salida. Cases run from 1 to 6, with no gaps. In the output, \\n is a line break. The challenge opens code, a diagram, and blocks. The expected output is the full text: each Read also writes the value.",
+  csvNotePredict:
+    "respuestas separates options with |. pseudocodigo is the program. \\n is a line break. The algorithm is named Laboratorio and does not use Read.",
+  csvEmpty: "The CSV file is empty.",
+  csvTooBig: "The CSV file is too large.",
+  csvRowLimit: "The file allows up to {count} challenges.",
+  csvImportedNone: "No challenge was imported. {detail}",
+  csvRowProblem: "No challenge was imported. Row {line}: {detail}",
+  csvUnknownTemplate: "That template type does not exist.",
+  csvNoHeader: "The CSV has no header.",
+  csvMissingType: "The tipo column is missing.",
+  csvNoRows: "The CSV has no challenges.",
+  csvUnknownKind: "That challenge type does not exist.",
+  csvMissingConcept: "The concept is missing.",
+  csvUnknownConcept: "That concept does not exist.",
+  csvBadField: "{field} is not valid.",
+  csvBadMinutes: "The minutes are not valid.",
+  csvMissingField: "{field} is missing.",
+  csvPhraseShape: "Each phrase is written as text => category.",
+  csvCasesInOrder: "Cases must follow one another, starting at 1.",
+  csvMissingCaseOutput: "Case {index} is missing its output.",
+  csvNeedCase: "Add at least one case with its output.",
   downloadTemplate: "Download template",
   noBankMatch: "No challenge matches the filter.",
   bankError: "The bank could not be used.",
@@ -1121,7 +1230,14 @@ const en: { [Key in keyof typeof es]: string } = {
   concept: "Concept",
   difficultyWord: "Difficulty",
   pointsWord: "Points",
+  pointsCount: "{count} pts",
+  scorePoints: "{count} points",
+  attemptFinished: "Finished",
+  attemptOpen: "Not finished",
   minutesOptional: "Minutes, optional",
+  badMinutes: "The time has to be a number of minutes.",
+  needCaseOutput: "Each case needs the expected output.",
+  challengeSaveError: "The challenge could not be saved.",
   categoriesPerLine: "Categories, one per line",
   phrase: "Phrase",
   categoryWord: "Category",
@@ -1202,6 +1318,80 @@ export function translate(locale: Locale, key: MessageKey, vars?: Record<string,
   const template = catalogs[locale][key]
   if (!vars) return template
   return template.replace(/\{(\w+)\}/g, (_, name: string) => String(vars[name] ?? ""))
+}
+
+const SERVER_TEXT: Record<string, MessageKey> = {
+  "Tu docente desactivó la traducción de código.": "translationOff",
+  "Indica si la traducción queda habilitada.": "translationFlagRequired",
+  "La traducción se ajusta para un alumno.": "translationStudentsOnly",
+  "Solo un docente puede gestionar comunidades.": "teachersManage",
+  "No se encontró la comunidad.": "communityMissing",
+  "Llegaste al máximo de comunidades.": "communityLimit",
+  "Ya tienes una comunidad con ese nombre.": "communityNameTaken",
+  "Esa persona no está registrada.": "personMissing",
+  "No puedes agregarte a tu propia comunidad.": "cannotAddSelf",
+  "La comunidad llegó al máximo de personas.": "memberLimit",
+  "Esa persona ya está en la comunidad.": "alreadyMember",
+  "Esa persona no está en la comunidad.": "notAMember",
+  "Escribe al menos dos letras.": "searchTooShort",
+  "La búsqueda contiene caracteres de control.": "searchControl",
+  "El intérprete local no está disponible.": "localMissing",
+  "El archivo CSV está vacío.": "csvEmpty",
+  "El archivo CSV es demasiado grande.": "csvTooBig",
+  "El tipo de plantilla no existe.": "csvUnknownTemplate",
+  "El CSV no tiene encabezado.": "csvNoHeader",
+  "Falta la columna tipo.": "csvMissingType",
+  "El CSV no trae retos.": "csvNoRows",
+  "El tipo de reto no existe.": "csvUnknownKind",
+  "Falta el concepto.": "csvMissingConcept",
+  "El concepto no existe.": "csvUnknownConcept",
+  "Los minutos no son válidos.": "csvBadMinutes",
+  "Cada frase se escribe como texto => categoria.": "csvPhraseShape",
+  "Los casos van seguidos, del 1 en adelante.": "csvCasesInOrder",
+  "Agrega al menos un caso con su salida.": "csvNeedCase",
+  "El tiempo tiene que ser un número de minutos.": "badMinutes",
+  "Cada caso necesita la salida esperada.": "needCaseOutput",
+  "No se pudo guardar el reto.": "challengeSaveError",
+  "Escribe el nombre del algoritmo.": "writeAlgorithmName",
+  "Escribe el nombre del proyecto.": "writeProjectName",
+  "Elige un proyecto.": "pickProject",
+}
+
+export function knownText(locale: Locale, message: string): string | null {
+  const exact = SERVER_TEXT[message]
+  if (exact) return translate(locale, exact)
+  const limit = /^El archivo admite hasta (\d+) retos\.$/.exec(message)
+  if (limit) return translate(locale, "csvRowLimit", { count: Number(limit[1]) })
+  const row = /^No se importó ningún reto\. Fila (\d+): (.+)$/.exec(message)
+  if (row) {
+    return translate(locale, "csvRowProblem", {
+      line: Number(row[1]),
+      detail: knownText(locale, row[2]) ?? row[2],
+    })
+  }
+  const none = /^No se importó ningún reto\. (.+)$/.exec(message)
+  if (none) {
+    const detail = none[1]
+      .split(/(?<=\.)\s+/)
+      .map((part) => knownText(locale, part) ?? part)
+      .join(" ")
+    return translate(locale, "csvImportedNone", { detail })
+  }
+  const caseOutput = /^Falta la salida del caso (\d+)\.$/.exec(message)
+  if (caseOutput) return translate(locale, "csvMissingCaseOutput", { index: Number(caseOutput[1]) })
+  const invalid = /^(\S+) no es válido\.$/.exec(message)
+  if (invalid) return translate(locale, "csvBadField", { field: invalid[1] })
+  const missing = /^Falta (\S+)\.$/.exec(message)
+  if (missing) return translate(locale, "csvMissingField", { field: missing[1] })
+  return null
+}
+
+export function translatedMessage(message: string): string {
+  return knownText(readStoredLocale(), message) ?? message
+}
+
+export function localMissingMessage(): string {
+  return translate(readStoredLocale(), "localMissing")
 }
 
 const LocaleContext = createContext<Locale>("es")

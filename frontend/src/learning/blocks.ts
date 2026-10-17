@@ -95,10 +95,10 @@ function paintSegunButtons(block: Blockly.Block) {
   const row = block.appendDummyInput("CASOS")
   const count = segunCount(block)
   if (count < SEGUN_MAX) {
-    row.appendField(new Blockly.FieldImage(SEGUN_PLUS, 16, 16, "Agregar caso", () => addSegunCase(block, 1)))
+    row.appendField(new Blockly.FieldImage(SEGUN_PLUS, 16, 16, say("Agregar caso", "Add case"), () => addSegunCase(block, 1)))
   }
   if (count > SEGUN_MIN) {
-    row.appendField(new Blockly.FieldImage(SEGUN_MINUS, 16, 16, "Quitar caso", () => addSegunCase(block, -1)))
+    row.appendField(new Blockly.FieldImage(SEGUN_MINUS, 16, 16, say("Quitar caso", "Remove case"), () => addSegunCase(block, -1)))
   }
   if (block.getInput("OTRO_ETIQUETA")) block.moveInputBefore("CASOS", "OTRO_ETIQUETA")
 }
@@ -245,7 +245,7 @@ function reshapeRoutine(block: Blockly.Block) {
       .appendField(new Blockly.FieldDropdown(modeOptions()), `MODO${index}`)
     block.moveInputBefore(`PARAM${index}`, "PARAMS")
   }
-  paintCount(block, "PARAMS", "CUERPO", count, COUNT_MIN, COUNT_MAX, "Agregar parámetro", "Quitar parámetro", (delta) => {
+  paintCount(block, "PARAMS", "CUERPO", count, COUNT_MIN, COUNT_MAX, say("Agregar parámetro", "Add parameter"), say("Quitar parámetro", "Remove parameter"), (delta) => {
     const next = clampCount(count + delta, COUNT_MIN, COUNT_MAX)
     if (next === count) return
     paramCounts.set(block, next)
@@ -271,8 +271,8 @@ function reshapeWrites(block: Blockly.Block) {
     count,
     WRITE_MIN,
     WRITE_MAX,
-    "Agregar valor",
-    "Quitar valor",
+    say("Agregar valor", "Add value"),
+    say("Quitar valor", "Remove value"),
     (delta) => {
       const next = clampCount(count + delta, WRITE_MIN, WRITE_MAX)
       if (next === count) return
@@ -300,7 +300,7 @@ function reshapeArgs(block: Blockly.Block) {
     const first = count > 0 ? `ARG1` : "ARGS"
     if (block.getInput(first)) block.moveInputBefore("ABRIR", first)
   }
-  paintCount(block, "ARGS", "CERRAR", count, COUNT_MIN, COUNT_MAX, "Agregar argumento", "Quitar argumento", (delta) => {
+  paintCount(block, "ARGS", "CERRAR", count, COUNT_MIN, COUNT_MAX, say("Agregar argumento", "Add argument"), say("Quitar argumento", "Remove argument"), (delta) => {
     const next = clampCount(count + delta, COUNT_MIN, COUNT_MAX)
     if (next === count) return
     argCounts.set(block, next)
@@ -338,7 +338,7 @@ function writeBlock() {
   previousStatement: null,
   nextStatement: null,
   colour: IO,
-  tooltip: "Muestra uno o más valores. Con sin saltar no baja de línea.",
+  tooltip: say("Muestra uno o más valores. Con sin saltar no baja de línea.", "Shows one or more values. Without a newline it stays on the same line."),
   mutator: "traza_escribir_estado",
   }
 }
@@ -351,7 +351,7 @@ function screenBlocks() {
     previousStatement: null,
     nextStatement: null,
     colour: IO,
-    tooltip: "Limpia la salida.",
+    tooltip: say("Limpia la salida.", "Clears the output."),
   },
   {
     type: BLOCK.esperar,
@@ -361,7 +361,7 @@ function screenBlocks() {
     previousStatement: null,
     nextStatement: null,
     colour: IO,
-    tooltip: "Detiene el algoritmo esa cantidad de segundos.",
+    tooltip: say("Detiene el algoritmo esa cantidad de segundos.", "Pauses the algorithm for that many seconds."),
   },
   ]
 }
@@ -522,7 +522,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       previousStatement: null,
       nextStatement: null,
       colour: VARIABLE,
-      tooltip: "Declara una variable y su tipo.",
+      tooltip: say("Declara una variable y su tipo.", "Declares a variable and its type."),
       extensions: ["traza_nombre"],
     },
     {
@@ -536,7 +536,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       previousStatement: null,
       nextStatement: null,
       colour: VARIABLE,
-      tooltip: "Asigna una expresión a una variable.",
+      tooltip: say("Asigna una expresión a una variable.", "Assigns an expression to a variable."),
       extensions: ["traza_nombre"],
     },
     {
@@ -549,7 +549,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       inputsInline: true,
       output: outputChecks("entero"),
       colour: VARIABLE,
-      tooltip: "Usa el valor de una variable. El tipo limita dónde puede entrar.",
+      tooltip: say("Usa el valor de una variable. El tipo limita dónde puede entrar.", "Uses a variable's value. The type limits where it can connect."),
       extensions: ["traza_nombre", "traza_tipo_variable"],
     },
     {
@@ -559,7 +559,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       previousStatement: null,
       nextStatement: null,
       colour: IO,
-      tooltip: "Lee un dato y lo guarda en la variable.",
+      tooltip: say("Lee un dato y lo guarda en la variable.", "Reads a value and stores it in the variable."),
       extensions: ["traza_nombre"],
     },
     {
@@ -572,7 +572,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       inputsInline: true,
       output: outputChecks("cadena"),
       colour: IO,
-      tooltip: "Une dos textos.",
+      tooltip: say("Une dos textos.", "Joins two texts."),
     },
     {
       type: BLOCK.entero,
@@ -580,7 +580,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       args0: [{ type: "field_number", name: "VALOR", value: 0, precision: 1 }],
       output: outputChecks("entero"),
       colour: OPERATOR,
-      tooltip: "Un número entero.",
+      tooltip: say("Un número entero.", "An integer."),
     },
     {
       type: BLOCK.real,
@@ -588,7 +588,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       args0: [{ type: "field_number", name: "VALOR", value: 0, precision: 0.01 }],
       output: outputChecks("real"),
       colour: OPERATOR,
-      tooltip: "Un número real.",
+      tooltip: say("Un número real.", "A real number."),
     },
     {
       type: BLOCK.cadena,
@@ -596,7 +596,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       args0: [{ type: "field_input", name: "VALOR", text: "" }],
       output: outputChecks("cadena"),
       colour: OPERATOR,
-      tooltip: "Un texto.",
+      tooltip: say("Un texto.", "A text."),
     },
     {
       type: BLOCK.caracter,
@@ -604,7 +604,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       args0: [{ type: "field_input", name: "VALOR", text: "a" }],
       output: outputChecks("caracter"),
       colour: OPERATOR,
-      tooltip: "Un carácter.",
+      tooltip: say("Un carácter.", "A character."),
       extensions: ["traza_caracter"],
     },
     {
@@ -622,7 +622,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       ],
       output: outputChecks("logico"),
       colour: OPERATOR,
-      tooltip: "Un valor lógico.",
+      tooltip: say("Un valor lógico.", "A boolean value."),
     },
     {
       type: BLOCK.aritmetica,
@@ -646,7 +646,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       inputsInline: true,
       output: [CHECK.expresion, CHECK.numero],
       colour: OPERATOR,
-      tooltip: "Operación entre números.",
+      tooltip: say("Operación entre números.", "An operation between numbers."),
     },
     {
       type: BLOCK.relacional,
@@ -670,7 +670,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       inputsInline: true,
       output: outputChecks("logico"),
       colour: OPERATOR,
-      tooltip: "Compara dos expresiones y da un lógico.",
+      tooltip: say("Compara dos expresiones y da un lógico.", "Compares two expressions and gives a boolean."),
     },
     {
       type: BLOCK.logica,
@@ -690,7 +690,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       inputsInline: true,
       output: outputChecks("logico"),
       colour: OPERATOR,
-      tooltip: "Combina dos condiciones.",
+      tooltip: say("Combina dos condiciones.", "Combines two conditions."),
     },
     {
       type: BLOCK.no,
@@ -699,7 +699,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       inputsInline: true,
       output: outputChecks("logico"),
       colour: OPERATOR,
-      tooltip: "Niega una condición.",
+      tooltip: say("Niega una condición.", "Negates a condition."),
     },
     {
       type: BLOCK.si,
@@ -711,7 +711,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       previousStatement: null,
       nextStatement: null,
       colour: CONTROL,
-      tooltip: "Ejecuta las instrucciones solo si la condición se cumple.",
+      tooltip: say("Ejecuta las instrucciones solo si la condición se cumple.", "Runs the instructions only when the condition is true."),
     },
     {
       type: BLOCK.siSino,
@@ -726,7 +726,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       previousStatement: null,
       nextStatement: null,
       colour: CONTROL,
-      tooltip: "Ejecuta una rama si la condición se cumple y otra si no.",
+      tooltip: say("Ejecuta una rama si la condición se cumple y otra si no.", "Runs one branch when the condition is true and the other when it is not."),
     },
     {
       type: BLOCK.mientras,
@@ -738,7 +738,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       previousStatement: null,
       nextStatement: null,
       colour: CONTROL,
-      tooltip: "Repite las instrucciones mientras la condición se cumpla.",
+      tooltip: say("Repite las instrucciones mientras la condición se cumpla.", "Repeats the instructions while the condition is true."),
     },
     {
       type: BLOCK.segun,
@@ -747,8 +747,10 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       previousStatement: null,
       nextStatement: null,
       colour: CONTROL,
-      tooltip:
+      tooltip: say(
         "Ejecuta el caso cuyo literal coincide. El botón + agrega otro caso, hasta 12. Si ninguno coincide, usa De Otro Modo.",
+        "Runs the case whose literal matches. The + button adds another case, up to 12. If none matches, it uses In Other Case.",
+      ),
       mutator: "traza_segun_estado",
     },
     {
@@ -766,7 +768,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       previousStatement: null,
       nextStatement: null,
       colour: CONTROL,
-      tooltip: "Recorre un entero desde un inicio hasta un límite, sumando el paso.",
+      tooltip: say("Recorre un entero desde un inicio hasta un límite, sumando el paso.", "Walks an integer from a start to a limit, adding the step."),
       extensions: ["traza_nombre"],
     },
     {
@@ -779,7 +781,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       previousStatement: null,
       nextStatement: null,
       colour: CONTROL,
-      tooltip: "Ejecuta el cuerpo y después mira la condición. Corre al menos una vez.",
+      tooltip: say("Ejecuta el cuerpo y después mira la condición. Corre al menos una vez.", "Runs the body and then checks the condition. It runs at least once."),
     },
     {
       type: BLOCK.dimension,
@@ -791,7 +793,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       previousStatement: null,
       nextStatement: null,
       colour: ARRAY,
-      tooltip: "Reserva las casillas de un arreglo. El botón + agrega otra dimensión, hasta 4.",
+      tooltip: say("Reserva las casillas de un arreglo. El botón + agrega otra dimensión, hasta 4.", "Reserves the cells of an array. The + button adds another dimension, up to 4."),
       extensions: ["traza_nombre"],
       mutator: "traza_dimension_estado",
     },
@@ -804,7 +806,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       ],
       output: outputChecks("entero"),
       colour: ARRAY,
-      tooltip: "Lee una casilla. El índice empieza en 1.",
+      tooltip: say("Lee una casilla. El índice empieza en 1.", "Reads a cell. The index starts at 1."),
       extensions: ["traza_nombre", "traza_tipo_variable"],
       mutator: "traza_indice_estado",
     },
@@ -815,7 +817,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       previousStatement: null,
       nextStatement: null,
       colour: ARRAY,
-      tooltip: "Guarda un valor en una casilla. El índice empieza en 1.",
+      tooltip: say("Guarda un valor en una casilla. El índice empieza en 1.", "Stores a value in a cell. The index starts at 1."),
       extensions: ["traza_nombre"],
       mutator: "traza_indice_estado",
     },
@@ -826,7 +828,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       previousStatement: null,
       nextStatement: null,
       colour: ARRAY,
-      tooltip: "Lee un dato y lo guarda en una casilla.",
+      tooltip: say("Lee un dato y lo guarda en una casilla.", "Reads a value and stores it in a cell."),
       extensions: ["traza_nombre"],
       mutator: "traza_indice_estado",
     },
@@ -839,7 +841,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       ],
       colour: ROUTINE,
       hat: "cap",
-      tooltip: "Define una función. El resultado se asigna dentro del cuerpo. Va suelta en el lienzo.",
+      tooltip: say("Define una función. El resultado se asigna dentro del cuerpo. Va suelta en el lienzo.", "Defines a function. The result is assigned inside the body. It sits loose on the canvas."),
       extensions: ["traza_funcion_nombres"],
       mutator: "traza_rutina_estado",
     },
@@ -849,7 +851,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       args0: [{ type: "field_input", name: "NOMBRE", text: "Incrementar" }],
       colour: ROUTINE,
       hat: "cap",
-      tooltip: "Define un procedimiento. Por referencia permite modificar la variable. Va suelto en el lienzo.",
+      tooltip: say("Define un procedimiento. Por referencia permite modificar la variable. Va suelto en el lienzo.", "Defines a procedure. By reference can change the variable. It sits loose on the canvas."),
       extensions: ["traza_nombre"],
       mutator: "traza_rutina_estado",
     },
@@ -862,7 +864,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       ],
       output: outputChecks("entero"),
       colour: ROUTINE,
-      tooltip: "Llama una función y usa el valor que devuelve.",
+      tooltip: say("Llama una función y usa el valor que devuelve.", "Calls a function and uses the value it returns."),
       extensions: ["traza_nombre", "traza_tipo_variable"],
       mutator: "traza_argumentos_estado",
     },
@@ -873,7 +875,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
       previousStatement: null,
       nextStatement: null,
       colour: ROUTINE,
-      tooltip: "Llama un procedimiento en su propia línea.",
+      tooltip: say("Llama un procedimiento en su propia línea.", "Calls a procedure on its own line."),
       extensions: ["traza_nombre"],
       mutator: "traza_argumentos_estado",
     },

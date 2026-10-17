@@ -18,7 +18,7 @@ import { applyConsoleOutput } from "../console/output"
 import { FlowView } from "../diagram/FlowView"
 import { CodeEditor } from "../editor/CodeEditor"
 import { editorKeywords } from "../dialect"
-import { useLocale, useT, type Locale } from "../i18n"
+import { translatedMessage, useLocale, useT, type Locale } from "../i18n"
 import {
   inInstalledApp,
   localControl,
@@ -973,7 +973,7 @@ export function Workbench({
       <header className="topbar topbar-editor">
         <div className="brand">
           <h1>Traza</h1>
-          <AccountIdentity account={account} />
+          <AccountIdentity account={account} onAccount={onAccount} />
         </div>
         <div className="actions">
           <button
@@ -1645,5 +1645,5 @@ export function Workbench({
 }
 
 function messageOf(caught: unknown, fallback: string): string {
-  return caught instanceof ApiError ? caught.message : fallback
+  return caught instanceof ApiError ? translatedMessage(caught.message) : fallback
 }

@@ -413,12 +413,106 @@ label { display: grid; gap: 0.25rem; font-size: 0.92rem; }
   height: 2.15rem;
   display: grid;
   place-items: center;
+  overflow: hidden;
   border-radius: 999px;
   background: var(--accent);
   color: var(--accent-ink);
   font-size: 0.78rem;
   font-weight: 750;
   box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+button.avatar-button {
+  padding: 0;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: transparent;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+button.avatar-button:hover { background: var(--accent); filter: brightness(1.06); }
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.profile-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.profile-card {
+  width: min(26rem, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem 1.15rem;
+  background: var(--sheet);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.profile-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.profile-card h2 { margin: 0; font-size: 1.05rem; }
+
+.profile-card label,
+.profile-card fieldset {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.profile-card fieldset { gap: 0.55rem; }
+
+.profile-card legend { font-weight: 700; }
+
+.profile-photo {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.profile-photo .avatar {
+  width: 4.4rem;
+  height: 4.4rem;
+  flex: none;
+  font-size: 1.25rem;
+}
+
+.profile-photo p { margin: 0; }
+
+.profile-photo-actions,
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+}
+
+.profile-card input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
 }
 
 .who-name {

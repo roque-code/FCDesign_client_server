@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from "react"
 
 import { ApiError, api, type Diagnostic, type LabAttemptRecord, type LabCase, type LabSession } from "../api"
 import { editorKeywords, spellText, starterSource } from "../dialect"
-import { useLocale, useT, type MessageKey } from "../i18n"
+import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
 import { Composer } from "../compose/Composer"
 import { CodeEditor } from "../editor/CodeEditor"
 import { inInstalledApp, localImport } from "../runtime"
@@ -32,6 +32,7 @@ const STAGE: Record<StageName, MessageKey> = {
 
 function AttemptHistory({ records }: { records: LabAttemptRecord[] }) {
   const t = useT()
+  const locale = useLocale()
   if (records.length === 0) return null
   return (
     <section className="attempt-history">
@@ -40,10 +41,10 @@ function AttemptHistory({ records }: { records: LabAttemptRecord[] }) {
         {records.map((item) => (
           <li key={item.id}>
             <strong>{t("attemptN", { number: item.number })}</strong>
-            <span>{item.status === "completed" ? "Terminado" : "Sin terminar"}</span>
-            {item.score != null ? <span>{item.score} puntos</span> : null}
+            <span>{item.status === "completed" ? t("attemptFinished") : t("attemptOpen")}</span>
+            {item.score != null ? <span>{t("scorePoints", { count: item.score })}</span> : null}
             {item.elapsed_seconds != null ? <span>{formatClock(item.elapsed_seconds)}</span> : null}
-            {item.finished_at ? <time dateTime={item.finished_at}>{formatWhen(item.finished_at)}</time> : null}
+            {item.finished_at ? <time dateTime={item.finished_at}>{formatWhen(item.finished_at, locale)}</time> : null}
           </li>
         ))}
       </ol>
@@ -52,7 +53,7 @@ function AttemptHistory({ records }: { records: LabAttemptRecord[] }) {
 }
 
 function messageOf(error: unknown, fallback: string): string {
-  return error instanceof ApiError ? error.message : fallback
+  return error instanceof ApiError ? translatedMessage(error.message) : fallback
 }
 
 export function ChallengePlay({
@@ -149,7 +150,7 @@ export function ChallengePlay({
   function apply(result: LabSession) {
     setSession(result)
     setError("")
-    setNote(result.correct === false ? "Todavía no coincide." : "")
+    setNote(result.correct === false ? t("notYetMatch") : "")
     if (result.cases) setCases(result.cases)
     if (result.diagnostics) setDiagnostics(result.diagnostics)
     if (typeof result.output === "string") setOutput(result.output)
@@ -309,7 +310,7 @@ export function ChallengePlay({
                 {attempt.elapsed_seconds != null ? (
                   <p>{t("usedTime", { time: formatClock(attempt.elapsed_seconds) })}</p>
                 ) : null}
-                {attempt.finished_at ? <p>{formatWhen(attempt.finished_at)}</p> : null}
+                {attempt.finished_at ? <p>{formatWhen(attempt.finished_at, locale)}</p> : null}
                 <p>{t("savedAgain")}</p>
                 <button type="button" className="primary" onClick={onDone}>
                   {t("backToRoute")}
@@ -329,7 +330,7 @@ export function ChallengePlay({
                 {attempt.elapsed_seconds != null ? (
                   <p>{t("answeredIn", { time: formatClock(attempt.elapsed_seconds) })}</p>
                 ) : null}
-                {attempt.finished_at ? <p>{formatWhen(attempt.finished_at)}</p> : null}
+                {attempt.finished_at ? <p>{formatWhen(attempt.finished_at, locale)}</p> : null}
                 <p>{attempt.summary || t("alreadyClosed")}</p>
                 {attempt.prediction ? <p>{t("answerIs", { answer: attempt.prediction.answer })}</p> : null}
                 {attempt.reflection ? <blockquote>{attempt.reflection}</blockquote> : null}

@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react"
 
 import { ApiError, api, type LabChallengeDraft, type LabChallengeInput, type LabConcept } from "../api"
 import { commitSource, presentSource } from "../dialect"
-import { useLocale, useT, type MessageKey } from "../i18n"
+import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
 import { TOOL_GROUPS } from "./toolbox"
 
 const ACTIVITIES: { id: string; label: MessageKey }[] = [
@@ -30,7 +30,7 @@ function lines(value: string): string[] {
 }
 
 function messageOf(error: unknown): string {
-  return error instanceof ApiError ? error.message : "No se pudo guardar el reto."
+  return error instanceof ApiError ? translatedMessage(error.message) : translatedMessage("No se pudo guardar el reto.")
 }
 
 export function ChallengeForm({
@@ -130,7 +130,7 @@ export function ChallengeForm({
     setError("")
     const seconds = minutes.trim() === "" ? null : Math.round(Number(minutes) * 60)
     if (seconds !== null && (!Number.isFinite(seconds) || seconds < 1)) {
-      setError("El tiempo tiene que ser un número de minutos.")
+      setError(t("badMinutes"))
       return
     }
     if (activity === "build" && tools.length === 0) {
@@ -138,7 +138,7 @@ export function ChallengeForm({
       return
     }
     if (activity === "build" && cases.some((item) => item.expected.trim() === "")) {
-      setError("Cada caso necesita la salida esperada.")
+      setError(t("needCaseOutput"))
       return
     }
     if (activity === "build" && limitBlocks && blocks.length === 0) {

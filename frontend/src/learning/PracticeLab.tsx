@@ -12,7 +12,7 @@ import {
 import { ApiError, api, type LabPractice, type LabPreview, type LabRun } from "../api"
 import { applyConsoleOutput } from "../console/output"
 import { editorKeywords, spellText } from "../dialect"
-import { useLocale, useT, type MessageKey } from "../i18n"
+import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
 import { highlightSource } from "../editor/highlight"
 import {
   inInstalledApp,
@@ -42,7 +42,7 @@ const STATUS: Record<string, MessageKey> = {
 }
 
 function messageOf(error: unknown, fallback: string): string {
-  return error instanceof ApiError ? error.message : fallback
+  return error instanceof ApiError ? translatedMessage(error.message) : fallback
 }
 
 function downloadSource(name: string, source: string) {
@@ -854,7 +854,7 @@ export function PracticeLab() {
                 {practices.map((item) => (
                   <li key={item.id} className={item.id === currentId ? "practice-row is-open" : "practice-row"}>
                     <strong>{item.name}</strong>
-                    <span>{formatWhen(item.updated_at)}</span>
+                    <span>{formatWhen(item.updated_at, locale)}</span>
                     <div className="practice-actions">
                       <button type="button" onClick={() => void openPractice(item.id)} disabled={saveBusy}>
                         {t("open")}

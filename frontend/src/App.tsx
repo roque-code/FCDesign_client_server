@@ -74,7 +74,7 @@ function openCompose(payload: { name?: string; source?: string; semicolons: bool
         <LearningLab account={account} onAccount={setAccount} onBack={backToEditor} />
       )}
       <div className="screen-slot" hidden={screen !== "compose"}>
-        <Composer account={account} active={screen === "compose"} incoming={diagramRequest} onBack={backToEditor} onOpenInEditor={openInEditor} />
+        <Composer account={account} onAccount={setAccount} active={screen === "compose"} incoming={diagramRequest} onBack={backToEditor} onOpenInEditor={openInEditor} />
       </div>
     </>
   )
