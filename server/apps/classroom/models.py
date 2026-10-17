@@ -16,6 +16,7 @@ class Community(models.Model):
         related_name="communities",
     )
     name = models.CharField(max_length=80)
+    translation_enabled = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -36,6 +37,8 @@ class Membership(models.Model):
         on_delete=models.CASCADE,
         related_name="memberships",
     )
+    # None hereda el grupo. True o False es la decisión para este alumno.
+    translation_enabled = models.BooleanField(null=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

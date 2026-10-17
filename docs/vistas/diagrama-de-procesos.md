@@ -1,6 +1,6 @@
 # Diagrama de procesos
 
-Fecha de referencia: 2026-10-14. Son los procesos de negocio que el sistema sostiene, de punta a punta.
+Fecha de referencia: 2026-10-17. Son los procesos de negocio que el sistema sostiene, de punta a punta.
 
 ## Alta
 
@@ -29,6 +29,7 @@ flowchart TD
     abrir([Algoritmo abierto]) --> texto[Edita el fuente]
     texto --> guarda[Autoguardado del texto vivo]
     texto --> val[Validar]
+    texto --> trad[Traducir, sin ejecutar]
     val --> err{Hay error?}
     err -->|sí| texto
     err -->|no| modo{Ejecutar o depurar?}
@@ -40,7 +41,7 @@ flowchart TD
     consola --> figura[Diagrama sincronizado con la línea]
 ```
 
-El editor muestra las palabras reservadas en el idioma de la cuenta. El texto que se guarda conserva la grafía que ya tenía.
+El editor muestra las palabras reservadas en el idioma de la cuenta. El texto que se guarda conserva la grafía que ya tenía. Traducir muestra otro lenguaje y deja el pseudocódigo como está. Si el docente apagó la traducción, no hay código. **Actualizar** vuelve a leer el servidor cuando la misma cuenta está abierta en otra ventana. **Repaso** abre el fuente del alumno sin guardarlo.
 
 ## Laboratorio
 

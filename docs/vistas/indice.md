@@ -1,6 +1,6 @@
 # Vistas de arquitectura
 
-Fecha de referencia: 2026-10-14. Describen Traza tal como está en desarrollo. El compose no es el despliegue de producción. El relato único está en [arquitectura.md](../arquitectura.md). El documento de Word con las mismas vistas y los diagramas dibujados es [Arquitectura-Traza.docx](Arquitectura-Traza.docx). El texto vigente es el de estos Markdown.
+Fecha de referencia: 2026-10-17. Describen Traza tal como está en desarrollo: el compose, la traducción del algoritmo y la ventana de escritorio. El compose no es el despliegue de producción. El relato único está en [arquitectura.md](../arquitectura.md). El documento de Word con las mismas vistas y los diagramas dibujados es [Arquitectura-Traza.docx](Arquitectura-Traza.docx). El texto vigente es el de estos Markdown. El manual del lenguaje, con la traducción, es [Manual-del-lenguaje.docx](../Manual-del-lenguaje.docx).
 
 | Vista | Archivo |
 | --- | --- |

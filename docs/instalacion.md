@@ -59,3 +59,5 @@ La imagen solo lleva Python, `language_core` y el paquete `runner`. El usuario n
 ## 5. Integración continua
 
 `.github/workflows/ci.yml` ejecuta Ruff, Black, mypy, las pruebas del núcleo, las del runner y las del servidor contra PostgreSQL, y el lint y las pruebas del cliente.
+
+`.github/workflows/desktop.yml` no corre en cada envío. Se lanza a mano y empaqueta la ventana Tauri para Windows, macOS y Linux. El intérprete va congelado con PyInstaller como `traza-host`. En macOS, si el almacén de secretos tiene certificado, `desktop/scripts/sign.sh` firma el paquete.

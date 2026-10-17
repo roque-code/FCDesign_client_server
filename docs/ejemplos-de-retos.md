@@ -140,3 +140,83 @@ FinAlgoritmo
 ```
 
 `n` empieza en 4 y luego suma 1, así que se escribe 5. La respuesta `5` y la respuesta ` 5 ` cuentan como la misma.
+
+## Archivo CSV
+
+En **Laboratorio**, **Banco**, **Formato CSV** se ve el formato y se descarga una plantilla. **Subir CSV** agrega los retos al banco del docente. Un archivo admite hasta 80 retos y 200 KB. Si una fila falla, no se guarda ninguna.
+
+La primera fila es el encabezado. El separador es la coma. Si el encabezado trae más punto y coma que comas, el separador pasa a ser el punto y coma. Un campo con coma, salto de línea o comillas va entre comillas dobles. Las listas internas se separan con `|`, así que no chocan con el punto y coma de una hoja en español.
+
+Estas columnas van en los cuatro tipos:
+
+| Columna | Qué va ahí |
+| --- | --- |
+| tipo | `clasificar`, `ordenar`, `construir` o `predecir`. |
+| titulo | Nombre del reto. Máximo 120 caracteres. |
+| enunciado | Lo que lee el alumno. Máximo 4000 caracteres. |
+| concepto | La clave o el nombre: `variable`, `assignment`, `io`, `operator`, `if`, `while`, `switch`, `for`, `repeat`, `array`, `function`. También vale el nombre en español, por ejemplo `Operadores`. |
+| dificultad | Del 1 al 5. Vacío significa 1. |
+| puntos | Del 1 al 500. Vacío significa 10. |
+| minutos | Tiempo para resolverlo. Vacío significa sin límite. El máximo es 1440. |
+| pista1 … pista5 | Opcionales. Cada una admite 500 caracteres. |
+
+`\n` dentro de una salida o de un pseudocódigo es un salto de línea.
+
+### Clasificar
+
+Además: `categorias` y `frases`.
+
+`categorias` separa los nombres con `|`. Hacen falta al menos dos y caben hasta doce.
+
+`frases` usa `texto => categoria` y separa las frases con `|`. La categoría tiene que coincidir con un nombre de `categorias`.
+
+```text
+tipo,titulo,enunciado,concepto,dificultad,puntos,minutos,categorias,frases,pista1
+clasificar,Señales del dato,Separa lo que entra y lo que se muestra.,io,1,10,,entrada|salida,Leer un nombre => entrada|Mostrar el total => salida,Fíjate quién produce el dato.
+```
+
+### Ordenar
+
+Además: `instrucciones`. Van en el orden correcto, separadas con `|`. La primera es el primer paso. Hacen falta al menos dos y caben hasta doce.
+
+```text
+tipo,titulo,enunciado,concepto,dificultad,puntos,minutos,instrucciones,pista1
+ordenar,Pasos del saludo,Ordena las instrucciones.,assignment,1,10,,Definir saludo como cadena|Guardar hola en saludo|Escribir saludo,Primero se declara.
+```
+
+### Construir
+
+Además: `pregunta`, `respuestas` y los casos `caso1_entradas`, `caso1_salida`, … hasta `caso6_entradas`, `caso6_salida`.
+
+`respuestas` separa las opciones con `|`. Hace falta al menos una.
+
+Cada caso tiene su salida. Las entradas de un caso se separan con `|`; si el programa no lee, `caso1_entradas` queda vacío. Los casos empiezan en 1 y no dejan huecos. Hace falta al menos un caso y caben seis. El reto abre código, diagrama y bloques, con la caja de herramientas completa.
+
+Cada `Leer` del laboratorio también muestra el dato en su propia línea. La salida esperada es el texto completo, con esas líneas y después lo que escribe el programa. Si no termina en salto de línea, el sistema agrega uno.
+
+```text
+tipo,titulo,enunciado,concepto,dificultad,puntos,minutos,pregunta,respuestas,caso1_entradas,caso1_salida,caso2_entradas,caso2_salida,pista1
+construir,El doble leído,Lee un entero y escribe su doble.,operator,2,15,15,¿Qué operador multiplica?,*|por,6,6\n12,0,0\n0,Multiplica por dos.
+```
+
+Con la entrada `6`, `Leer` muestra `6` y `Escribir` muestra `12`. La salida calificada es:
+
+```text
+6
+12
+```
+
+### Predecir
+
+Además: `pregunta`, `respuestas` y `pseudocodigo`.
+
+El programa tiene que compilar. El nombre del algoritmo es `Laboratorio`, cada instrucción lleva punto y coma y no usa `Leer`. El máximo es 8000 caracteres.
+
+```text
+tipo,titulo,enunciado,concepto,dificultad,puntos,minutos,pregunta,respuestas,pseudocodigo,pista1
+predecir,Después de sumar uno,Anticipa el número.,assignment,2,15,,¿Qué número se escribe?,5,"Algoritmo Laboratorio\nDefinir n Como Entero;\nn <- 4;\nn <- n + 1;\nEscribir n;\nFinAlgoritmo",Sigue el valor de n.
+```
+
+## Práctica de concurso
+
+La ruta **Práctica de concurso** trae 50 problemas de creación de código. Los enunciados son propios y siguen el estilo de la práctica inicial de un concurso como omegaUp: se lee, se calcula y la salida se compara con tres casos (ejemplo, normal y borde). Van de la entrada y salida a las funciones. El primero queda abierto; el siguiente se abre al terminar el anterior.

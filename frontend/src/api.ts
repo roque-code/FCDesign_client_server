@@ -8,6 +8,7 @@ export type Account = {
   role: Role
   points: number
   rank: number
+  translation_enabled: boolean
 }
 
 export type PendingConfirmation = {
@@ -21,6 +22,7 @@ export type Person = {
   email: string
   role: Role
   member?: boolean
+  translation_enabled?: boolean
 }
 
 export type CommunitySummary = {
@@ -28,11 +30,24 @@ export type CommunitySummary = {
   name: string
   student_count: number
   teacher_count: number
+  translation_enabled: boolean
 }
 
 export type Community = CommunitySummary & {
   students: Person[]
   teachers: Person[]
+}
+
+export type ClassroomStudent = {
+  id: number
+  display_name: string
+  email: string
+  communities: string[]
+}
+
+export type StudentWork = {
+  student: Person
+  projects: Array<Project & { algorithms: Algorithm[] }>
 }
 
 export type Project = {
@@ -204,6 +219,12 @@ export type LabCatalogChallenge = {
   owned?: boolean
 }
 
+export type LabBankCase = {
+  name: string
+  inputs: string[]
+  expected_output: string
+}
+
 export type LabBankChallenge = {
   id: string
   title: string
@@ -220,16 +241,28 @@ export type LabBankChallenge = {
   accepted: string[]
   inputs: string[]
   expected_output: string
+  cases: LabBankCase[]
   source: string
   hints: string[]
   allowed_blocks: string[]
   owned: boolean
 }
 
-export type LabBank = {
+export type LabBankShelf = {
   name: string
   description: string
   units: { title: string; concept: string; challenges: LabBankChallenge[] }[]
+}
+
+export type LabBank = LabBankShelf & {
+  contest: LabBankShelf | null
+}
+
+export type CsvChallengeFormat = {
+  tipo: string
+  columns: string[]
+  notes: string
+  example: string
 }
 
 export type LabConcept = {
@@ -492,6 +525,31 @@ function desktopProxyEnabled(): boolean {
   return typeof window !== "undefined" && (window as Window & { __TRAZA_DESKTOP_PROXY__?: boolean }).__TRAZA_DESKTOP_PROXY__ === true
 }
 
+async function requestText(path: string): Promise<string> {
+  if (desktopProxyEnabled()) {
+    const internals = (window as Window & { __TAURI_INTERNALS__?: { invoke: (command: string, args: Record<string, unknown>) => Promise<ProxyReply> } }).__TAURI_INTERNALS__
+    if (!internals) throw new ApiError(0, "local_missing", "El intérprete local no está disponible.")
+    const reply = await internals.invoke("server_fetch", { path, method: "GET", body: null, headers: {} })
+    if (reply.csrf) memoryCsrf = reply.csrf
+    if (reply.status < 200 || reply.status >= 300) throw textError(reply.status, reply.body)
+    return reply.body
+  }
+  const response = await fetch(path, { credentials: "same-origin", cache: "no-store" })
+  const text = await response.text()
+  if (!response.ok) throw textError(response.status, text)
+  return text
+}
+
+function textError(status: number, body: string): ApiError {
+  try {
+    const data = JSON.parse(body) as { error?: { code?: string; message?: string } }
+    const error = data.error ?? {}
+    return new ApiError(status, error.code ?? "invalid", error.message ?? "No se pudo completar la solicitud.")
+  } catch {
+    return new ApiError(status, "invalid", "No se pudo completar la solicitud.")
+  }
+}
+
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (desktopProxyEnabled()) return desktopRequest<T>(path, init)
   const headers = new Headers(init.headers)
@@ -579,10 +637,23 @@ export const api = {
     }),
   removeMember: (communityId: string, userId: number) =>
     request<void>(`/api/v1/communities/${communityId}/members/${userId}/`, { method: "DELETE" }),
+  setCommunityTranslation: (id: string, enabled: boolean) =>
+    request<Community>(`/api/v1/communities/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify({ translation_enabled: enabled }),
+    }),
+  setMemberTranslation: (communityId: string, userId: number, enabled: boolean) =>
+    request<Community>(`/api/v1/communities/${communityId}/members/${userId}/`, {
+      method: "PATCH",
+      body: JSON.stringify({ translation_enabled: enabled }),
+    }),
   searchPeople: (query: string, communityId: string) =>
     request<{ results: Person[] }>(
       `/api/v1/people/?q=${encodeURIComponent(query)}&community=${encodeURIComponent(communityId)}`,
     ),
+  classroomStudents: () => request<{ results: ClassroomStudent[] }>("/api/v1/classroom/students/"),
+  studentProjects: (userId: number) =>
+    request<StudentWork>(`/api/v1/classroom/students/${userId}/projects/`),
   logout: () => request<void>("/api/v1/auth/logout/", { method: "POST" }),
   reset: (email: string) =>
     request<{ message: string }>("/api/v1/auth/password-reset/", {
@@ -705,6 +776,12 @@ export const api = {
   labCatalog: () =>
     request<{ results: LabCatalogChallenge[]; concepts: LabConcept[] }>("/api/v1/learning/catalog/"),
   labBank: () => request<LabBank>("/api/v1/learning/bank/"),
+  labCsvFormats: () => request<{ types: CsvChallengeFormat[] }>("/api/v1/learning/challenges/csv/"),
+  importLabCsv: (csv: string) =>
+    request<{ created: number; titles: string[] }>("/api/v1/learning/challenges/csv/", {
+      method: "POST",
+      body: JSON.stringify({ csv }),
+    }),
   createLabChallenge: (body: LabChallengeInput) =>
     request<LabChallengeDraft>("/api/v1/learning/authored/challenges/", {
       method: "POST",
@@ -751,6 +828,8 @@ export const api = {
       body: JSON.stringify({ community_ids: communityIds, student_ids: studentIds }),
     }),
   labRoster: () => request<{ routes: LabRosterRoute[] }>("/api/v1/learning/roster/"),
+  labProgressCsv: (pathId: string, lang: "es" | "en") =>
+    requestText(`/api/v1/learning/roster/${pathId}/progress/?lang=${lang}`),
   labMember: (userId: number) => request<LabMemberProgress>(`/api/v1/learning/roster/${userId}/`),
   labMemberWork: (userId: number, challengeId: string) =>
     request<LabMemberWork>(`/api/v1/learning/roster/${userId}/challenges/${challengeId}/`),

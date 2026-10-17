@@ -1,6 +1,6 @@
 # Modelo de datos
 
-Estado: migrado. Fecha de referencia: 2026-10-14. El diccionario para consultar, con tipo y longitud de cada campo, está en [diccionario-de-datos.md](diccionario-de-datos.md). El mapa de procesos está en [arquitectura.md](arquitectura.md). Las comunidades de docentes están en `classroom`. Las actividades y las entregas del aula no. El laboratorio tiene tablas propias en `learning`, con el catálogo de conceptos, la ruta Fundamentos de treinta y cuatro retos, el banco y las rutas que arma un docente. `accounts.User.email_confirmed` llegó en la migración `0004_user_email_confirmed`.
+Estado: migrado. Fecha de referencia: 2026-10-17. La traducción del algoritmo y la ventana de escritorio no agregan tablas. La migración `classroom.0002` añade `translation_enabled` a la comunidad y a la membresía. La migración `learning.0016` siembra el banco y la ruta Práctica de concurso, cincuenta retos. El diccionario para consultar, con tipo y longitud de cada campo, está en [diccionario-de-datos.md](diccionario-de-datos.md). El mapa de procesos está en [arquitectura.md](arquitectura.md). Las comunidades de docentes están en `classroom`. Las actividades y las entregas del aula no. El laboratorio tiene tablas propias en `learning`, con el catálogo de conceptos, la ruta Fundamentos de treinta y cuatro retos, el banco y las rutas que arma un docente. `accounts.User.email_confirmed` llegó en la migración `0004_user_email_confirmed`.
 
 Motor: PostgreSQL. Claves públicas: UUID versión 4. Claves internas de alto volumen: entero de 64 bits. Las marcas de tiempo son `timestamptz`.
 
@@ -153,7 +153,7 @@ El esquema de `config` repite las banderas de `LanguageProfile` del núcleo: `in
 
 `executions.ExecutionEvent`
 
-Una fila por salida, entrada aceptada, error y fin. No se persiste cada `line_executed`: eso saturaría la base durante un ciclo. Esos eventos van por SSE. En la máquina los emite el proceso de Django. En los contenedores, Redis es el bus y Gunicorn los reenvía. Sí se guarda el historial de consola, que el estudiante espera encontrar después. El dato que un `Leer` acepta queda en ese historial como salida.
+Una fila por salida, entrada aceptada, error y fin. No se persiste cada `line_executed`: eso saturaría la base durante un ciclo. Esos eventos van por SSE. En la máquina los emite el proceso de Django. En los contenedores, Redis es el bus y Gunicorn los reenvía. En la ventana de escritorio los emite `local_host` y no se insertan aquí. Sí se guarda el historial de consola del editor web, que el estudiante espera encontrar después. El dato que un `Leer` acepta queda en ese historial como salida.
 
 | Campo | Notas |
 | --- | --- |
@@ -205,6 +205,8 @@ El error de ejecución no necesita otra tabla. Un evento `kind=error` guarda có
 Una comunidad pertenece a un docente. Solo él la crea, la lista y la borra. El nombre es único entre las suyas. Hay un tope de 30 comunidades y de 200 personas por comunidad.
 
 `classroom.Membership` une la comunidad con un usuario que ya tiene cuenta. No se registran personas desde la comunidad. El docente busca por nombre o correo, entre alumnos y otros docentes, y agrega el resultado a una comunidad suya. No puede agregarse a sí mismo. La lista de alumnos y la de docentes salen del perfil actual de cada miembro.
+
+`Community.translation_enabled` nace en verdadero. `Membership.translation_enabled` nace nulo y, mientras lo está, hereda el valor de la comunidad. Un valor verdadero o falso en la membresía es el ajuste de ese alumno. El código traducido no se guarda.
 
 No hay actividades ni entregas en el aula. Esas tablas siguen sin existir.
 

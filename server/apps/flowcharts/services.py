@@ -8,7 +8,7 @@ from language_core.flowchart import build
 from language_core.interpreter import compile_source
 
 
-def flowchart_payload(algorithm: Algorithm) -> dict[str, object]:
+def flowchart_payload(algorithm: Algorithm, *, persist: bool = True) -> dict[str, object]:
     profile, _config = profile_for_algorithm(algorithm)
     marker = f"{int(profile.require_semicolons)}\n{profile.index_base}"
     digest = hashlib.sha256(
@@ -23,11 +23,12 @@ def flowchart_payload(algorithm: Algorithm) -> dict[str, object]:
     compiled = compile_source(algorithm.source, profile)
     diagnostics = [diagnostic_payload(item) for item in compiled.diagnostics]
     if compiled.program is None:
-        if algorithm.flowchart is not None:
+        if persist and algorithm.flowchart is not None:
             algorithm.flowchart = None
             algorithm.save(update_fields=["flowchart"])
         return {"graph": None, "diagnostics": diagnostics}
     graph = build(compiled.program).as_dict()
-    algorithm.flowchart = {"source_hash": digest, "graph": graph, "diagnostics": diagnostics}
-    algorithm.save(update_fields=["flowchart"])
+    if persist:
+        algorithm.flowchart = {"source_hash": digest, "graph": graph, "diagnostics": diagnostics}
+        algorithm.save(update_fields=["flowchart"])
     return {"graph": graph, "diagnostics": diagnostics}

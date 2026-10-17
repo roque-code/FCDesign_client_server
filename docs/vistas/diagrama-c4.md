@@ -1,6 +1,6 @@
 # Diagrama C4
 
-Fecha de referencia: 2026-10-14. Tres niveles. El cuarto, el código, está en el repositorio y no se dibuja aquí.
+Fecha de referencia: 2026-10-17. Tres niveles. El cuarto, el código, está en el repositorio y no se dibuja aquí.
 
 ## Nivel 1. Contexto
 
@@ -13,7 +13,7 @@ flowchart LR
     traza[Traza]
     est -->|pseudocódigo, retos y consola| traza
     doc -->|comunidades, rutas y avance| traza
-    traza -->|diagnóstico, diagrama, puntos y enlace de correo| est
+    traza -->|diagnóstico, diagrama, traducción, puntos y enlace de correo| est
     traza -->|listas y avance| doc
 ```
 
@@ -22,7 +22,8 @@ flowchart LR
 ```mermaid
 flowchart TB
     est[Estudiante y docente]
-    subgraph traza [Traza]
+    desk[Ventana Tauri y local_host]
+    subgraph traza [Traza en contenedores]
         ngx[Nginx]
         spa[Aplicación React]
         api[API Django]
@@ -33,6 +34,8 @@ flowchart TB
     end
     est --> ngx
     est --> mail
+    est --> desk
+    desk -->|cuenta y proyectos| api
     ngx --> spa
     ngx --> api
     api --> pg
@@ -50,6 +53,7 @@ flowchart TB
 | PostgreSQL | 16 | Sistema de registro |
 | Redis | 7 | Bus de órdenes y eventos |
 | Mailpit | 1.27 | Buzón de desarrollo |
+| Ventana de escritorio | Tauri 2 y `local_host` | Interfaz y núcleo en la máquina. La API sigue en Django |
 
 ## Nivel 3. Componentes de la API y del núcleo
 
@@ -66,7 +70,7 @@ flowchart TB
     subgraph nucleo [language_core]
         lex[Léxico y sintaxis]
         sem[Semántica]
-        interp[Intérprete y depurador]
+        interp[Intérprete, depurador y traductor]
         flow[Diagrama y adaptador de bloques]
     end
     accounts --> projects

@@ -123,6 +123,35 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
     }
   }
 
+  function remember(saved: Community) {
+    setDetail(saved)
+    setCommunities((rows) =>
+      rows.map((item) =>
+        item.id === saved.id ? { ...item, translation_enabled: saved.translation_enabled } : item,
+      ),
+    )
+  }
+
+  async function setGroupTranslation(enabled: boolean) {
+    if (!selectedId) return
+    setError("")
+    try {
+      remember(await api.setCommunityTranslation(selectedId, enabled))
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : t("translationSaveError"))
+    }
+  }
+
+  async function setStudentTranslation(person: Person, enabled: boolean) {
+    if (!selectedId) return
+    setError("")
+    try {
+      remember(await api.setMemberTranslation(selectedId, person.id, enabled))
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : t("translationSaveError"))
+    }
+  }
+
   return (
     <div className="communities-backdrop" onMouseDown={onClose}>
       <section
@@ -176,8 +205,23 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
                   <h3>{detail.name}</h3>
                   <button type="button" className="danger" onClick={() => void removeCommunity()}>{t("remove")}</button>
                 </div>
+                <label className="translation-switch">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={detail.translation_enabled}
+                    onChange={(event) => void setGroupTranslation(event.target.checked)}
+                  />
+                  <span>{t("translationForGroup")}</span>
+                </label>
                 <h4>{t("students")}</h4>
-                <MemberList people={detail.students} empty={t("noStudents")} removeLabel={t("removeMember")} onRemove={remove} />
+                <MemberList
+                  people={detail.students}
+                  empty={t("noStudents")}
+                  removeLabel={t("removeMember")}
+                  onRemove={remove}
+                  onTranslation={(person, enabled) => void setStudentTranslation(person, enabled)}
+                />
                 <h4>{t("teachers")}</h4>
                 <MemberList people={detail.teachers} empty={t("noTeachers")} removeLabel={t("removeMember")} onRemove={remove} />
                 <label>
@@ -222,12 +266,15 @@ function MemberList({
   empty,
   removeLabel,
   onRemove,
+  onTranslation,
 }: {
   people: Person[]
   empty: string
   removeLabel: string
   onRemove: (person: Person) => void
+  onTranslation?: (person: Person, enabled: boolean) => void
 }) {
+  const t = useT()
   if (people.length === 0) return <p className="note">{empty}</p>
   return (
     <ul className="member-list">
@@ -237,7 +284,21 @@ function MemberList({
             <strong>{person.display_name}</strong>
             <small>{person.email}</small>
           </span>
-          <button type="button" className="danger" onClick={() => onRemove(person)}>{removeLabel}</button>
+          <span className="member-actions">
+            {onTranslation && (
+              <label className="translation-switch">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={person.translation_enabled !== false}
+                  aria-label={t("translationForStudent", { name: person.display_name })}
+                  onChange={(event) => onTranslation(person, event.target.checked)}
+                />
+                <span>{t("translationShort")}</span>
+              </label>
+            )}
+            <button type="button" className="danger" onClick={() => onRemove(person)}>{removeLabel}</button>
+          </span>
         </li>
       ))}
     </ul>

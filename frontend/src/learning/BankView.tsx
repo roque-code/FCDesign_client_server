@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
-import { ApiError, api, type LabBank, type LabBankChallenge, type LabConcept } from "../api"
+import { ApiError, api, type CsvChallengeFormat, type LabBank, type LabBankChallenge, type LabBankShelf, type LabConcept } from "../api"
 import { spellText } from "../dialect"
 import { useLocale, useT, type MessageKey } from "../i18n"
 import { ChallengeForm } from "./ChallengeForm"
@@ -25,11 +25,13 @@ function messageOf(error: unknown, fallback: string): string {
 function ChallengeCard({
   item,
   busy,
+  canChange,
   onEdit,
   onRetire,
 }: {
   item: LabBankChallenge
   busy: boolean
+  canChange: boolean
   onEdit: (id: string) => void
   onRetire: (item: LabBankChallenge) => void
 }) {
@@ -92,10 +94,27 @@ function ChallengeCard({
       ) : null}
       {item.activity_type === "build" ? (
         <div className="bank-block">
-          <h4>{t("inputs")}</h4>
-          <p>{item.inputs.length === 0 ? t("noneWord") : item.inputs.join(" · ")}</p>
-          <h4>{t("expectedOutput")}</h4>
-          <pre>{item.expected_output}</pre>
+          {item.cases.length > 0 ? (
+            <>
+              <h4>{t("casesWord")}</h4>
+              <ul>
+                {item.cases.map((row) => (
+                  <li key={row.name}>
+                    <strong>{row.name}</strong>
+                    <span>{row.inputs.length === 0 ? t("noneWord") : row.inputs.join(" · ")}</span>
+                    <pre>{row.expected_output}</pre>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <>
+              <h4>{t("inputs")}</h4>
+              <p>{item.inputs.length === 0 ? t("noneWord") : item.inputs.join(" · ")}</p>
+              <h4>{t("expectedOutput")}</h4>
+              <pre>{item.expected_output}</pre>
+            </>
+          )}
           <h4>{t("blocksWord")}</h4>
           <p>{blocks}</p>
         </div>
@@ -118,14 +137,16 @@ function ChallengeCard({
           </ol>
         </div>
       ) : null}
-      <div className="practice-actions">
-        <button type="button" onClick={() => onEdit(item.id)} disabled={busy}>
-          {t("edit")}
-        </button>
-        <button type="button" className="danger" onClick={() => onRetire(item)} disabled={busy}>
-          {t("retire")}
-        </button>
-      </div>
+      {canChange ? (
+        <div className="practice-actions">
+          <button type="button" onClick={() => onEdit(item.id)} disabled={busy}>
+            {t("edit")}
+          </button>
+          <button type="button" className="danger" onClick={() => onRetire(item)} disabled={busy}>
+            {t("retire")}
+          </button>
+        </div>
+      ) : null}
     </article>
   )
 }
@@ -141,6 +162,11 @@ export function BankView() {
   const [editor, setEditor] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [shelf, setShelf] = useState<"catalog" | "contest">("catalog")
+  const [notice, setNotice] = useState("")
+  const [formats, setFormats] = useState<CsvChallengeFormat[] | null>(null)
+  const [formatOpen, setFormatOpen] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -159,10 +185,11 @@ export function BankView() {
     }
   }, [reloadKey])
 
+  const active: LabBankShelf | null = bank == null ? null : shelf === "contest" ? bank.contest : bank
   const needle = query.trim().toLocaleLowerCase()
   const units = useMemo(() => {
-    if (!bank) return []
-    return bank.units
+    if (!active) return []
+    return active.units
       .map((unit) => ({
         ...unit,
         challenges: unit.challenges.filter((item) => {
@@ -173,9 +200,61 @@ export function BankView() {
         }),
       }))
       .filter((unit) => unit.challenges.length > 0)
-  }, [activity, bank, concept, needle])
-  const total = bank?.units.reduce((sum, unit) => sum + unit.challenges.length, 0) ?? 0
+  }, [active, activity, concept, needle])
+  const total = active?.units.reduce((sum, unit) => sum + unit.challenges.length, 0) ?? 0
   const shown = units.reduce((sum, unit) => sum + unit.challenges.length, 0)
+
+  function chooseShelf(next: "catalog" | "contest") {
+    setShelf(next)
+    setConcept("")
+    setEditor(null)
+  }
+
+  async function openFormat() {
+    if (formatOpen) {
+      setFormatOpen(false)
+      return
+    }
+    setFormatOpen(true)
+    if (formats) return
+    try {
+      const body = await api.labCsvFormats()
+      setFormats(body.types)
+    } catch (caught) {
+      setError(messageOf(caught, t("bankError")))
+    }
+  }
+
+  async function upload(file: File | undefined) {
+    if (!file) {
+      setError(t("csvChoose"))
+      return
+    }
+    setBusy(true)
+    setError("")
+    setNotice("")
+    try {
+      const result = await api.importLabCsv(await file.text())
+      setNotice(t("csvImported", { count: result.created }))
+      setShelf("catalog")
+      setConcept("")
+      setReloadKey((value) => value + 1)
+    } catch (caught) {
+      setError(messageOf(caught, t("bankError")))
+    } finally {
+      setBusy(false)
+      if (fileRef.current) fileRef.current.value = ""
+    }
+  }
+
+  function download(item: CsvChallengeFormat) {
+    const url = URL.createObjectURL(new Blob([item.example], { type: "text/csv;charset=utf-8" }))
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `${item.tipo}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
 
   async function retire(item: LabBankChallenge) {
     if (!window.confirm(t("retireConfirm", { name: item.title }))) return
@@ -197,23 +276,33 @@ export function BankView() {
       <section className="enunciado path-intro">
         <div>
           <p className="enunciado-kicker">{t("bank")}</p>
-          <h2>{bank?.name ?? t("bankOf")}</h2>
-          {bank?.description ? <p className="roster-meta">{bank.description}</p> : null}
+          <h2>{active?.name ?? t("bankOf")}</h2>
+          {active?.description ? <p className="roster-meta">{active.description}</p> : null}
         </div>
         <p className="path-count">
-          <strong>{bank ? shown : "—"}</strong>
-          <span>{bank && shown !== total ? t("ofTotal", { total }) : t("challengesWord")}</span>
+          <strong>{active ? shown : "—"}</strong>
+          <span>{active && shown !== total ? t("ofTotal", { total }) : t("challengesWord")}</span>
         </p>
       </section>
       <main className="lab-main bank-board">
         {error ? <p className="error">{error}</p> : null}
+        {notice ? <p className="roster-meta">{notice}</p> : null}
+        {shelf === "contest" ? <p className="roster-meta">{t("contestLocked")}</p> : null}
         <div className="bank-filters">
+          <div className="bank-toolbar">
+            <button type="button" aria-current={shelf === "catalog" ? "page" : undefined} onClick={() => chooseShelf("catalog")}>
+              {t("mainShelf")}
+            </button>
+            <button type="button" aria-current={shelf === "contest" ? "page" : undefined} onClick={() => chooseShelf("contest")} disabled={!bank?.contest}>
+              {t("contestShelf")}
+            </button>
+          </div>
           <label>
             {t("topic")}
             <select value={concept} onChange={(event) => setConcept(event.target.value)}>
               <option value="">{t("all")}</option>
-              {bank?.units.map((unit) => (
-                <option key={unit.concept} value={unit.concept}>
+              {active?.units.map((unit) => (
+                <option key={unit.title} value={unit.concept}>
                   {unit.title}
                 </option>
               ))}
@@ -242,8 +331,40 @@ export function BankView() {
             <button type="button" className="primary" onClick={() => setEditor("new")} disabled={busy}>
               {t("newChallenge")}
             </button>
+            <button type="button" onClick={() => fileRef.current?.click()} disabled={busy}>
+              {t("uploadCsv")}
+            </button>
+            <button type="button" onClick={() => void openFormat()} disabled={busy}>
+              {formatOpen ? t("closeFormat") : t("csvFormat")}
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv,text/csv"
+              hidden
+              onChange={(event) => void upload(event.target.files?.[0])}
+            />
           </div>
         </div>
+        {formatOpen && formats ? (
+          <div className="bank-format">
+            {formats.map((item) => (
+              <section key={item.tipo}>
+                <header>
+                  <h3>{item.tipo}</h3>
+                  <button type="button" onClick={() => download(item)}>
+                    {t("downloadTemplate")}
+                  </button>
+                </header>
+                <p>{item.notes}</p>
+                <h4>{t("csvColumns")}</h4>
+                <p className="csv-columns">{item.columns.join(", ")}</p>
+                <h4>{t("csvExample")}</h4>
+                <pre>{item.example}</pre>
+              </section>
+            ))}
+          </div>
+        ) : null}
         {editor ? (
           <div className="path-panel path-tone-editor bank-editor">
             <ChallengeForm
@@ -273,6 +394,7 @@ export function BankView() {
                     key={item.id}
                     item={item}
                     busy={busy}
+                    canChange={shelf === "catalog"}
                     onEdit={setEditor}
                     onRetire={(row) => void retire(row)}
                   />

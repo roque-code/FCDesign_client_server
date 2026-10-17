@@ -112,3 +112,212 @@ def test_el_docente_lista_alumnos_y_agrega_cuentas_registradas(client):
     removed = client.delete(f"/api/v1/communities/{community_id}/members/{student_id}/")
     assert removed.status_code == 204
     assert client.get(f"/api/v1/communities/{community_id}/").json()["students"] == []
+
+
+def _algorithm(client):
+    project_id = client.get("/api/v1/projects/").json()["results"][0]["id"]
+    created = client.post(
+        "/api/v1/algorithms/",
+        {
+            "project_id": project_id,
+            "name": "Hola",
+            "source": 'Algoritmo Hola\n    Escribir "Hola";\nFinAlgoritmo\n',
+        },
+        format="json",
+    )
+    assert created.status_code == 201
+    return created.json()["id"]
+
+
+def test_el_docente_habilita_la_traduccion_por_grupo_y_por_alumno(client):
+    del client
+    teacher, _account = _session("profe-tr@ejemplo.test", display_name="Profe", role="teacher")
+    student, student_body = _session("alumno-tr@ejemplo.test", display_name="Alumno")
+    assert student_body["translation_enabled"] is True
+    student_id = student_body["id"]
+    algorithm_id = _algorithm(student)
+    assert student.post(f"/api/v1/algorithms/{algorithm_id}/translate/").status_code == 200
+    other, other_body = _session("otro-tr@ejemplo.test", display_name="Otro")
+    other_id = other_body["id"]
+    other_algorithm = _algorithm(other)
+    colleague, colleague_body = _session(
+        "colega-tr@ejemplo.test", display_name="Colega", role="teacher"
+    )
+    colleague_id = colleague_body["id"]
+    colleague_algorithm = _algorithm(colleague)
+
+    created = teacher.post("/api/v1/communities/", {"name": "Algoritmos"}, format="json")
+    assert created.status_code == 201
+    assert created.json()["translation_enabled"] is True
+    community_id = created.json()["id"]
+    for user_id in (student_id, other_id, colleague_id):
+        added = teacher.post(
+            f"/api/v1/communities/{community_id}/members/",
+            {"user_id": user_id},
+            format="json",
+        )
+        assert added.status_code == 201
+
+    closed = teacher.patch(
+        f"/api/v1/communities/{community_id}/",
+        {"translation_enabled": False},
+        format="json",
+    )
+    assert closed.status_code == 200
+    assert closed.json()["translation_enabled"] is False
+    assert all(row["translation_enabled"] is False for row in closed.json()["students"])
+    assert "translation_enabled" not in closed.json()["teachers"][0]
+
+    assert student.get("/api/v1/auth/me/").json()["translation_enabled"] is False
+    blocked = student.post(f"/api/v1/algorithms/{algorithm_id}/translate/")
+    assert blocked.status_code == 403
+    assert other.get("/api/v1/auth/me/").json()["translation_enabled"] is False
+
+    opened = teacher.patch(
+        f"/api/v1/communities/{community_id}/members/{student_id}/",
+        {"translation_enabled": True},
+        format="json",
+    )
+    assert opened.status_code == 200
+    assert opened.json()["translation_enabled"] is False
+    by_email = {row["email"]: row["translation_enabled"] for row in opened.json()["students"]}
+    assert by_email["alumno-tr@ejemplo.test"] is True
+    assert by_email["otro-tr@ejemplo.test"] is False
+
+    assert student.get("/api/v1/auth/me/").json()["translation_enabled"] is True
+    assert student.post(f"/api/v1/algorithms/{algorithm_id}/translate/").status_code == 200
+    assert other.post(f"/api/v1/algorithms/{other_algorithm}/translate/").status_code == 403
+    assert colleague.get("/api/v1/auth/me/").json()["translation_enabled"] is True
+    assert colleague.post(f"/api/v1/algorithms/{colleague_algorithm}/translate/").status_code == 200
+
+    group = teacher.patch(
+        f"/api/v1/communities/{community_id}/",
+        {"translation_enabled": True},
+        format="json",
+    )
+    assert group.status_code == 200
+    assert all(row["translation_enabled"] is True for row in group.json()["students"])
+    assert student.get("/api/v1/auth/me/").json()["translation_enabled"] is True
+    assert other.get("/api/v1/auth/me/").json()["translation_enabled"] is True
+
+    one = teacher.patch(
+        f"/api/v1/communities/{community_id}/members/{other_id}/",
+        {"translation_enabled": False},
+        format="json",
+    )
+    assert one.status_code == 200
+    by_email = {row["email"]: row["translation_enabled"] for row in one.json()["students"]}
+    assert by_email["alumno-tr@ejemplo.test"] is True
+    assert by_email["otro-tr@ejemplo.test"] is False
+    teacher_member = teacher.patch(
+        f"/api/v1/communities/{community_id}/members/{colleague_id}/",
+        {"translation_enabled": False},
+        format="json",
+    )
+    assert teacher_member.status_code == 400
+    invalid = teacher.patch(
+        f"/api/v1/communities/{community_id}/",
+        {"translation_enabled": "no"},
+        format="json",
+    )
+    assert invalid.status_code == 400
+
+    refused = student.patch(
+        f"/api/v1/communities/{community_id}/",
+        {"translation_enabled": True},
+        format="json",
+    )
+    assert refused.status_code == 403
+    assert other.get("/api/v1/auth/me/").json()["translation_enabled"] is False
+    assert other.post(f"/api/v1/algorithms/{other_algorithm}/translate/").status_code == 403
+
+
+def test_la_traduccion_exige_permiso_en_cada_grupo(client):
+    del client
+    teacher_a, _first = _session("profe-a-tr@ejemplo.test", display_name="Profe A", role="teacher")
+    teacher_b, _second = _session("profe-b-tr@ejemplo.test", display_name="Profe B", role="teacher")
+    student, student_body = _session("compartido-tr@ejemplo.test", display_name="Compartido")
+    student_id = student_body["id"]
+    algorithm_id = _algorithm(student)
+
+    group_a = teacher_a.post("/api/v1/communities/", {"name": "Uno"}, format="json").json()["id"]
+    assert (
+        teacher_a.post(
+            f"/api/v1/communities/{group_a}/members/",
+            {"user_id": student_id},
+            format="json",
+        ).status_code
+        == 201
+    )
+    assert (
+        teacher_a.patch(
+            f"/api/v1/communities/{group_a}/",
+            {"translation_enabled": False},
+            format="json",
+        ).status_code
+        == 200
+    )
+
+    group_b = teacher_b.post("/api/v1/communities/", {"name": "Dos"}, format="json").json()["id"]
+    assert (
+        teacher_b.post(
+            f"/api/v1/communities/{group_b}/members/",
+            {"user_id": student_id},
+            format="json",
+        ).status_code
+        == 201
+    )
+
+    assert student.get("/api/v1/auth/me/").json()["translation_enabled"] is False
+    assert student.post(f"/api/v1/algorithms/{algorithm_id}/translate/").status_code == 403
+
+    assert (
+        teacher_a.patch(
+            f"/api/v1/communities/{group_a}/members/{student_id}/",
+            {"translation_enabled": True},
+            format="json",
+        ).status_code
+        == 200
+    )
+    assert student.get("/api/v1/auth/me/").json()["translation_enabled"] is True
+
+    assert (
+        teacher_b.patch(
+            f"/api/v1/communities/{group_b}/members/{student_id}/",
+            {"translation_enabled": False},
+            format="json",
+        ).status_code
+        == 200
+    )
+    assert student.get("/api/v1/auth/me/").json()["translation_enabled"] is False
+
+
+def test_un_docente_ajeno_no_cambia_la_traduccion(client):
+    del client
+    teacher, _account = _session("dueno-tr@ejemplo.test", display_name="Dueno", role="teacher")
+    _student, student_body = _session("sola-tr@ejemplo.test", display_name="Sola")
+    student_id = student_body["id"]
+    community_id = teacher.post("/api/v1/communities/", {"name": "Grupo"}, format="json").json()[
+        "id"
+    ]
+    assert (
+        teacher.post(
+            f"/api/v1/communities/{community_id}/members/",
+            {"user_id": student_id},
+            format="json",
+        ).status_code
+        == 201
+    )
+    stranger, _account = _session("ajeno-tr@ejemplo.test", display_name="Ajeno", role="teacher")
+    stolen = stranger.patch(
+        f"/api/v1/communities/{community_id}/",
+        {"translation_enabled": False},
+        format="json",
+    )
+    assert stolen.status_code == 404
+    missing = teacher.patch(
+        f"/api/v1/communities/{community_id}/members/999999/",
+        {"translation_enabled": False},
+        format="json",
+    )
+    assert missing.status_code == 404

@@ -133,6 +133,7 @@ type Props = {
   onToggleBreakpoint: (line: number) => void
   onChange: (source: string) => void
   onCursor: (line: number) => void
+  readOnly?: boolean
 }
 
 export function CodeEditor({
@@ -148,6 +149,7 @@ export function CodeEditor({
   onToggleBreakpoint,
   onChange,
   onCursor,
+  readOnly = false,
 }: Props) {
   const locale = useLocale()
   const host = useRef<HTMLDivElement>(null)
@@ -238,6 +240,13 @@ export function CodeEditor({
         indentUnit.of(" ".repeat(indentSize)),
         themeExtension,
         debugExtensions,
+        ...(readOnly
+          ? [
+              EditorState.readOnly.of(true),
+              EditorView.editable.of(false),
+              EditorView.contentAttributes.of({ "aria-readonly": "true" }),
+            ]
+          : []),
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !applying.current) {
             publish(update.state.doc.toString(), update.state.selection.main.head)
@@ -246,7 +255,7 @@ export function CodeEditor({
         }),
       ]),
     })
-  }, [keywords, stdlib, fontSize, indentSize, theme])
+  }, [keywords, stdlib, fontSize, indentSize, theme, readOnly])
 
   useEffect(() => {
     const view = viewRef.current
@@ -296,5 +305,5 @@ export function CodeEditor({
     view.dispatch({ effects })
   }, [currentLine])
 
-  return <div className="editor-host" ref={host} />
+  return <div className="editor-host" data-readonly={readOnly ? "true" : undefined} ref={host} />
 }

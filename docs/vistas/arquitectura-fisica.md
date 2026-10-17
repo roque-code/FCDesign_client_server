@@ -1,6 +1,6 @@
 # Arquitectura física
 
-Fecha de referencia: 2026-10-14. Todo corre en la máquina de desarrollo, dentro de Docker. No hay un servidor publicado.
+Fecha de referencia: 2026-10-17. El compose de desarrollo corre en la máquina, dentro de Docker. `config.settings.production` no está activo. La ventana de escritorio es otro nodo: el intérprete queda en esa máquina y la API sale hacia `TRAZA_API_ORIGIN`.
 
 ```mermaid
 flowchart TB
@@ -47,5 +47,7 @@ flowchart TB
 El runner usa sistema de archivos de solo lectura, `/tmp` en memoria, sin capacidades añadidas y con tope de memoria, CPU y procesos. La red `isolated` no tiene salida a internet. Redis es el único nodo en las dos redes.
 
 En la misma máquina puede seguir el contenedor anterior `traza-pg` en `5433`. El compose no lo usa.
+
+La ventana Tauri no entra en este compose. Lleva la interfaz y `local_host` en `127.0.0.1`. En un paquete publicado, el proxy de `/api/` usa `TRAZA_API_ORIGIN` y, si falta, `http://18.118.112.206:18080`. Validar, traducir, ejecutar y depurar no salen de esa máquina.
 
 Volver al [índice](indice.md).

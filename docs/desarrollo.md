@@ -13,7 +13,7 @@ Variables que el compose ya define:
 - `DJANGO_SETTINGS_MODULE=config.settings.development`
 - `TRAZA_RUNNER=redis`
 - `REDIS_URL` con el usuario `web`
-- `DJANGO_CSRF_ORIGINS` incluye `http://127.0.0.1:18080` y `http://localhost:18080`
+- `DJANGO_CSRF_ORIGINS` incluye `http://127.0.0.1:18080` y `http://localhost:18080`. En la máquina, sin compose, el ajuste de desarrollo también confía en el puerto `5174` de la ventana de escritorio
 - `EMAIL_HOST=mail` y `TRAZA_EMAIL_CONFIRMATION=1`: el alta envía la confirmación por SMTP y no abre sesión hasta el enlace
 - `TRAZA_PUBLIC_ORIGIN` arma ese enlace; `TRAZA_MAIL_UI` es la dirección del buzón que ve quien crea la cuenta
 
@@ -45,3 +45,13 @@ Las pruebas del servidor siguen en el ejecutor en proceso, y además cubren el b
 ## 4. OpenAPI
 
 Con el servidor en marcha, `GET /api/schema/`.
+
+## 5. Aplicación de escritorio
+
+Hay una tercera forma de abrir la interfaz: la ventana de `desktop/`. En depuración, Tauri levanta Vite en `http://127.0.0.1:5174` y arranca `python3 -m local_host`. Ese proceso atiende validar, traducir, ejecutar, depurar y el laboratorio. La cuenta y los proyectos siguen saliendo de Django. En depuración el proxy de la API queda apagado, así que Vite tiene que alcanzar el mismo origen que el navegador.
+
+```bash
+cd desktop && npm install && npm run dev
+```
+
+En un paquete publicado, las llamadas que empiezan por `/api/` pasan por `server_fetch` hacia `TRAZA_API_ORIGIN`. Si esa variable no está, el origen es `http://18.118.112.206:18080`. `TRAZA_UPDATE_URL`, si existe, apunta a un manifiesto `version` y `url` para descargar un paquete más nuevo. El detalle del lanzador está en [arquitectura.md](arquitectura.md).

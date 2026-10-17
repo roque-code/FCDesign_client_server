@@ -1,6 +1,6 @@
 # Diagrama de secuencia
 
-Fecha de referencia: 2026-10-14. Dos secuencias del compose de desarrollo. En la máquina, Django ocupa el lugar del runner y el correo sale por la consola.
+Fecha de referencia: 2026-10-17. Dos secuencias del compose de desarrollo, más la traducción. En la máquina, Django ocupa el lugar del runner y el correo sale por la consola. En la ventana de escritorio, `local_host` ocupa el lugar del runner y la traducción no abre canal.
 
 ## Confirmar el correo
 
@@ -49,6 +49,22 @@ sequenceDiagram
 ```
 
 Validar recorre léxico, sintaxis y semántica y se detiene ahí. No publica una ejecución ni abre el canal SSE.
+
+## Traducir un algoritmo
+
+```mermaid
+sequenceDiagram
+    actor Persona
+    participant Web as Django o local_host
+    participant Core as language_core
+
+    Persona->>Web: POST translate
+    Web->>Core: El mismo árbol que Validar
+    Core-->>Web: Diagnósticos y, sin errores, siete programas
+    Web-->>Persona: Pestañas, sin ejecución
+```
+
+Si el docente apagó la traducción, la respuesta es 403 y no hay programas. El repaso de un alumno usa las mismas órdenes de validar y ejecutar, sin crear una versión.
 
 El laboratorio repite la segunda secuencia con `POST /api/v1/learning/run/` y `GET /api/v1/learning/runs/{id}/events/`. No inserta `executions.Execution`.
 

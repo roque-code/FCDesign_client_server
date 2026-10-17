@@ -1,6 +1,6 @@
 # Arquitectura de seguridad
 
-Fecha de referencia: 2026-10-14. El perímetro de desarrollo tiene tres zonas. La de producción, cuando exista, sustituye Mailpit por un SMTP real y pone TLS delante de Nginx.
+Fecha de referencia: 2026-10-17. El perímetro de desarrollo tiene tres zonas. La ventana de escritorio añade el anfitrión local, que solo acepta el token de arranque y solo proxifica `/api/`. La de producción, cuando exista, sustituye Mailpit por un SMTP real y pone TLS delante de Nginx.
 
 ```mermaid
 flowchart TB
@@ -37,6 +37,9 @@ flowchart TB
 | Runner sin red pública, sin capacidades y con tope de recursos | compose |
 | Cookies `Secure` y HSTS | solo `config.settings.production`, que hoy no arranca |
 | SMTP de desarrollo | Mailpit no entrega fuera de la máquina |
+| Anfitrión local | Token de arranque. El proxy rechaza una ruta que no empiece por `/api/` |
+| Traducción | No ejecuta el texto generado ni lo guarda en la base. Responde 403 si el docente la apagó |
+| Repaso | El docente lee algoritmos solo de alumnos de sus comunidades. No crea versiones |
 
 El enlace de confirmación lleva `uid` y `token` en la query del origen público. Al confirmar, el token deja de servir. Entrar antes responde `email_unconfirmed`.
 

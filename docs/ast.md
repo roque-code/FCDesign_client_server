@@ -2,7 +2,7 @@
 
 Estado: implementado en `language_core`. Las figuras del diagrama no son nodos del AST; salen de este árbol en `flowchart.py` y el cliente les pone coordenadas. El laboratorio construye estos mismos nodos desde los bloques. El mapa del sistema está en [arquitectura.md](arquitectura.md).
 
-Los nodos son dataclasses inmutables. Cada nodo guarda un `SourceSpan`. El intérprete y el generador de diagramas consumen estos nodos; no vuelven al texto salvo para mostrar un fragmento de diagnóstico.
+Los nodos son dataclasses inmutables. Cada nodo guarda un `SourceSpan`. El intérprete, el generador de diagramas y el traductor a otros lenguajes consumen estos nodos. No vuelven al texto salvo para mostrar un fragmento de diagnóstico o para colocar un comentario junto a la sentencia que lo acompaña. El traductor no ejecuta el árbol.
 
 Los nombres de las clases están en inglés, como el resto del código Python. El token de una palabra reservada guarda el lexema escrito y el canónico español, aunque el estudiante haya escrito `If` o `Algorithm`. Los mensajes de diagnóstico siguen en español.
 

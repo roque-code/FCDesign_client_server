@@ -1,6 +1,6 @@
 # Diccionario de datos
 
-Fecha de referencia: 2026-10-14. Sirve para armar consultas sobre la base del compose. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
+Fecha de referencia: 2026-10-17. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
 
 La base se llama `traza` y, con los contenedores levantados, escucha en `127.0.0.1:5434`. El usuario de desarrollo es `traza`. No es la base del contenedor anterior `traza-pg` del puerto `5433`.
 
@@ -285,6 +285,7 @@ No hay actividades ni entregas. Una comunidad solo agrupa cuentas que ya existen
 | `id` | `uuid` | NO | Clave |
 | `owner_id` | `bigint` | NO | Docente dueño. El nombre es único entre las suyas |
 | `name` | `varchar(80)` | NO | Nombre visible |
+| `translation_enabled` | `boolean` | NO | Si los alumnos heredan la traducción de código. Nace en verdadero |
 | `created_at` | `timestamptz` | NO | Alta |
 | `updated_at` | `timestamptz` | NO | Último cambio |
 
@@ -297,6 +298,7 @@ Tope de aplicación: 30 comunidades por docente y 200 personas por comunidad.
 | `id` | `bigint` | NO | Clave |
 | `community_id` | `uuid` | NO | Comunidad |
 | `user_id` | `bigint` | NO | Miembro. Único dentro de la comunidad. No es el dueño: el dueño no se agrega a sí mismo |
+| `translation_enabled` | `boolean` | SÍ | Ajuste del alumno. Nulo significa heredar el de la comunidad |
 | `created_at` | `timestamptz` | NO | Momento en que se agregó |
 
 El papel de alumno o docente de esa fila sale de `accounts_profile.role`, no de esta tabla.

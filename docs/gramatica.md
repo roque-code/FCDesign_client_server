@@ -119,7 +119,7 @@ La grafía inglesa no es un alias del perfil: el lexer la acepta siempre, en est
 
 Cambiar el idioma de la cuenta no recorre ni reescribe el fuente guardado. El editor lo muestra en la grafía elegida. Si el texto guardado está en la otra, al guardar devuelve las palabras a esa grafía y conserva las letras de las que no se editaron. Si el texto ya coincide con el idioma, o el algoritmo es nuevo, se guarda lo escrito. Un algoritmo nuevo en inglés empieza con `Algorithm` y `EndAlgorithm`. La EBNF de este documento usa el canónico español. Un fuente en inglés es el mismo programa.
 
-Los nombres de la biblioteca no están en esta tabla. `Raíz` y `Longitud` siguen en español. Los identificadores, las cadenas y los comentarios no se traducen. Los mensajes de diagnóstico siguen en español. `Escribir` de un lógico imprime `Verdadero` o `Falso`. `Leer` de un lógico acepta las dos grafías.
+Los nombres de la biblioteca no están en esta tabla. El idioma de la cuenta no los cambia: `Raíz` y `Longitud` siguen en español. Los identificadores, las cadenas y los comentarios tampoco cambian con el idioma. Los mensajes de diagnóstico siguen en español. `Escribir` de un lógico imprime `Verdadero` o `Falso`. `Leer` de un lógico acepta las dos grafías. Otra cosa es el botón **Traducir**: ese emite el algoritmo en otro lenguaje de programación y sí escribe la biblioteca en la forma de ese lenguaje. La sección 12 lo detalla.
 
 ## 3. Gramática
 
@@ -415,3 +415,15 @@ El límite de instrucciones menciona el encabezado del ciclo más interno cuando
 ## 11. Qué se ejecuta
 
 Se lexica, parsea, analiza y ejecuta todo lo descrito arriba: el algoritmo, los cinco tipos, las expresiones y las llamadas, `Leer` y `Escribir`, `Si`, `Segun`, `Mientras`, `Repetir`, `Para`, `Dimension`, funciones y procedimientos. No hay un diagnóstico de «construcción todavía no ejecutable».
+
+## 12. Traducción a otros lenguajes
+
+Traducir no es una segunda gramática ni un segundo intérprete. `language_core/translate.py` recorre el mismo AST que Validar y emite un programa. No lo ejecuta y no modifica el fuente. Si hay diagnósticos de severidad `error`, el resultado trae esos diagnósticos y ninguna traducción. Las advertencias no lo impiden.
+
+Los destinos son Python, JavaScript, TypeScript, Java, C, C++ y C#. En el navegador la orden es `POST /api/v1/algorithms/{id}/translate/`. En la aplicación de escritorio es `POST /local/v1/translate`, contra el mismo núcleo. El botón **Traducir** del banco de trabajo muestra una pestaña por lenguaje, permite ampliar el recuadro y copiar el texto. Un docente puede apagar esa acción para una comunidad o para un alumno. Si está apagada, el servidor responde 403 y no emite código.
+
+Se conservan los comentarios, la base de índices del algoritmo, `DIV` y `MOD` hacia cero, los parámetros por referencia y el resultado de la biblioteca.
+
+`Segun` sale como `match` en Python. En los demás lenguajes sale como `switch` cuando el tipo del selector cabe en esa construcción: un real no cabe en Java, C, C++ ni C#; una cadena no cabe en C ni C++; un lógico no cabe en Java. En esos casos sale una cadena de `Si`. Cada caso termina para no continuar en el siguiente. `De Otro Modo` es el caso por defecto.
+
+`Mientras` sale como `while`. `Repetir` sale como `do`/`while` con la condición negada, porque `Hasta Que` para cuando la condición se cumple. Python no tiene `do`/`while`: usa `while True` y un `break`. `Para` incluye los dos extremos. El paso, si se conoce, elige `<=` o `>=`. Si el paso no es constante, la prueba mira el signo en cada vuelta. En Python el extremo de `range` se desplaza para que el último valor entre.

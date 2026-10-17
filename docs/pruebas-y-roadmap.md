@@ -34,6 +34,7 @@ No se dará por ejecutada una prueba sin mostrar el comando y el resumen real.
 | Entrada y salida | suspensión, texto inválido, reintento, formato de `Escribir`. El dato aceptado queda en la salida, en su línea y antes de lo que se escriba después. El rechazado no |
 | Límites | instrucciones, profundidad, celdas, tamaño de salida, cancelación |
 | Diagramas | grafo de secuencia, `Si`, `Para`, `Repetir`, `Segun` y llamada; el nodo apunta a la línea. Las etiquetas del grafo siguen siendo `Sí` y `No`. La figura de ciclo es `loop` y la de `Segun` es `switch`, con `kind` `decision` |
+| Traducción | `language_core/tests/test_translate.py`. Python coincide con la salida del intérprete en los fixtures. C también, si el compilador está. `Segun` usa `match` o `switch`, y una cadena de `Si` cuando el tipo no cabe. Un error no genera código |
 | Regresión | un archivo por código de error que se haya corregido |
 
 Algoritmos completos que deben pasar como fixtures, en la fase que los haga ejecutables:
@@ -58,6 +59,10 @@ Algoritmos completos que deben pasar como fixtures, en la fase que los haga ejec
 - Un usuario no lee ni modifica el proyecto de otro: la respuesta es 404.
 - El enlace revocado o caducado no entrega el fuente.
 - Validar no crea una ejecución.
+- Traducir no crea una ejecución y, con un fuente válido, devuelve los siete lenguajes. Si el docente la apagó, responde 403.
+- Un docente lee y ejecuta el algoritmo de su alumno sin crear una versión. Otra persona recibe 404.
+- El CSV de una ruta trae una fila por alumno y la nota. El CSV de retos, si una fila falla, no guarda ninguna.
+- La ruta Práctica de concurso publica 50 retos. El primero está abierto y el segundo, cerrado.
 - Ejecutar persiste salida y error, y no persiste cada línea del depurador.
 - El autoguardado no multiplica versiones; ejecutar con fuente nuevo sí abre versión.
 - Restaurar una versión no borra las posteriores.
@@ -125,6 +130,7 @@ Hecha. `flowchart.py`, API, React Flow, posiciones en el cliente, sincronizació
 - Renombrar proyecto y algoritmo. Descargar el fuente y eliminar un algoritmo.
 - Tabulador para indentar. Selección visible en una sola línea.
 - Menú **Configuración** y menú **Funciones**. El idioma de la cuenta cambia los textos y la grafía de las palabras reservadas, y no reescribe el fuente guardado.
+- **Traducir** muestra el algoritmo en los siete lenguajes sin ejecutarlo. **Actualizar** vuelve a cargar la cuenta cuando está abierta en otra ventana.
 - La consola hace eco del dato aceptado y se desplaza hasta el final.
 - `Caracter` es un solo símbolo. La palabra del editor es `Caracter`.
 
@@ -133,6 +139,8 @@ Hecha. `flowchart.py`, API, React Flow, posiciones en el cliente, sincronizació
 Hecha, sin pasar a producción. `compose.yaml` levanta PostgreSQL, Redis, el runner aislado, Gunicorn, Vite, Nginx y Mailpit, con volúmenes y healthchecks. El runner no importa Django. Redis es el bus de órdenes y de eventos. Nginx publica el canal SSE con el buffer apagado. El alta de los contenedores envía la confirmación por SMTP y no abre sesión hasta el enlace. La integración continua está en `.github/workflows/ci.yml`. Los manuales son [instalacion.md](instalacion.md), [desarrollo.md](desarrollo.md), [despliegue.md](despliegue.md) y [arquitectura.md](arquitectura.md).
 
 `config.settings.production` sigue sin usarse. Rechaza el ejecutor en proceso y exige Redis y `EMAIL_HOST`. Ese cambio queda para cuando haya un servidor.
+
+La aplicación de escritorio ya se empaqueta, a mano, con `.github/workflows/desktop.yml`. El intérprete de esa ventana es `local_host`. La API de cuentas sigue siendo la de Django. No es el nodo de producción descrito en [despliegue.md](despliegue.md).
 
 En la máquina, sin el compose, el editor puede seguir con el ejecutor en proceso. Las pruebas cubren los dos caminos.
 
@@ -155,8 +163,9 @@ Un estudiante ya puede hacer lo siguiente desde un navegador de escritorio actua
 11. Ejecutar en una consola interactiva.
 12. Guardar y volver a abrir.
 13. Ver un diagrama básico generado desde el AST.
-14. Usar la aplicación en un navegador moderno, en español o en inglés.
-15. Ejecutar las pruebas automáticas.
+14. Usar la aplicación en un navegador moderno, en español o en inglés, o en la ventana de escritorio.
+15. Pedir la traducción del algoritmo a otro lenguaje sin ejecutarlo.
+16. Ejecutar las pruebas automáticas.
 
 Arreglos, subrutinas, depurador y diagrama están en el producto. El aislamiento del runner está en el compose de desarrollo. El servidor de producción no.
 

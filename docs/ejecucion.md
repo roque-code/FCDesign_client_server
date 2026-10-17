@@ -4,7 +4,7 @@ Estado: el motor y el depurador están en el runner cuando los servicios corren 
 
 ## 1. Un solo motor
 
-El intérprete recorre el AST y produce eventos. El botón Ejecutar, el depurador y las pruebas usan el mismo recorrido. No hay un segundo traductor «rápido» que pueda discrepar.
+El intérprete recorre el AST y produce eventos. El botón Ejecutar, el depurador y las pruebas usan el mismo recorrido. No hay un segundo motor de ejecución. Traducir el algoritmo a Python u otro lenguaje emite texto a partir de ese árbol y no lo recorre.
 
 ```mermaid
 flowchart TD
@@ -68,6 +68,8 @@ Ejemplo hacia el navegador, ya filtrado para no enviar estructuras enormes:
 Los valores viajan como texto canónico, el mismo que usa `Escribir`. Un arreglo grande no se inyecta entero en cada línea: el evento lleva un resumen (`rangos` y `celdas`) y el panel pide un tramo con la orden de inspección.
 
 Canal: **SSE** desde `GET /api/v1/executions/{id}/events/`. Las órdenes del estudiante (entrada, pausa, continuar, un paso, entrar, salir, detener) son `POST`. En la máquina, el mismo proceso de Django produce los eventos y los entrega. En los contenedores de desarrollo, Nginx publica ese camino con `proxy_buffering off` y Redis hace de bus entre Gunicorn y el runner. El esquema es el de producción; el módulo `config.settings.production` no se carga.
+
+En la aplicación de escritorio el canal es `GET /local/v1/sessions/{id}/events/`, servido por `local_host`. El laboratorio usa `GET /local/v1/lab/runs/{id}/events/`. El sobre de eventos es el mismo. Ese proceso no escribe `executions.Execution`: la cuenta y el fuente siguen en la API.
 
 Un `Leer` aceptado también emite `output`, con el texto guardado y un salto de línea, antes de seguir. La consola y el campo `execution.output` lo muestran en ese orden, junto a lo que escriba `Escribir`. Un texto rechazado emite `input_rejected`, no `output`, y la petición se repite. El eco cuenta para `max_output_chars`.
 

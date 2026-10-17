@@ -21,7 +21,12 @@ def require_teacher(user: User) -> None:
         raise DomainError("Solo un docente puede gestionar comunidades.", status_code=403)
 
 
-def person_payload(user: User, *, member: bool | None = None) -> dict[str, object]:
+def person_payload(
+    user: User,
+    *,
+    member: bool | None = None,
+    translation_enabled: bool | None = None,
+) -> dict[str, object]:
     profile = user.profile
     payload: dict[str, object] = {
         "id": user.pk,
@@ -31,6 +36,8 @@ def person_payload(user: User, *, member: bool | None = None) -> dict[str, objec
     }
     if member is not None:
         payload["member"] = member
+    if translation_enabled is not None:
+        payload["translation_enabled"] = translation_enabled
     return payload
 
 
@@ -49,6 +56,7 @@ def community_summary(community: Community) -> dict[str, object]:
         "name": community.name,
         "student_count": students,
         "teacher_count": teachers,
+        "translation_enabled": community.translation_enabled,
     }
 
 
@@ -60,7 +68,11 @@ def _split(community: Community) -> tuple[list[dict[str, object]], list[dict[str
         "user__email",
     )
     for item in memberships:
-        person = person_payload(item.user)
+        enabled = None
+        if item.user.profile.role != Profile.TEACHER:
+            choice = item.translation_enabled
+            enabled = community.translation_enabled if choice is None else choice
+        person = person_payload(item.user, translation_enabled=enabled)
         if item.user.profile.role == Profile.TEACHER:
             teachers.append(person)
         else:
@@ -75,6 +87,7 @@ def community_detail(community: Community) -> dict[str, object]:
         "name": community.name,
         "student_count": len(students),
         "teacher_count": len(teachers),
+        "translation_enabled": community.translation_enabled,
         "students": students,
         "teachers": teachers,
     }
@@ -186,6 +199,83 @@ def remove_member(user: User, community_id, user_id, ip_address: str | None) -> 
     )
 
 
+def translation_allowed(user: User) -> bool:
+    if user.profile.role == Profile.TEACHER:
+        return True
+    memberships = list(Membership.objects.filter(user=user).select_related("community"))
+    if not memberships:
+        return True
+    for item in memberships:
+        choice = item.translation_enabled
+        allowed = item.community.translation_enabled if choice is None else choice
+        if not allowed:
+            return False
+    return True
+
+
+def _enabled_flag(value: object) -> bool:
+    if not isinstance(value, bool):
+        raise DomainError("Indica si la traducción queda habilitada.")
+    return value
+
+
+@transaction.atomic
+def set_community_translation(
+    user: User,
+    community_id,
+    enabled: object,
+    ip_address: str | None,
+) -> Community:
+    flag = _enabled_flag(enabled)
+    community = get_community(user, community_id)
+    community.translation_enabled = flag
+    community.save(update_fields=["translation_enabled", "updated_at"])
+    community.memberships.filter(user__profile__role=Profile.STUDENT).update(
+        translation_enabled=None
+    )
+    record(
+        "community.translation",
+        actor=user,
+        object_type="community",
+        object_id=str(community.id),
+        metadata={"translation_enabled": flag},
+        ip_address=ip_address,
+    )
+    return community
+
+
+def set_member_translation(
+    user: User,
+    community_id,
+    user_id,
+    enabled: object,
+    ip_address: str | None,
+) -> Community:
+    flag = _enabled_flag(enabled)
+    community = get_community(user, community_id)
+    try:
+        membership = community.memberships.select_related("user__profile").get(user_id=user_id)
+    except Membership.DoesNotExist as exc:
+        raise DomainError(
+            "Esa persona no está en la comunidad.",
+            code=NOT_FOUND,
+            status_code=404,
+        ) from exc
+    if membership.user.profile.role != Profile.STUDENT:
+        raise DomainError("La traducción se ajusta para un alumno.")
+    membership.translation_enabled = flag
+    membership.save(update_fields=["translation_enabled"])
+    record(
+        "community.member_translation",
+        actor=user,
+        object_type="community",
+        object_id=str(community.id),
+        metadata={"user_id": membership.user_id, "translation_enabled": flag},
+        ip_address=ip_address,
+    )
+    return community
+
+
 def search_people(user: User, query: object, community_id) -> list[dict[str, object]]:
     community = get_community(user, community_id)
     if not isinstance(query, str):
@@ -203,3 +293,59 @@ def search_people(user: User, query: object, community_id) -> list[dict[str, obj
     )
     present = set(community.memberships.values_list("user_id", flat=True))
     return [person_payload(item, member=item.pk in present) for item in found]
+
+
+def teacher_has_student(teacher: User, student_id: int) -> bool:
+    profile = getattr(teacher, "profile", None)
+    if profile is None or profile.role != Profile.TEACHER:
+        return False
+    return Membership.objects.filter(
+        community__owner=teacher,
+        user_id=student_id,
+        user__profile__role=Profile.STUDENT,
+    ).exists()
+
+
+def classroom_students(teacher: User) -> list[dict[str, object]]:
+    require_teacher(teacher)
+    memberships = (
+        Membership.objects.filter(
+            community__owner=teacher,
+            user__profile__role=Profile.STUDENT,
+        )
+        .select_related("user__profile", "community")
+        .order_by("user__profile__display_name", "user__email", "community__name")
+    )
+    grouped: dict[int, dict[str, object]] = {}
+    for item in memberships:
+        row = grouped.get(item.user_id)
+        if row is None:
+            row = {
+                "id": item.user_id,
+                "display_name": item.user.profile.display_name,
+                "email": item.user.email,
+                "communities": [],
+            }
+            grouped[item.user_id] = row
+        names = row["communities"]
+        assert isinstance(names, list)
+        names.append(item.community.name)
+    return list(grouped.values())
+
+
+def student_projects(teacher: User, user_id: int) -> dict[str, object]:
+    from apps.projects.services import algorithm_payload, project_payload
+
+    require_teacher(teacher)
+    if not teacher_has_student(teacher, user_id):
+        raise DomainError("No se encontró al alumno.", code=NOT_FOUND, status_code=404)
+    student = User.objects.select_related("profile").get(pk=user_id)
+    projects: list[dict[str, object]] = []
+    for project in student.projects.all().order_by("name"):
+        algorithms = project.algorithms.select_related("language_profile", "folder").order_by(
+            "name"
+        )
+        payload = project_payload(project)
+        payload["algorithms"] = [algorithm_payload(item) for item in algorithms]
+        projects.append(payload)
+    return {"student": person_payload(student), "projects": projects}

@@ -1,6 +1,8 @@
 from django.urls import path
 
 from apps.classroom.views import (
+    ClassroomStudentListView,
+    ClassroomStudentProjectsView,
     CommunityDetailView,
     CommunityListView,
     MemberDetailView,
@@ -22,4 +24,10 @@ urlpatterns = [
         name="community-member",
     ),
     path("people/", PeopleSearchView.as_view(), name="people"),
+    path("classroom/students/", ClassroomStudentListView.as_view(), name="classroom-students"),
+    path(
+        "classroom/students/<int:user_id>/projects/",
+        ClassroomStudentProjectsView.as_view(),
+        name="classroom-student-projects",
+    ),
 ]

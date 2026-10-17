@@ -24,7 +24,7 @@ from apps.language.services import (
     diagnostic_payload,
     profile_for_algorithm,
 )
-from apps.projects.services import create_version, get_algorithm
+from apps.projects.services import create_version, get_readable_algorithm
 from config.errors import DomainError
 from config.ratelimit import allow
 from language_core.debugger import DebugRejected, open_debug
@@ -94,6 +94,19 @@ def execution_payload(execution: Execution, diagnostics: list | None = None) -> 
     return data
 
 
+def _prepare_run(user, algorithm_id, message: str):
+    """Arma el perfil. Solo el dueño deja una versión y actualiza el algoritmo."""
+    algorithm = get_readable_algorithm(user, algorithm_id)
+    profile, config = profile_for_algorithm(algorithm)
+    version_number = None
+    if algorithm.owner_id == user.id:
+        version = create_version(algorithm, user, message)
+        version_number = version.number
+        algorithm.profile_snapshot = config
+        algorithm.save(update_fields=["profile_snapshot", "updated_at"])
+    return algorithm, profile, config, version_number
+
+
 def start_execution(user, algorithm_id, ip_address: str | None) -> tuple[Execution, list]:
     """Deja la ejecución en pausa para que la consola reciba cada fotograma.
 
@@ -104,14 +117,10 @@ def start_execution(user, algorithm_id, ip_address: str | None) -> tuple[Executi
     allow("execution.start", str(user.pk))
     _forget(user.pk, "editor")
     with transaction.atomic():
-        algorithm = get_algorithm(user, algorithm_id)
-        version = create_version(algorithm, user, "Ejecución")
-        profile, config = profile_for_algorithm(algorithm)
-        algorithm.profile_snapshot = config
-        algorithm.save(update_fields=["profile_snapshot", "updated_at"])
+        algorithm, profile, config, version_number = _prepare_run(user, algorithm_id, "Ejecución")
         execution = Execution.objects.create(
             algorithm=algorithm,
-            version_number=version.number,
+            version_number=version_number,
             user=user,
             status="running",
             source=algorithm.source,
@@ -123,7 +132,7 @@ def start_execution(user, algorithm_id, ip_address: str | None) -> tuple[Executi
             actor=user,
             object_type="execution",
             object_id=str(execution.id),
-            metadata={"algorithm_id": str(algorithm.id), "version": version.number},
+            metadata={"algorithm_id": str(algorithm.id), "version": version_number},
             ip_address=ip_address,
         )
     if settings.EXECUTION_RUNNER == "redis":
@@ -189,14 +198,10 @@ def start_debug(user, algorithm_id, breakpoints: set[int], ip_address: str | Non
     allow("execution.start", str(user.pk))
     _forget(user.pk, "editor")
     with transaction.atomic():
-        algorithm = get_algorithm(user, algorithm_id)
-        version = create_version(algorithm, user, "Depuración")
-        profile, config = profile_for_algorithm(algorithm)
-        algorithm.profile_snapshot = config
-        algorithm.save(update_fields=["profile_snapshot", "updated_at"])
+        algorithm, profile, config, version_number = _prepare_run(user, algorithm_id, "Depuración")
         execution = Execution.objects.create(
             algorithm=algorithm,
-            version_number=version.number,
+            version_number=version_number,
             user=user,
             status="running",
             source=algorithm.source,
@@ -208,7 +213,7 @@ def start_debug(user, algorithm_id, breakpoints: set[int], ip_address: str | Non
             actor=user,
             object_type="execution",
             object_id=str(execution.id),
-            metadata={"algorithm_id": str(algorithm.id), "version": version.number, "debug": True},
+            metadata={"algorithm_id": str(algorithm.id), "version": version_number, "debug": True},
             ip_address=ip_address,
         )
     if settings.EXECUTION_RUNNER == "redis":

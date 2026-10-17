@@ -10,6 +10,7 @@ from apps.learning.authoring_views import (
     AuthoredListView,
     BankView,
     CatalogView,
+    ChallengeCsvView,
 )
 from apps.learning.course_views import (
     AttemptCheckView,
@@ -24,6 +25,7 @@ from apps.learning.course_views import (
     MemberWorkView,
     PathsView,
     PathView,
+    RosterProgressView,
     RosterView,
 )
 from apps.learning.practice_views import PracticeDetailView, PracticeListView
@@ -42,6 +44,7 @@ urlpatterns = [
     path("learning/paths/", PathsView.as_view(), name="learning-paths"),
     path("learning/catalog/", CatalogView.as_view(), name="learning-catalog"),
     path("learning/bank/", BankView.as_view(), name="learning-bank"),
+    path("learning/challenges/csv/", ChallengeCsvView.as_view(), name="learning-challenge-csv"),
     path("learning/authored/", AuthoredListView.as_view(), name="learning-authored"),
     path(
         "learning/authored/challenges/",
@@ -74,6 +77,11 @@ urlpatterns = [
         name="learning-authored-assignments",
     ),
     path("learning/roster/", RosterView.as_view(), name="learning-roster"),
+    path(
+        "learning/roster/<uuid:path_id>/progress/",
+        RosterProgressView.as_view(),
+        name="learning-roster-progress",
+    ),
     path(
         "learning/roster/<int:user_id>/",
         MemberProgressView.as_view(),

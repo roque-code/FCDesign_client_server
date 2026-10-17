@@ -1,8 +1,10 @@
+from django.http import HttpResponse
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.http import current_user, object_body
+from apps.learning.gradebook import gradebook_csv
 from apps.learning.progress import (
     challenge_payload,
     check_attempt,
@@ -21,6 +23,15 @@ from apps.learning.roster import member_progress, member_work, roster_payload
 class RosterView(APIView):
     def get(self, request: Request) -> Response:
         return Response(roster_payload(current_user(request)))
+
+
+class RosterProgressView(APIView):
+    def get(self, request: Request, path_id) -> HttpResponse:
+        lang = request.query_params.get("lang", "es")
+        filename, body = gradebook_csv(current_user(request), path_id, str(lang))
+        response = HttpResponse(body, content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
 
 
 class MemberProgressView(APIView):

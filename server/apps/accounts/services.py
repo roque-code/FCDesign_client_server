@@ -121,6 +121,8 @@ def standing_of(user: User) -> dict[str, int]:
 
 
 def user_payload(user: User) -> dict[str, object]:
+    from apps.classroom.services import translation_allowed
+
     profile = user.profile
     standing = standing_of(user)
     return {
@@ -131,6 +133,7 @@ def user_payload(user: User) -> dict[str, object]:
         "role": profile.role,
         "points": standing["points"],
         "rank": standing["rank"],
+        "translation_enabled": translation_allowed(user),
     }
 
 

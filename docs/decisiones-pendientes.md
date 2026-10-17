@@ -139,8 +139,24 @@ En los contenedores el alta no abre sesión. Django envía un enlace por SMTP a 
 
 ### Banco de trabajo
 
-Proyectos y diagrama se ocultan. El ancho de los tres paneles se arrastra. Se renombra, se descarga y se elimina un algoritmo. El tabulador indenta. **Configuración** y **Funciones** están en la barra superior.
+Proyectos y diagrama se ocultan. El ancho de los tres paneles se arrastra. Se renombra, se descarga y se elimina un algoritmo. El tabulador indenta. **Configuración**, **Funciones**, **Traducir** y **Actualizar** están en la barra superior. **Actualizar** vuelve a pedir los datos cuando la misma cuenta está abierta en otra ventana y suelta el borrador local que aún no se guardó.
 
 ### Idioma de la cuenta
 
 La cuenta elige español o inglés en **Configuración**. El valor vive en `EditorPreference.locale` y también en el navegador, para la pantalla de entrada. Cambia los textos, los bloques, las figuras y la grafía de las palabras reservadas. No cambia los nombres de la biblioteca, los identificadores, las cadenas ni los diagnósticos. Un fuente ya guardado no se reescribe. El lexer acepta las dos grafías y el canónico del token sigue en español. La tabla está en [gramatica.md](gramatica.md).
+
+### Traducción a otros lenguajes
+
+El algoritmo se puede emitir en Python, JavaScript, TypeScript, Java, C, C++ y C#. El emisor es `language_core/translate.py`. Recorre el AST de Validar, conserva comentarios, base de índices, `DIV`, `MOD` y referencias, y no ejecuta el programa. Un error deja la lista de traducciones vacía. `Segun` usa `switch` o `match` cuando el tipo cabe; si no, una cadena de `Si`. `Para` incluye los dos extremos. `Repetir` niega la condición de `Hasta Que`.
+
+### Traducción por comunidad
+
+La traducción nace habilitada. El docente la apaga para una comunidad o para un alumno. El ajuste del alumno, si no es nulo, manda. Si el alumno está en varias comunidades y en una está apagada, no traduce. Un docente siempre puede. El repaso de un alumno abre sus proyectos en solo lectura y no crea versiones.
+
+### Práctica de concurso y CSV
+
+La ruta **Práctica de concurso** trae cincuenta problemas de creación de código, con tres casos cada uno. El banco del sistema se llama **Banco de concurso**. Un CSV del docente agrega retos a su propio banco, no a ese. El formato está en [ejemplos-de-retos.md](ejemplos-de-retos.md). El avance de una ruta se descarga como CSV de notas.
+
+### Aplicación de escritorio
+
+La ventana es Tauri. El intérprete corre en `local_host`, en la máquina, con el mismo núcleo. La cuenta y los proyectos siguen en la API. En un paquete publicado el proxy local reenvía solo `/api/`. El origen es `TRAZA_API_ORIGIN` y, si falta, `http://18.118.112.206:18080`. El empaquetado manual está en `.github/workflows/desktop.yml`.

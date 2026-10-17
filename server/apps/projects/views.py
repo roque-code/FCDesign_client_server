@@ -5,6 +5,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.classroom.services import translation_allowed
 from apps.http import client_ip, current_user, object_body
 from apps.language.services import diagnostic_payload, profile_for_algorithm
 from apps.projects.services import (
@@ -17,6 +18,7 @@ from apps.projects.services import (
     get_algorithm,
     get_folder,
     get_project,
+    get_readable_algorithm,
     parse_expiry,
     project_payload,
     read_share,
@@ -32,6 +34,7 @@ from apps.projects.services import (
     update_project,
     version_payload,
 )
+from config.errors import DomainError
 from config.pagination import TrazaPagination
 from language_core import compile_source
 from language_core.translate import translate_source
@@ -106,7 +109,7 @@ class AlgorithmListView(APIView):
 
 class AlgorithmDetailView(APIView):
     def get(self, request: Request, algorithm_id) -> Response:
-        return Response(algorithm_payload(get_algorithm(request.user, algorithm_id)))
+        return Response(algorithm_payload(get_readable_algorithm(request.user, algorithm_id)))
 
     def patch(self, request: Request, algorithm_id) -> Response:
         algorithm = update_algorithm(
@@ -136,7 +139,7 @@ class AlgorithmSaveView(APIView):
 
 class AlgorithmValidateView(APIView):
     def post(self, request: Request, algorithm_id) -> Response:
-        algorithm = get_algorithm(request.user, algorithm_id)
+        algorithm = get_readable_algorithm(request.user, algorithm_id)
         profile, _config = profile_for_algorithm(algorithm)
         compiled = compile_source(algorithm.source, profile)
         return Response(
@@ -146,7 +149,14 @@ class AlgorithmValidateView(APIView):
 
 class AlgorithmTranslateView(APIView):
     def post(self, request: Request, algorithm_id) -> Response:
-        algorithm = get_algorithm(request.user, algorithm_id)
+        user = current_user(request)
+        if not translation_allowed(user):
+            raise DomainError(
+                "Tu docente desactivó la traducción de código.",
+                code="translation_disabled",
+                status_code=403,
+            )
+        algorithm = get_readable_algorithm(user, algorithm_id)
         profile, _config = profile_for_algorithm(algorithm)
         result = translate_source(algorithm.source, profile)
         return Response(

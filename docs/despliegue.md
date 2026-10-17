@@ -23,3 +23,7 @@ Este paso no está activo. El compose del repositorio es de desarrollo. Cuando h
 6. Sustituir el volumen de código fuente por la imagen construida, sin montar el árbol.
 
 Hasta entonces, el arranque es el de [instalacion.md](instalacion.md).
+
+## 3. La ventana de escritorio no sustituye ese servidor
+
+El paquete de `desktop/` lleva la interfaz y el intérprete local. La cuenta, los proyectos y el laboratorio persistido siguen pidiendo una API. El origen de esa API es `TRAZA_API_ORIGIN`. Publicar el paquete no activa `config.settings.production` ni apaga Mailpit en la máquina de desarrollo. El flujo de empaquetado, lanzado a mano, está en `.github/workflows/desktop.yml`.

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import { ApiError, api, type LabMemberProgress, type LabMemberWork, type LabRosterRoute } from "../api"
 import { spellText } from "../dialect"
 import { useLocale, useT, type MessageKey } from "../i18n"
+import { TeacherBoard } from "./TeacherBoard"
 import { formatClock, formatWhen } from "./trace"
 
 const STATE: Record<string, MessageKey> = {
@@ -131,8 +132,15 @@ function initialOf(name: string): string {
   return letter ? letter.toLocaleUpperCase("es") : "?"
 }
 
+function progressFilename(name: string): string {
+  const folded = name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+  const cleaned = folded.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60)
+  return `progreso-${cleaned || "ruta"}.csv`
+}
+
 export function TeacherRoster() {
   const t = useT()
+  const locale = useLocale()
   const [routes, setRoutes] = useState<LabRosterRoute[] | null>(null)
   const [opened, setOpened] = useState<{ routeId: string; detail: LabMemberProgress } | null>(null)
   const [review, setReview] = useState<LabMemberWork | null>(null)
@@ -153,6 +161,25 @@ export function TeacherRoster() {
       cancelled = true
     }
   }, [])
+
+  async function downloadProgress(route: LabRosterRoute) {
+    setBusy(true)
+    setError("")
+    try {
+      const csv = await api.labProgressCsv(route.id, locale)
+      const body = csv.charCodeAt(0) === 0xfeff ? csv : `\ufeff${csv}`
+      const url = URL.createObjectURL(new Blob([body], { type: "text/csv;charset=utf-8" }))
+      const link = document.createElement("a")
+      link.href = url
+      link.download = progressFilename(route.name)
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (caught) {
+      setError(messageOf(caught, t("studentProgressError")))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function openPerson(userId: number, routeId: string) {
     setBusy(true)
@@ -315,6 +342,9 @@ export function TeacherRoster() {
       </section>
       <main className="lab-main roster-routes">
         {error ? <p className="error">{error}</p> : null}
+        {routes && routes.length > 0 ? (
+          <TeacherBoard routes={routes} busy={busy} onOpen={(userId, routeId) => void openPerson(userId, routeId)} />
+        ) : null}
         {routes && routes.length === 0 ? (
           <p className="roster-empty">{t("noStudentsOnPath")}</p>
         ) : null}
@@ -329,10 +359,20 @@ export function TeacherRoster() {
                   <h2>{route.name}</h2>
                   {route.description ? <p>{route.description}</p> : null}
                 </div>
-                <p className="path-count">
-                  <strong>{route.students.length}</strong>
-                  <span>{t(route.students.length === 1 ? "countStudent" : "countStudents", { count: route.students.length })}</span>
-                </p>
+                <div className="roster-download">
+                  <button
+                    type="button"
+                    title={t("studentProgressNote")}
+                    onClick={() => void downloadProgress(route)}
+                    disabled={busy}
+                  >
+                    {t("studentProgress")}
+                  </button>
+                  <p className="path-count">
+                    <strong>{route.students.length}</strong>
+                    <span>{t(route.students.length === 1 ? "countStudent" : "countStudents", { count: route.students.length })}</span>
+                  </p>
+                </div>
               </header>
               <div className="roster-route-progress">
                 <div

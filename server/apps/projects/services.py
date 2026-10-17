@@ -77,6 +77,24 @@ def get_algorithm(user, algorithm_id) -> Algorithm:
         raise DomainError("No se encontró el algoritmo.", code=NOT_FOUND, status_code=404) from exc
 
 
+def get_readable_algorithm(user, algorithm_id) -> Algorithm:
+    """El dueño, o un docente de una comunidad donde ese dueño es alumno."""
+    try:
+        algorithm = Algorithm.objects.select_related("project", "language_profile", "folder").get(
+            id=algorithm_id,
+            project__deleted_at__isnull=True,
+        )
+    except Algorithm.DoesNotExist as exc:
+        raise DomainError("No se encontró el algoritmo.", code=NOT_FOUND, status_code=404) from exc
+    if algorithm.owner_id == user.id:
+        return algorithm
+    from apps.classroom.services import teacher_has_student
+
+    if teacher_has_student(user, algorithm.owner_id):
+        return algorithm
+    raise DomainError("No se encontró el algoritmo.", code=NOT_FOUND, status_code=404)
+
+
 def project_payload(project: Project) -> dict[str, object]:
     return {
         "id": str(project.id),

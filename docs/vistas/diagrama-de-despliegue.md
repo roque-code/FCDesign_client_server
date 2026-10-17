@@ -1,6 +1,6 @@
 # Diagrama de despliegue
 
-Fecha de referencia: 2026-10-14. El nodo de despliegue actual es la máquina de desarrollo. El nodo de servidor está descrito y no está activo.
+Fecha de referencia: 2026-10-17. El nodo de desarrollo sigue siendo la máquina con el compose. El nodo de `config.settings.production` está descrito y no está activo. La ventana de escritorio es un nodo distinto: interfaz y `local_host` en la máquina de la persona, API en `TRAZA_API_ORIGIN`.
 
 ```mermaid
 flowchart TB
@@ -37,6 +37,23 @@ flowchart TB
 | `runner` | `deploy/runner.Dockerfile` | `redis` sano |
 
 `web` arranca con `config.settings.development`, aplica migraciones y escucha en el puerto 8000 de su red. El healthcheck de `web` pide `GET /api/health/`, que exige la base y el latido del runner.
+
+## Ventana de escritorio
+
+```mermaid
+flowchart LR
+    persona[Persona]
+    subgraph equipo [Máquina de la persona]
+        ventana[Tauri]
+        host[local_host]
+    end
+    api[API en TRAZA_API_ORIGIN]
+    persona --> ventana
+    ventana --> host
+    ventana -->|solo /api| api
+```
+
+El paquete no lleva PostgreSQL ni Redis. El empaquetado se lanza a mano en `.github/workflows/desktop.yml`.
 
 ## Nodo futuro, no desplegado
 

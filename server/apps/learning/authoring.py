@@ -15,6 +15,7 @@ from apps.accounts.models import Profile
 from apps.accounts.services import clean_label
 from apps.classroom.models import Community, Membership
 from apps.learning.bank_data import BANK_NAME
+from apps.learning.contest_data import CONTEST_BANK_NAME
 from apps.learning.models import (
     Challenge,
     ChallengeAttempt,
@@ -104,10 +105,7 @@ def _placeable(teacher):
 
 def catalog_payload(teacher) -> dict[str, object]:
     _require_teacher(teacher)
-    own = [
-        _challenge_row(challenge)
-        for challenge in _own_challenges(teacher).order_by("title")
-    ]
+    own = [_challenge_row(challenge) for challenge in _own_challenges(teacher).order_by("title")]
     system = [
         _challenge_row(challenge)
         for challenge in _catalog()
@@ -180,14 +178,58 @@ def bank_payload(teacher) -> dict[str, object]:
         assert isinstance(challenges, list)
         challenges.append(card)
     if path is None:
-        return {"name": BANK_NAME, "description": "", "units": units}
+        payload = {"name": BANK_NAME, "description": "", "units": units}
+    else:
+        payload = {"name": path.name, "description": path.description, "units": units}
+    payload["contest"] = _shared_bank(CONTEST_BANK_NAME)
+    return payload
+
+
+def _shared_bank(name: str) -> dict[str, object] | None:
+    path = (
+        LearningPath.objects.filter(name=name, is_bank=True, owner__isnull=True)
+        .prefetch_related(
+            Prefetch(
+                "units",
+                queryset=LearningUnit.objects.select_related("concept")
+                .order_by("position")
+                .prefetch_related(
+                    Prefetch(
+                        "challenges",
+                        queryset=Challenge.objects.filter(is_published=True)
+                        .select_related("unit__path", "unit__concept")
+                        .order_by("position")
+                        .prefetch_related(
+                            Prefetch("hints", queryset=Hint.objects.order_by("level", "position")),
+                            Prefetch(
+                                "test_cases",
+                                queryset=ChallengeTestCase.objects.order_by("position"),
+                            ),
+                        ),
+                    )
+                ),
+            )
+        )
+        .first()
+    )
+    if path is None:
+        return None
+    units = []
+    for unit in path.units.all():
+        cards = [_bank_challenge(challenge) for challenge in unit.challenges.all()]
+        if cards:
+            units.append({"title": unit.title, "concept": unit.concept.name, "challenges": cards})
     return {"name": path.name, "description": path.description, "units": units}
 
 
 def _bank_challenge(challenge: Challenge) -> dict[str, object]:
     restrictions = challenge.restrictions if isinstance(challenge.restrictions, dict) else {}
     raw_items = restrictions.get("items")
-    rows = [item for item in raw_items if isinstance(item, dict)] if isinstance(raw_items, list) else []
+    rows = (
+        [item for item in raw_items if isinstance(item, dict)]
+        if isinstance(raw_items, list)
+        else []
+    )
     if challenge.activity_type == Challenge.ORDER:
         by_id = {str(item.get("id")): str(item.get("text", "")) for item in rows}
         solution = restrictions.get("solution")
@@ -220,6 +262,14 @@ def _bank_challenge(challenge: Challenge) -> dict[str, object]:
         "accepted": accepted if isinstance(accepted, list) else [],
         "inputs": [] if case is None else list(case.inputs),
         "expected_output": "" if case is None else case.expected_output,
+        "cases": [
+            {
+                "name": item.name,
+                "inputs": list(item.inputs),
+                "expected_output": item.expected_output,
+            }
+            for item in cases
+        ],
         "source": source if isinstance(source, str) else "",
         "hints": hints,
         "allowed_blocks": list(challenge.allowed_blocks),
@@ -252,9 +302,7 @@ def _detail(path: LearningPath) -> dict[str, object]:
         "name": path.name,
         "description": path.description,
         "is_published": path.is_published,
-        "challenges": [
-            _challenge_row(entry.challenge, entry.position, entry) for entry in entries
-        ],
+        "challenges": [_challenge_row(entry.challenge, entry.position, entry) for entry in entries],
         "communities": communities,
         "students": students,
     }
@@ -320,9 +368,10 @@ def create_path(teacher, data: dict) -> dict[str, object]:
     name = clean_label(data.get("name"), field="El nombre", limit=120, required=True)
     description = _description(data.get("description", ""))
     last = (
-        LearningPath.objects.select_for_update().order_by("-position").values_list(
-            "position", flat=True
-        ).first()
+        LearningPath.objects.select_for_update()
+        .order_by("-position")
+        .values_list("position", flat=True)
+        .first()
     )
     path = LearningPath(
         name=name,
@@ -440,7 +489,11 @@ def update_entry(teacher, path_id, challenge_id, data: dict) -> dict[str, object
         if not isinstance(withdrawn, bool):
             raise DomainError("Indica si el reto está retirado.")
         entry.withdrawn = withdrawn
-    if entry.opens_at is not None and entry.closes_at is not None and entry.opens_at >= entry.closes_at:
+    if (
+        entry.opens_at is not None
+        and entry.closes_at is not None
+        and entry.opens_at >= entry.closes_at
+    ):
         raise DomainError("El inicio tiene que ser anterior al término.")
     entry.save()
     return _detail(path)
@@ -469,9 +522,7 @@ def set_assignments(
     communities = list(Community.objects.filter(pk__in=community_keys, owner=teacher))
     if len(communities) != len(community_keys):
         raise DomainError("No se encontró la comunidad.", code=NOT_FOUND, status_code=404)
-    students = list(
-        get_user_model().objects.select_related("profile").filter(pk__in=people)
-    )
+    students = list(get_user_model().objects.select_related("profile").filter(pk__in=people))
     if len(students) != len(people):
         raise DomainError("No se encontró al alumno.", code=NOT_FOUND, status_code=404)
     member_ids = set(
@@ -514,7 +565,9 @@ def _block(value: object, field: str, limit: int, *, required: bool) -> str:
     return text
 
 
-def _whole(value: object, field: str, low: int, high: int, *, default: int | None = None) -> int | None:
+def _whole(
+    value: object, field: str, low: int, high: int, *, default: int | None = None
+) -> int | None:
     if value is None or value == "":
         if default is None:
             return None
@@ -795,7 +848,9 @@ def _apply_content(challenge: Challenge, data: dict) -> None:
 
 def _sync_hints(challenge: Challenge, bodies: list[str]) -> None:
     existing = {(hint.level, hint.position): hint for hint in challenge.hints.all()}
-    used = set(HintUsage.objects.filter(hint__challenge=challenge).values_list("hint_id", flat=True))
+    used = set(
+        HintUsage.objects.filter(hint__challenge=challenge).values_list("hint_id", flat=True)
+    )
     kept: set = set()
     for index, body in enumerate(bodies, start=1):
         hint = existing.get((index, 1))
@@ -816,7 +871,11 @@ def _sync_hints(challenge: Challenge, bodies: list[str]) -> None:
 def _draft(challenge: Challenge) -> dict[str, object]:
     restrictions = challenge.restrictions if isinstance(challenge.restrictions, dict) else {}
     raw_items = restrictions.get("items")
-    rows = [item for item in raw_items if isinstance(item, dict)] if isinstance(raw_items, list) else []
+    rows = (
+        [item for item in raw_items if isinstance(item, dict)]
+        if isinstance(raw_items, list)
+        else []
+    )
     if challenge.activity_type == Challenge.ORDER:
         by_id = {str(item.get("id")): str(item.get("text", "")) for item in rows}
         solution = restrictions.get("solution")

@@ -5,6 +5,7 @@ import {
   ApiError,
   type Account,
   type Algorithm,
+  type ClassroomStudent,
   type Diagnostic,
   type Execution,
   type Translation,
@@ -100,6 +101,12 @@ export function Workbench({
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [functionsOpen, setFunctionsOpen] = useState(false)
   const [communitiesOpen, setCommunitiesOpen] = useState(false)
+  const [students, setStudents] = useState<ClassroomStudent[]>([])
+  const [reviewId, setReviewId] = useState<number | null>(null)
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [catalog, setCatalog] = useState<Record<string, Algorithm[]>>({})
+  const reviewIdRef = useRef<number | null>(null)
+  reviewIdRef.current = reviewId
   const [reloadToken, setReloadToken] = useState(0)
   const [algorithmName, setAlgorithmName] = useState("")
   const [renaming, setRenaming] = useState<{ kind: "project" | "algorithm"; id: string; name: string } | null>(null)
@@ -142,8 +149,11 @@ export function Workbench({
   const insightRef = useRef<HTMLDivElement>(null)
   const localeNotify = useRef(onLocale)
   localeNotify.current = onLocale
-  const saveLabel =
-    saveState.kind === "saving"
+  const reviewing = reviewId !== null
+  const reviewedStudent = students.find((item) => item.id === reviewId)
+  const saveLabel = reviewing
+    ? t("readOnlyCode")
+    : saveState.kind === "saving"
       ? t("saving")
       : saveState.kind === "saved"
         ? t("saved")
@@ -166,6 +176,27 @@ export function Workbench({
   useEffect(() => {
     if (account.role !== "teacher") setCommunitiesOpen(false)
   }, [account.role])
+
+  useEffect(() => {
+    let active = true
+    function refresh() {
+      void api.me().then((next) => {
+        if (!active || next.translation_enabled === account.translation_enabled) return
+        if (next.role !== "teacher" && !next.translation_enabled) setTranslateOpen(false)
+        onAccount(next)
+      }).catch(() => undefined)
+    }
+    function onVisible() {
+      if (document.visibilityState === "visible") refresh()
+    }
+    window.addEventListener("focus", refresh)
+    document.addEventListener("visibilitychange", onVisible)
+    return () => {
+      active = false
+      window.removeEventListener("focus", refresh)
+      document.removeEventListener("visibilitychange", onVisible)
+    }
+  }, [account.translation_enabled, onAccount])
 
   useEffect(() => {
     if (!settingsOpen && !functionsOpen) return
@@ -195,14 +226,26 @@ export function Workbench({
   }, [execution?.output])
 
   useEffect(() => {
+    let active = true
     void (async () => {
-      const [projectPage, preference, info, words] = await Promise.all([
-        api.projects(),
+      const watched = reviewIdRef.current
+      const [projectPage, studentWork, preference, info, words, roster] = await Promise.all([
+        watched === null ? api.projects() : Promise.resolve(null),
+        watched === null ? Promise.resolve(null) : api.studentProjects(watched),
         api.preferences(),
         api.meta(),
         api.keywords(),
+        account.role === "teacher" ? api.classroomStudents() : Promise.resolve(null),
       ])
-      setProjects(projectPage.results)
+      if (!active || reviewIdRef.current !== watched) return
+      const listed = studentWork ? studentWork.projects : (projectPage?.results ?? [])
+      setCatalog(
+        studentWork
+          ? Object.fromEntries(studentWork.projects.map((project) => [project.id, project.algorithms]))
+          : {},
+      )
+      setProjects(listed)
+      if (roster) setStudents(roster.results)
       setPrefs(preference)
       savedLanguage.current = {
         requireSemicolons: preference.require_semicolons,
@@ -217,17 +260,38 @@ export function Workbench({
       setMeta(info)
       setKeywords(words.keywords)
       setStdlib(words.stdlib)
-      const ids = new Set(projectPage.results.map((item) => item.id))
-      const wanted = focusRef.current?.projectId
+      const ids = new Set(listed.map((item) => item.id))
+      const wanted = watched === null ? focusRef.current?.projectId : undefined
       const keep = projectIdRef.current
       if (wanted && ids.has(wanted)) setProjectId(wanted)
       else if (keep && ids.has(keep)) setProjectId(keep)
-      else setProjectId(projectPage.results[0]?.id ?? "")
-    })().catch((caught: unknown) => setError(messageOf(caught, t("requestError"))))
-  }, [reloadToken])
+      else setProjectId(listed[0]?.id ?? "")
+      setReviewLoading(false)
+    })().catch((caught: unknown) => {
+      if (!active) return
+      setReviewLoading(false)
+      setError(messageOf(caught, t("requestError")))
+    })
+    return () => {
+      active = false
+    }
+  }, [reloadToken, reviewId, account.role])
 
   useEffect(() => {
     if (!projectId) return
+    if (reviewId !== null) {
+      const items = catalog[projectId] ?? []
+      setAlgorithms(items)
+      setAlgorithmId((selected) => {
+        const want = wantedAlgorithm.current
+        if (want) {
+          wantedAlgorithm.current = null
+          return want
+        }
+        return items.some((item) => item.id === selected) ? selected : (items[0]?.id ?? "")
+      })
+      return
+    }
     let current = true
     setAlgorithms([])
     void api
@@ -250,10 +314,11 @@ export function Workbench({
     return () => {
       current = false
     }
-  }, [projectId, focus?.token, reloadToken])
+  }, [projectId, focus?.token, reloadToken, reviewId, catalog])
 
   useEffect(() => {
     if (!focus) return
+    setReviewId(null)
     wantedAlgorithm.current = focus.algorithmId
     sourceOwner.current = ""
     setDirty(false)
@@ -261,37 +326,46 @@ export function Workbench({
     setAlgorithmId(focus.algorithmId)
   }, [focus])
 
+  function showAlgorithm(algorithm: Algorithm) {
+    if (selectedId.current !== algorithm.id) return
+    sourceOwner.current = algorithm.id
+    sourceRef.current = algorithm.source
+    profileKey.current = algorithm.language_profile || "strict"
+    setSource(algorithm.source)
+    languageChoice.current = {
+      requireSemicolons: algorithm.require_semicolons,
+      indexBase: algorithm.index_base,
+    }
+    setRequireSemicolons(algorithm.require_semicolons)
+    setIndexBase(algorithm.index_base)
+    setDirty(false)
+    setSaveState({ kind: "saved" })
+    setDiagnostics([])
+    setExecution(null)
+    setActiveLine(null)
+    setBreakpoints(marks.current[algorithm.id] ?? [])
+    setSlice("")
+    setGraph(null)
+    streamRef.current?.close()
+    streamRef.current = null
+    void loadDiagram(algorithm.id)
+  }
+
   useEffect(() => {
     if (!algorithmId) return
     selectedId.current = algorithmId
+    if (reviewId !== null) {
+      const algorithm = Object.values(catalog).flat().find((item) => item.id === algorithmId)
+      if (algorithm) showAlgorithm(algorithm)
+      return
+    }
     void api
       .algorithm(algorithmId)
       .then((algorithm) => {
-        if (selectedId.current !== algorithm.id) return
-        sourceOwner.current = algorithm.id
-        sourceRef.current = algorithm.source
-        profileKey.current = algorithm.language_profile || "strict"
-        setSource(algorithm.source)
-        languageChoice.current = {
-          requireSemicolons: algorithm.require_semicolons,
-          indexBase: algorithm.index_base,
-        }
-        setRequireSemicolons(algorithm.require_semicolons)
-        setIndexBase(algorithm.index_base)
-        setDirty(false)
-        setSaveState({ kind: "saved" })
-        setDiagnostics([])
-        setExecution(null)
-        setActiveLine(null)
-        setBreakpoints(marks.current[algorithm.id] ?? [])
-        setSlice("")
-        setGraph(null)
-        streamRef.current?.close()
-        streamRef.current = null
-        void loadDiagram(algorithm.id)
+        showAlgorithm(algorithm)
       })
       .catch((caught: unknown) => setError(messageOf(caught, t("requestError"))))
-  }, [algorithmId, focus?.token, reloadToken])
+  }, [algorithmId, focus?.token, reloadToken, reviewId, catalog])
 
   function flushPending() {
     const job = pendingSave.current
@@ -325,7 +399,7 @@ export function Workbench({
         setError(messageOf(caught, t("requestError")))
       })
     }
-    if (!dirty || !prefs.autosave || !algorithmId || sourceOwner.current !== algorithmId) {
+    if (reviewIdRef.current !== null || !dirty || !prefs.autosave || !algorithmId || sourceOwner.current !== algorithmId) {
       if (!previous || previous.id === algorithmId) pendingSave.current = null
       return
     }
@@ -451,8 +525,26 @@ export function Workbench({
     setDirty(true)
   }
 
+  function openReview(next: number | null) {
+    const job = pendingSave.current
+    pendingSave.current = null
+    if (job && reviewIdRef.current === null) {
+      void api.saveSource(job.id, job.text).catch((caught: unknown) => {
+        setError(messageOf(caught, t("requestError")))
+      })
+    }
+    setDirty(false)
+    setCatalog({})
+    setProjects([])
+    setAlgorithms([])
+    clearOpenAlgorithm()
+    setProjectId("")
+    setReviewLoading(next !== null)
+    setReviewId(next)
+  }
+
   async function flushSource() {
-    if (!algorithmId) return
+    if (!algorithmId || reviewIdRef.current !== null) return
     await api.saveSource(algorithmId, source)
     setDirty(false)
     setSaveState({ kind: "saved" })
@@ -588,7 +680,10 @@ export function Workbench({
     setDiagnostics(result.diagnostics)
   }
 
+  const translationOn = account.role === "teacher" || account.translation_enabled !== false
+
   async function translate() {
+    if (!translationOn) return
     setError("")
     setTranslateFailure("")
     setTranslateOpen(true)
@@ -727,12 +822,13 @@ export function Workbench({
           index_base: snapshot.indexBase,
         })
         setPrefs(updated)
-        const algorithm = targetId
-          ? await api.saveLanguageOptions(targetId, {
-              require_semicolons: snapshot.requireSemicolons,
-              index_base: snapshot.indexBase,
-            })
-          : null
+        const algorithm =
+          targetId && reviewIdRef.current === null
+            ? await api.saveLanguageOptions(targetId, {
+                require_semicolons: snapshot.requireSemicolons,
+                index_base: snapshot.indexBase,
+              })
+            : null
         pending =
           snapshot.requireSemicolons !== languageChoice.current.requireSemicolons ||
           snapshot.indexBase !== languageChoice.current.indexBase
@@ -1049,6 +1145,7 @@ export function Workbench({
                   {t("semicolons")}
                   <select
                     aria-label={t("semicolons")}
+                    disabled={reviewing}
                     value={requireSemicolons ? "si" : "no"}
                     onChange={(event) => void configure({ requireSemicolons: event.target.value === "si" })}
                   >
@@ -1060,6 +1157,7 @@ export function Workbench({
                   {t("arrayIndex")}
                   <select
                     aria-label={t("arrayIndex")}
+                    disabled={reviewing}
                     value={String(indexBase)}
                     onChange={(event) => void configure({ indexBase: event.target.value === "0" ? 0 : 1 })}
                   >
@@ -1099,6 +1197,37 @@ export function Workbench({
             </button>
           </div>
           <div className="sidebar-body" id="proyectos-contenido">
+          {account.role === "teacher" && (
+            <div className="student-review">
+              <h2>{t("studentWork")}</h2>
+              {students.length === 0 ? (
+                <p className="note">{t("studentWorkEmpty")}</p>
+              ) : (
+                <label>
+                  {t("pickStudent")}
+                  <select
+                    aria-label={t("pickStudent")}
+                    value={reviewId ?? ""}
+                    onChange={(event) => {
+                      const value = event.target.value
+                      openReview(value ? Number(value) : null)
+                    }}
+                  >
+                    <option value="">{t("myProjects")}</option>
+                    {students.map((student) => (
+                      <option key={student.id} value={student.id}>
+                        {student.display_name} · {student.communities.join(", ")}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {reviewing && reviewedStudent && (
+                <p className="note">{t("studentWorkNote", { name: reviewedStudent.display_name })}</p>
+              )}
+              {reviewing && !reviewLoading && projects.length === 0 && <p className="note">{t("noStudentProjects")}</p>}
+            </div>
+          )}
           <ul>
             {projects.map((project) => (
               <li key={project.id} className="name-row">
@@ -1131,28 +1260,32 @@ export function Workbench({
                     {project.name}
                   </button>
                 )}
-                <button
-                  type="button"
-                  className="mini"
-                  aria-label={t("renameNamed", { name: project.name })}
-                  title={t("rename")}
-                  onClick={() => {
-                    if (renaming?.kind === "project" && renaming.id === project.id) return
-                    beginRename("project", project.id, project.name)
-                  }}
-                >
-                  ✎
-                </button>
+                {!reviewing && (
+                  <button
+                    type="button"
+                    className="mini"
+                    aria-label={t("renameNamed", { name: project.name })}
+                    title={t("rename")}
+                    onClick={() => {
+                      if (renaming?.kind === "project" && renaming.id === project.id) return
+                      beginRename("project", project.id, project.name)
+                    }}
+                  >
+                    ✎
+                  </button>
+                )}
               </li>
             ))}
           </ul>
-          <form onSubmit={(event) => void createProject(event)}>
-            <label>
-              {t("newProject")}
-              <input value={projectName} onChange={(event) => setProjectName(event.target.value)} required />
-            </label>
-            <button type="submit">{t("createProject")}</button>
-          </form>
+          {!reviewing && (
+            <form onSubmit={(event) => void createProject(event)}>
+              <label>
+                {t("newProject")}
+                <input value={projectName} onChange={(event) => setProjectName(event.target.value)} required />
+              </label>
+              <button type="submit">{t("createProject")}</button>
+            </form>
+          )}
           <h2>{t("algorithms")}</h2>
           <ul>
             {algorithms.map((algorithm) => (
@@ -1186,18 +1319,20 @@ export function Workbench({
                     {algorithm.name}
                   </button>
                 )}
-                <button
-                  type="button"
-                  className="mini"
-                  aria-label={t("renameNamed", { name: algorithm.name })}
-                  title={t("rename")}
-                  onClick={() => {
-                    if (renaming?.kind === "algorithm" && renaming.id === algorithm.id) return
-                    beginRename("algorithm", algorithm.id, algorithm.name)
-                  }}
-                >
-                  ✎
-                </button>
+                {!reviewing && (
+                  <button
+                    type="button"
+                    className="mini"
+                    aria-label={t("renameNamed", { name: algorithm.name })}
+                    title={t("rename")}
+                    onClick={() => {
+                      if (renaming?.kind === "algorithm" && renaming.id === algorithm.id) return
+                      beginRename("algorithm", algorithm.id, algorithm.name)
+                    }}
+                  >
+                    ✎
+                  </button>
+                )}
                 <button
                   type="button"
                   className="mini"
@@ -1207,25 +1342,29 @@ export function Workbench({
                 >
                   ↓
                 </button>
-                <button
-                  type="button"
-                  className="mini"
-                  aria-label={t("removeNamed", { name: algorithm.name })}
-                  title={t("remove")}
-                  onClick={() => void removeAlgorithm(algorithm)}
-                >
-                  ×
-                </button>
+                {!reviewing && (
+                  <button
+                    type="button"
+                    className="mini"
+                    aria-label={t("removeNamed", { name: algorithm.name })}
+                    title={t("remove")}
+                    onClick={() => void removeAlgorithm(algorithm)}
+                  >
+                    ×
+                  </button>
+                )}
               </li>
             ))}
           </ul>
-          <form onSubmit={(event) => void createAlgorithm(event)}>
-            <label>
-              {t("newAlgorithm")}
-              <input value={algorithmName} onChange={(event) => setAlgorithmName(event.target.value)} required />
-            </label>
-            <button type="submit">{t("createAlgorithm")}</button>
-          </form>
+          {!reviewing && (
+            <form onSubmit={(event) => void createAlgorithm(event)}>
+              <label>
+                {t("newAlgorithm")}
+                <input value={algorithmName} onChange={(event) => setAlgorithmName(event.target.value)} required />
+              </label>
+              <button type="submit">{t("createAlgorithm")}</button>
+            </form>
+          )}
           </div>
         </aside>
         {projectsOpen && (
@@ -1262,7 +1401,12 @@ export function Workbench({
               <button type="button" onClick={() => void validate()} disabled={!algorithmId || playing}>
                 {t("validate")}
               </button>
-              <button type="button" onClick={() => void translate()} disabled={!algorithmId || playing || translateLocked}>
+              <button
+                type="button"
+                onClick={() => void translate()}
+                disabled={!translationOn || !algorithmId || playing || translateLocked}
+                title={translationOn ? undefined : t("translationOff")}
+              >
                 {t("translate")}
               </button>
               <button className="primary" type="button" onClick={() => void execute()} disabled={!algorithmId || playing}>
@@ -1297,7 +1441,7 @@ export function Workbench({
                 {t("restart")}
               </button>
             </div>
-            <button className="tool-save" type="button" onClick={() => void saveVersion()} disabled={!algorithmId}>
+            <button className="tool-save" type="button" onClick={() => void saveVersion()} disabled={!algorithmId || reviewing}>
               {t("saveVersion")}
             </button>
           </div>
@@ -1314,6 +1458,7 @@ export function Workbench({
             onToggleBreakpoint={toggleBreakpoint}
             onChange={edit}
             onCursor={setActiveLine}
+            readOnly={reviewing}
           />
           <div className="status-bar">
             <span>{saveLabel}</span>

@@ -1,19 +1,19 @@
 # Arquitectura
 
-Estado: el editor, el laboratorio, el correo de confirmación y el idioma español o inglés están en el código de desarrollo. Fecha de referencia: 2026-10-14. `DEBUG` sigue en verdadero. `config.settings.production` no lo carga el compose.
+Estado: el editor, el laboratorio, el correo de confirmación, el idioma español o inglés, la traducción a otros lenguajes y la aplicación de escritorio están en el código de desarrollo. Fecha de referencia: 2026-10-17. `DEBUG` sigue en verdadero. `config.settings.production` no lo carga el compose.
 
 Este documento describe el sistema que corre hoy. La gramática está en [gramatica.md](gramatica.md), el árbol en [ast.md](ast.md), las tablas en [modelo-de-datos.md](modelo-de-datos.md) y el aislamiento del intérprete en [ejecucion.md](ejecucion.md).
 
 ## 1. Producto
 
-**Traza** enseña programación estructurada. El canónico del lenguaje es el español. La cuenta puede ver la interfaz y las palabras reservadas en inglés. Quien entra escribe pseudocódigo, recibe diagnósticos con línea y columna, lo ejecuta en una consola, lo recorre paso a paso y ve el diagrama generado desde el árbol de sintaxis.
+**Traza** enseña programación estructurada. El canónico del lenguaje es el español. La cuenta puede ver la interfaz y las palabras reservadas en inglés. Quien entra escribe pseudocódigo, recibe diagnósticos con línea y columna, lo ejecuta en una consola, lo recorre paso a paso, ve el diagrama generado desde el árbol de sintaxis y puede pedir el mismo algoritmo en Python, JavaScript, TypeScript, Java, C, C++ o C#. Esa traducción no se ejecuta.
 
 Hay tres pantallas, todas con la misma sesión:
 
 | Pantalla | Dónde vive | Qué hace |
 | --- | --- | --- |
-| Banco de trabajo | `frontend/src/workbench` | Proyectos, algoritmos, editor, depurador, consola, diagrama y comunidades |
-| Laboratorio | `frontend/src/learning` | Ruta Fundamentos, banco de retos, rutas de un docente, práctica libre y avance |
+| Banco de trabajo | `frontend/src/workbench` | Proyectos, algoritmos, editor, depurador, consola, diagrama, comunidades y el repaso de un alumno |
+| Laboratorio | `frontend/src/learning` | Ruta Fundamentos, práctica de concurso, banco de retos, rutas de un docente, práctica libre, tablero y avance |
 | Armar diagrama | `frontend/src/compose` | Figuras que se arrastran y se convierten en pseudocódigo. El resultado se abre en el editor |
 
 El núcleo cubre secuencia, `Si`, `Segun`, `Mientras`, `Repetir`, `Para`, arreglos, funciones, procedimientos, recursión y la biblioteca estándar. Quedan fuera la orientación a objetos, los archivos del pseudocódigo y la concurrencia. Las actividades y las entregas del aula no tienen tablas. Las comunidades sí: un docente agrupa cuentas que ya existen.
@@ -61,7 +61,7 @@ En la máquina, sin este compose, no hay runner ni Mailpit. Django ejecuta el in
 ## 3. Principios
 
 1. El lenguaje es el paquete `language_core`. No importa Django, Redis ni el framework web.
-2. El pseudocódigo se ejecuta recorriendo un AST. No se usa `eval`, `exec` ni una traducción a Python que luego se ejecute.
+2. El pseudocódigo se ejecuta recorriendo un AST. No se usa `eval` ni `exec`. Traducir a otro lenguaje emite un programa y no lo corre.
 3. El texto del estudiante se conserva. Las palabras clave se reconocen sin importar mayúsculas ni acentos, y también en su grafía inglesa. El canónico interno sigue en español. Los identificadores sí distinguen acentos. Cambiar el idioma de la cuenta no reescribe un fuente ya guardado.
 4. El perfil estricto es el predeterminado.
 5. La asignación se escribe `<-`. El signo `=` compara.
@@ -106,8 +106,10 @@ fcdesign/
 │   └── redis/                 redis.conf y users.acl
 ├── runner/                    protocolo y worker. No importa Django
 ├── language_core/             lexer, parser, semántica, intérprete, depurador,
-│                              dialect.py, flowchart.py, stdlib.py,
+│                              dialect.py, flowchart.py, stdlib.py, translate.py,
 │                              block_adapter.py, block_import.py y pseudocode.py
+├── local_host/                intérprete en la máquina para la aplicación de escritorio
+├── desktop/                   ventana Tauri, proxy de la API y empaquetado
 ├── server/
 │   └── apps/
 │       ├── accounts/          usuario, perfil, sesión, confirmación y restablecimiento
@@ -135,7 +137,9 @@ fcdesign/
 
 | Módulo | Ubicación | Responsabilidad |
 | --- | --- | --- |
-| Núcleo | `language_core` | Léxico, sintaxis, semántica, interpretación, depuración, diagrama, grafías en inglés y paso entre bloques y texto |
+| Núcleo | `language_core` | Léxico, sintaxis, semántica, interpretación, depuración, diagrama, traducción a otros lenguajes, grafías en inglés y paso entre bloques y texto |
+| Anfitrión local | `local_host` | Validar, traducir, ejecutar y depurar en la máquina de la aplicación de escritorio. No abre PostgreSQL |
+| Escritorio | `desktop/` | Ventana Tauri. Arranca el anfitrión local y, en un paquete publicado, proxifica `/api` |
 | accounts | `server/apps/accounts` | Correo como identificador, confirmación, sesión y recuperación |
 | projects | `server/apps/projects` | Proyectos, carpetas, algoritmos, versiones, papelera y enlaces |
 | executions | `server/apps/executions` | Una ejecución por algoritmo, eventos persistidos de consola y canal SSE |
@@ -156,6 +160,30 @@ El parser y el intérprete no son aplicaciones Django. [ADR 0002](adr/0002-nucle
 El cliente no ejecuta el pseudocódigo del editor. Validar, ejecutar y depurar pasan por el servidor, para que el resaltado no contradiga al intérprete. La lista de palabras sale de `GET /api/v1/language/keywords/`, generada por `grammar.py`. `frontend/src/dialect.ts` muestra la grafía del idioma de la cuenta y sigue ofreciendo la otra en el completado. Los textos de pantalla viven en `frontend/src/i18n.tsx`.
 
 Armar diagrama es distinto: el modelo de figuras vive en el navegador (`frontend/src/compose/model.ts`) y el texto se calcula ahí. Al abrirlo en el editor, el fuente pasa a ser un algoritmo y a partir de ese momento manda el núcleo.
+
+**Actualizar**, en el banco de trabajo y en el laboratorio, vuelve a pedir los datos de la cuenta. Sirve cuando la misma cuenta está abierta en otra ventana. En el editor suelta el borrador que aún no se guardó y cierra el canal de la ejecución en curso.
+
+## 7.1 Aplicación de escritorio
+
+`desktop/` es una ventana Tauri 2, versión `0.2.0`, identificador `app.traza.desktop`. Al abrir arranca `local_host` en `127.0.0.1`, en un puerto libre, con un token que solo conoce esa ventana. El anfitrión anuncia origen y token por la salida estándar. La ventana los recibe en `window.__TRAZA_LOCAL__`.
+
+Validar, traducir, el diagrama, ejecutar, depurar y las pasadas del laboratorio van a ese proceso. Usan el mismo `language_core` que el runner. No pasan por Redis ni por Gunicorn.
+
+La cuenta, los proyectos y el resto de `/api/v1/` siguen en Django. En un paquete publicado, `__TRAZA_DESKTOP_PROXY__` es verdadero y el comando `server_fetch` reenvía solo rutas que empiezan por `/api/` a `POST /local/v1/proxy`. El origen de esa API es `TRAZA_API_ORIGIN`. Si no está definida, el lanzador usa `http://18.118.112.206:18080`. En depuración el proxy queda apagado y Vite, en el puerto `5174`, habla con la API como el navegador.
+
+El esquema `traza:` abre la ventana y entrega el enlace de confirmación o de restablecimiento. `TRAZA_UPDATE_URL`, si existe, apunta a un manifiesto con `version` y `url`. Un paquete más nuevo se descarga aparte. No se borra el directorio de datos de la persona.
+
+El empaquetado está en `.github/workflows/desktop.yml` y se lanza a mano. Cubre Windows x64 y ARM, Mac M e Intel, y Linux x64 y ARM. `desktop/scripts/sign.sh` firma cuando hay certificado. En macOS esa firma evita que el sistema marque el paquete como dañado.
+
+## 7.2 Traducción
+
+`translate_source` compila con el perfil del algoritmo. Sin errores, emite una traducción por lenguaje: Python (`.py`), JavaScript (`.js`), TypeScript (`.ts`), Java (`.java`), C (`.c`), C++ (`.cpp`) y C# (`.cs`). Los comentarios del fuente se colocan junto a la sentencia que acompañan. Los identificadores que chocan con una palabra del destino se renombran.
+
+`Segun` usa `match` en Python y `switch` en el resto cuando el tipo lo permite. Un real no entra en el `switch` de Java, C, C++ ni C#. Una cadena no entra en el de C ni C++. Un lógico no entra en el de Java. Esos casos salen como una cadena de `Si`. Cada caso lleva un corte para no continuar en el siguiente.
+
+`Mientras` es `while`. `Repetir` es `do`/`while` con la condición negada, salvo en Python, que usa `while True` y `break`. `Para` incluye los dos extremos. El paso constante elige la comparación. Si el paso no se conoce al traducir, la prueba mira su signo. En Python el extremo de `range` se ajusta para que el último valor entre.
+
+La prueba `language_core/tests/test_translate.py` compara la salida de Python, y la de C cuando el compilador está, con la del intérprete.
 
 ## 8. Cuenta y correo
 
@@ -221,7 +249,7 @@ sequenceDiagram
     A->>R: Orden de control
 ```
 
-En la máquina, Django llama a `language_core` y emite el SSE. No hay Redis en ese camino. El laboratorio usa el mismo sobre y, en contenedores, el mismo bus. Una pasada del laboratorio no escribe `executions.Execution`: el intento vive en `learning`.
+En la máquina, Django llama a `language_core` y emite el SSE. No hay Redis en ese camino. En la ventana de escritorio llama `local_host`, también sin Redis. El laboratorio usa el mismo sobre y, en contenedores, el mismo bus. Una pasada del laboratorio no escribe `executions.Execution`: el intento vive en `learning`.
 
 ## 10. Fronteras
 
@@ -257,7 +285,7 @@ El runner no abre SMTP ni PostgreSQL. El detalle del contenedor está en [ejecuc
 
 El camino del editor es texto → AST. El del laboratorio es bloques → AST → texto, validación, diagrama y ejecución. El adaptador está en `language_core/block_adapter.py`. La impresora, en `pseudocode.py`. Abrir un `.txt` en la práctica libre usa `block_import.py` y el parser del editor.
 
-La ruta de sistema Fundamentos publica treinta y cuatro retos: clasificar, ordenar, construir y predecir, con `Si`, `Mientras`, `Segun`, `Para`, `Repetir`, arreglos y funciones. Un docente ve el avance de las cuentas de sus comunidades, arma rutas propias, toma retos del banco y los asigna a una comunidad o a un alumno. La práctica libre se guarda en `learning.Practice` y no aparece entre los algoritmos del banco de trabajo.
+La ruta de sistema Fundamentos publica treinta y cuatro retos: clasificar, ordenar, construir y predecir, con `Si`, `Mientras`, `Segun`, `Para`, `Repetir`, arreglos y funciones. La ruta Práctica de concurso publica cincuenta problemas de creación de código, con varios casos de entrada y salida para calificarlos. Un docente ve el avance de las cuentas de sus comunidades, arma rutas propias, toma retos del banco y los asigna a una comunidad o a un alumno. También puede cargar retos desde un CSV; el formato de cada tipo está en [ejemplos-de-retos.md](ejemplos-de-retos.md). La práctica libre se guarda en `learning.Practice` y no aparece entre los algoritmos del banco de trabajo.
 
 Los puntos del reto se suman una vez, al terminarlo, en `Profile.points`. El puesto es cuántos perfiles tienen más puntos, más uno. La identidad de la barra muestra los dos números.
 
@@ -266,6 +294,10 @@ El modelo y las fases están en [laboratorio-fase-0.md](laboratorio-fase-0.md). 
 ## 12. Comunidades
 
 Una comunidad pertenece a un docente. Solo él la crea, la lista y la borra. El nombre es único entre las suyas. Hay un tope de 30 comunidades y de 200 personas. El docente busca por nombre o correo entre cuentas ya registradas y agrega el resultado. No puede agregarse a sí mismo. No se crean cuentas desde la comunidad.
+
+La traducción de código nace habilitada en `classroom.Community.translation_enabled`. El docente puede apagarla para la comunidad o para un alumno. El valor del alumno, si no es nulo, manda sobre el de la comunidad. Cambiar el de la comunidad pone en nulo los ajustes de sus alumnos, y todos vuelven a heredar. Un docente siempre puede traducir. Un alumno que no está en ninguna comunidad también. Si está en varias y en una la traducción está apagada, no puede: `POST /api/v1/algorithms/{id}/translate/` responde 403 con `translation_disabled`.
+
+En el banco de trabajo, **Repaso** abre los proyectos de un alumno de sus comunidades. El editor queda en solo lectura. Validar, ejecutar, depurar, traducir y el diagrama usan ese fuente y no crean una versión ni lo guardan. En el laboratorio, el avance abre con un tablero: cada barra suma los retos terminados en las rutas asignadas a ese alumno. Desde una ruta se descarga `progreso-{nombre}.csv`, con nombre, correo, comunidades, nota y una columna por reto. La puntuación de un intento va de 0 a 100. La nota es el promedio entero de esas puntuaciones, redondeado al más cercano, y un reto sin terminar cuenta como cero. Abrir un reto muestra la respuesta, el pseudocódigo, los casos, la predicción y la explicación.
 
 ## 13. Perfiles de lenguaje
 
@@ -329,6 +361,7 @@ Editor:
 /api/v1/projects/
 /api/v1/algorithms/
 /api/v1/algorithms/{id}/validate/
+/api/v1/algorithms/{id}/translate/
 /api/v1/algorithms/{id}/execute/
 /api/v1/algorithms/{id}/debug/
 /api/v1/algorithms/{id}/flowchart/
@@ -344,9 +377,9 @@ Editor:
 /api/v1/shared/{token}/
 ```
 
-Comunidades: `/api/v1/communities/` y `/api/v1/people/`.
+Comunidades: `/api/v1/communities/`, el parche de `translation_enabled` en la comunidad y en el miembro, `/api/v1/people/`, `/api/v1/classroom/students/` y `/api/v1/classroom/students/{id}/projects/`.
 
-Laboratorio: `/api/v1/learning/path/`, `paths/`, `catalog/`, `bank/`, `authored/`, `roster/`, `challenges/`, `attempts/`, `practices/`, `preview/`, `import/` y `runs/`, con el SSE en `runs/{id}/events/`.
+Laboratorio: `/api/v1/learning/path/`, `paths/`, `catalog/`, `bank/`, `challenges/csv/`, `authored/`, `roster/`, `roster/{id}/progress/` para el CSV de notas, `roster/{user}/challenges/{id}/` para el trabajo de un reto, `challenges/`, `attempts/`, `practices/`, `preview/`, `import/` y `runs/`, con el SSE en `runs/{id}/events/`.
 
 ## 15. Seguridad
 
@@ -358,6 +391,8 @@ Laboratorio: `/api/v1/learning/path/`, `paths/`, `catalog/`, `bank/`, `authored/
 - Cabeceras: HSTS en producción, `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options` y una política de contenido limitada al propio origen.
 - Límite de peticiones en el inicio de sesión y en la ejecución.
 - Tope de 64 KiB del fuente antes de lexicar.
+- Un docente lee el algoritmo de un alumno solo si ese alumno está en una comunidad suya. La respuesta ajena sigue siendo 404.
+- Traducir responde 403 cuando el docente apagó esa acción para el alumno.
 - Auditoría de alta, confirmación de correo, recuperación, sesión, visibilidad, enlaces, borrado y ejecución.
 - Secretos en el entorno. `.env` fuera de Git.
 - El runner descarta capacidades, no gana privilegios y limita memoria, CPU y procesos.
@@ -388,6 +423,9 @@ Armar diagrama usa las mismas figuras, pero el modelo nace en el cliente y el ps
 
 La ventana tiene proyectos a la izquierda, el editor y la consola en el centro, y el diagrama a la derecha. Dos separadores cambian el ancho. Proyectos y diagrama se ocultan.
 
+- **Traducir** abre el código generado. No crea una ejecución. Si el docente lo apagó, el botón queda y explica por qué.
+- **Repaso** abre, en solo lectura, los proyectos de un alumno de las comunidades del docente.
+- **Actualizar** vuelve a cargar proyectos, algoritmos y comunidades desde el servidor.
 - **Funciones** lista la biblioteca.
 - **Configuración** reúne idioma, cuerpo, tema, punto y coma y base de índices. El idioma es de la cuenta. El punto y coma y la base de índices, del algoritmo abierto.
 - Cada proyecto y cada algoritmo se renombra, se descarga como `{nombre}.txt` y el algoritmo se puede eliminar.
@@ -413,6 +451,7 @@ El paso a un servidor está en [despliegue.md](despliegue.md). El arranque de es
 | El intérprete dentro del proceso web | Un programa ajeno afecta a las demás peticiones | Límites lógicos desde el inicio. En contenedores y en producción el runner es obligatorio |
 | `Leer` y el depurador como dos motores | Resultados distintos | Un intérprete. El depurador es un conductor |
 | Otro árbol para los bloques | El laboratorio y el editor divergen | El adaptador construye los nodos de `ast_nodes.py` |
+| La traducción no coincide con el intérprete | El código generado da otro resultado | Sale del mismo AST. Las pruebas comparan la salida de Python y de C con la del intérprete |
 | Mailpit tomado por correo real | Los mensajes no salen de la máquina | El compose lo publica solo en `127.0.0.1:8025`. Producción exige otro `EMAIL_HOST` |
 | Cambiar el usuario de Django | Migraciones frágiles | Correo como identificador desde la primera migración |
 
