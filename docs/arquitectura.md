@@ -81,6 +81,7 @@ En la máquina, sin este compose, no hay runner ni Mailpit. Django ejecuta el in
 | Bus | Redis 7 | Órdenes, eventos, caché y límite de peticiones. Sin Celery. [ADR 0007](adr/0007-ejecucion-sin-celery.md) |
 | Correo de desarrollo | Mailpit 1.27 | SMTP interno y buzón visible. No entrega a internet |
 | Auth | Sesión de Django y CSRF | Sin JWT. [ADR 0008](adr/0008-usuario-por-correo-y-sesion.md) |
+| Niveles | Filas en PostgreSQL | Precio, topes y menús. [ADR 0009](adr/0009-niveles-de-suscripcion.md) |
 | Cliente | React, TypeScript y Vite | [ADR 0003](adr/0003-frontend-react-typescript.md) |
 | Editor | CodeMirror 6 | [ADR 0004](adr/0004-editor-codemirror-6.md) |
 | Diagrama del editor | React Flow | Solo dibuja. Las posiciones salen de `frontend/src/diagram/layout.ts` |
@@ -210,6 +211,28 @@ El enlace apunta a `TRAZA_PUBLIC_ORIGIN` con `confirmar` y `token`. El token dej
 Las cuentas creadas antes de esta columna, y las de la máquina sin la variable, quedan confirmadas. El restablecimiento de contraseña usa el mismo SMTP. En las pruebas el buzón es el de memoria y la confirmación está apagada, así el alta de la suite sigue entrando al momento.
 
 `config.settings.production` exige `EMAIL_HOST` además de `TRAZA_RUNNER=redis` y `REDIS_URL`. Mailpit no es ese servidor: solo guarda el correo de esta máquina.
+
+## 8.1 Niveles
+
+El alta asigna el plan `gratis` del tipo elegido. `TRAZA_SIGNUP_PLAN` puede nombrar otro código; las pruebas lo ponen en `premium` para conservar el comportamiento anterior de la suite. El valor real, en `config.settings.base`, es `gratis`.
+
+La semilla deja cuatro filas. El navegador nace apagado en las cuatro. Gratis de alumno: 2 proyectos, 5 códigos, editor, validar, ejecutar, laboratorio, ruta y práctica. Gratis de docente: 3 proyectos, 10 códigos, y además ver diagrama y el avance. Premium de cada tipo enciende el resto de menús de ese tipo, sin tope, a 0 centavos y 30 días, para que el administrador fije el precio. Un nivel nuevo se agrega en `POST /api/v1/billing/plans/` y nace con las funciones apagadas.
+
+`GET /api/v1/auth/me/` ya devolvía la cuenta. Ahora incluye `plan`, `access` y `usage`. No hay otra petición para saber qué está permitido. Al volver el foco a la ventana se repite esa misma lectura, como ya se hacía para la traducción.
+
+Si el navegador efectivo es falso, una petición que no trae `X-Traza-Client: desktop` puede iniciar sesión y leer o cambiar la cuenta, y recibe 403 en el resto de `/api/v1/`. El valor efectivo es el del nivel, salvo que la suscripción de esa cuenta tenga `browser_allowed` en verdadero o falso. La aplicación de escritorio marca esa cabecera. En un paquete publicado la pone el proxy de `local_host`; en depuración la pone el cliente porque ya está dentro de la ventana. El motor local guarda el `access` de esa respuesta y no vuelve a preguntar al servidor al validar, traducir, ejecutar o depurar.
+
+Traducir y pegar siguen pudiendo apagarse por comunidad. El nivel es el techo: si el plan los tiene apagados, la comunidad no los enciende.
+
+El administrador entra por el navegador a `/api/v1/billing/`. Define precio, moneda, días, navegador, topes y funciones, y asigna un nivel a una cuenta. No usa el editor ni el laboratorio. No es `is_staff`: `/admin/` de Django sigue siendo otra puerta.
+
+```bash
+cd server && python3 manage.py create_admin --email admin@ejemplo.test --password 'una-clave-larga'
+```
+
+La contraseña pasa por el hasher. Un `INSERT` con la clave en claro no serviría para entrar.
+
+Una función de menú que todavía no existe se declara en `apps/billing/catalog.py`. La pantalla de niveles muestra el interruptor. Cada plan guarda el valor en `features`. El menú y la API preguntan la misma clave.
 
 ## 9. Compilación e interpretación
 

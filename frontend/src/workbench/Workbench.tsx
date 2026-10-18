@@ -174,8 +174,11 @@ export function Workbench({
   }, [])
 
   useEffect(() => {
-    if (account.role !== "teacher") setCommunitiesOpen(false)
-  }, [account.role])
+    if (account.role !== "teacher" || account.access.features.communities !== true) {
+      setCommunitiesOpen(false)
+      setStudents([])
+    }
+  }, [account.role, account.access.features.communities])
 
   useEffect(() => {
     let active = true
@@ -184,7 +187,15 @@ export function Workbench({
         if (
           !active ||
           (next.translation_enabled === account.translation_enabled &&
-            next.paste_enabled === account.paste_enabled)
+            next.paste_enabled === account.paste_enabled &&
+            next.plan?.code === account.plan?.code &&
+            next.plan?.status === account.plan?.status &&
+            next.plan?.days_remaining === account.plan?.days_remaining &&
+            next.access.browser_app === account.access.browser_app &&
+            JSON.stringify(next.access.features) === JSON.stringify(account.access.features) &&
+            JSON.stringify(next.access.limits) === JSON.stringify(account.access.limits) &&
+            next.usage.projects === account.usage.projects &&
+            next.usage.algorithms === account.usage.algorithms)
         ) {
           return
         }
@@ -202,7 +213,7 @@ export function Workbench({
       window.removeEventListener("focus", refresh)
       document.removeEventListener("visibilitychange", onVisible)
     }
-  }, [account.translation_enabled, account.paste_enabled, onAccount])
+  }, [account, onAccount])
 
   useEffect(() => {
     if (!settingsOpen && !functionsOpen) return
@@ -232,16 +243,20 @@ export function Workbench({
   }, [execution?.output])
 
   useEffect(() => {
+    const seeStudents = account.role === "teacher" && account.access.features.communities === true
+    if (!seeStudents && reviewIdRef.current !== null) {
+      setReviewId(null)
+      return
+    }
     let active = true
     void (async () => {
-      const watched = reviewIdRef.current
-      const [projectPage, studentWork, preference, info, words, roster] = await Promise.all([
+      const watched = seeStudents ? reviewIdRef.current : null
+      const [projectPage, studentWork, preference, info, words] = await Promise.all([
         watched === null ? api.projects() : Promise.resolve(null),
         watched === null ? Promise.resolve(null) : api.studentProjects(watched),
         api.preferences(),
         api.meta(),
         api.keywords(),
-        account.role === "teacher" ? api.classroomStudents() : Promise.resolve(null),
       ])
       if (!active || reviewIdRef.current !== watched) return
       const listed = studentWork ? studentWork.projects : (projectPage?.results ?? [])
@@ -251,7 +266,6 @@ export function Workbench({
           : {},
       )
       setProjects(listed)
-      if (roster) setStudents(roster.results)
       setPrefs(preference)
       savedLanguage.current = {
         requireSemicolons: preference.require_semicolons,
@@ -281,7 +295,23 @@ export function Workbench({
     return () => {
       active = false
     }
-  }, [reloadToken, reviewId, account.role])
+  }, [reloadToken, reviewId, account.role, account.access.features.communities])
+
+  useEffect(() => {
+    if (account.role !== "teacher" || account.access.features.communities !== true) return
+    let active = true
+    void api
+      .classroomStudents()
+      .then((page) => {
+        if (active) setStudents(page.results)
+      })
+      .catch(() => {
+        if (active) setStudents([])
+      })
+    return () => {
+      active = false
+    }
+  }, [reloadToken, account.role, account.access.features.communities])
 
   useEffect(() => {
     if (!projectId) return
@@ -449,6 +479,11 @@ export function Workbench({
   }
 
   function loadDiagram(id: string) {
+    if (account.access.features.diagram !== true) {
+      setGraph(null)
+      setDiagramNote("")
+      return Promise.resolve()
+    }
     const token = ++diagramToken.current
     const pending = inInstalledApp()
       ? localFlowchart(sourceRef.current, currentProfile())
@@ -460,7 +495,10 @@ export function Workbench({
         const failure = payload.diagnostics.find((item) => item.severity === "error")
         setDiagramNote(payload.graph ? "" : failure?.message ?? t("noDiagram"))
       })
-      .catch((caught: unknown) => setError(messageOf(caught, t("requestError"))))
+      .catch((caught: unknown) => {
+        if (caught instanceof ApiError && caught.code === "plan_forbidden") return
+        setError(messageOf(caught, t("requestError")))
+      })
   }
 
   function openStream(id: string) {
@@ -686,8 +724,13 @@ export function Workbench({
     setDiagnostics(result.diagnostics)
   }
 
-  const translationOn = account.role === "teacher" || account.translation_enabled !== false
-  const pasteBlocked = account.role !== "teacher" && account.paste_enabled === false
+  const can = (key: string) => account.access.features[key] === true
+  const translationOn = can("translate") && account.translation_enabled !== false
+  const pasteBlocked = !can("paste") || (account.role !== "teacher" && account.paste_enabled === false)
+  const projectsLeft = account.access.limits.max_projects
+  const algorithmsLeft = account.access.limits.max_algorithms
+  const canCreateProject = projectsLeft === null || account.usage.projects < projectsLeft
+  const canCreateAlgorithm = algorithmsLeft === null || account.usage.algorithms < algorithmsLeft
 
   async function translate() {
     if (!translationOn) return
@@ -996,17 +1039,26 @@ export function Workbench({
           >
             {t("refresh")}
           </button>
+          {(can("editor") || can("diagram")) && (
           <div className="zone-switch" role="tablist" aria-label={t("editor")}>
+            {can("editor") && (
             <button type="button" aria-pressed={zone === "editor"} onClick={() => setZone("editor")}>
               {t("editor")}
             </button>
+            )}
+            {can("diagram") && (
             <button type="button" aria-pressed={zone === "diagram"} onClick={() => setZone("diagram")}>
               {t("diagram")}
             </button>
+            )}
           </div>
+          )}
+          {can("lab") && (
           <button className="top-action" type="button" onClick={onOpenLab}>
             {t("lab")}
           </button>
+          )}
+          {can("compose") && (
           <button
             className="top-action"
             type="button"
@@ -1020,7 +1072,8 @@ export function Workbench({
           >
             {t("compose")}
           </button>
-          {account.role === "teacher" && (
+          )}
+          {account.role === "teacher" && can("communities") && (
             <button
               className="top-action"
               type="button"
@@ -1034,6 +1087,7 @@ export function Workbench({
               {t("communities")}
             </button>
           )}
+          {can("editor") && (
           <div className="functions" ref={functionsRef}>
             <button
               className="top-action"
@@ -1065,6 +1119,7 @@ export function Workbench({
               </div>
             )}
           </div>
+          )}
           <div className="settings" ref={settingsRef}>
             <button
               className="top-action"
@@ -1094,22 +1149,6 @@ export function Workbench({
                   >
                     <option value="es">{t("spanish")}</option>
                     <option value="en">{t("english")}</option>
-                  </select>
-                </label>
-                <label>
-                  {t("profile")}
-                  <select
-                    aria-label={t("profile")}
-                    value={account.role}
-                    onChange={(event) => {
-                      const role = event.target.value === "teacher" ? "teacher" : "student"
-                      void api.updateAccount({ role }).then(onAccount).catch((caught: unknown) => {
-                        setError(messageOf(caught, t("profileError")))
-                      })
-                    }}
-                  >
-                    <option value="student">{t("student")}</option>
-                    <option value="teacher">{t("teacher")}</option>
                   </select>
                 </label>
                 <label>
@@ -1184,7 +1223,7 @@ export function Workbench({
       {communitiesOpen && <CommunitiesPanel key={reloadToken} onClose={() => setCommunitiesOpen(false)} />}
       {meta?.notice && <p className="notice">{meta.notice}</p>}
       <div
-        className={["workspace", projectsOpen ? "" : "projects-hidden", diagramOpen ? "" : "diagram-hidden"].filter(Boolean).join(" ")}
+        className={["workspace", projectsOpen ? "" : "projects-hidden", diagramOpen && can("diagram") ? "" : "diagram-hidden"].filter(Boolean).join(" ")}
         data-zone={narrow ? zone : "both"}
         ref={workspaceRef}
         style={{ "--projects-width": `${projectsWidth}px`, "--diagram-width": `${diagramWidth}px` } as CSSProperties}
@@ -1204,7 +1243,7 @@ export function Workbench({
             </button>
           </div>
           <div className="sidebar-body" id="proyectos-contenido">
-          {account.role === "teacher" && (
+          {account.role === "teacher" && can("communities") && (
             <div className="student-review">
               <h2>{t("studentWork")}</h2>
               {students.length === 0 ? (
@@ -1284,7 +1323,7 @@ export function Workbench({
               </li>
             ))}
           </ul>
-          {!reviewing && (
+          {!reviewing && canCreateProject && (
             <form onSubmit={(event) => void createProject(event)}>
               <label>
                 {t("newProject")}
@@ -1345,6 +1384,7 @@ export function Workbench({
                   className="mini"
                   aria-label={t("downloadNamed", { name: algorithm.name })}
                   title={t("download")}
+                  hidden={!can("download")}
                   onClick={() => downloadAlgorithm(algorithm)}
                 >
                   ↓
@@ -1363,7 +1403,7 @@ export function Workbench({
               </li>
             ))}
           </ul>
-          {!reviewing && (
+          {!reviewing && canCreateAlgorithm && (
             <form onSubmit={(event) => void createAlgorithm(event)}>
               <label>
                 {t("newAlgorithm")}
@@ -1403,11 +1443,14 @@ export function Workbench({
           ref={stageRef}
           style={{ "--console-height": `${consoleHeight}px` } as CSSProperties}
         >
-          <div className="toolbar" role="toolbar" aria-label={t("editor")}>
+          <div className="toolbar" role="toolbar" aria-label={t("editor")} hidden={!can("editor")}>
             <div className="tool-group">
+              {can("validate") && (
               <button type="button" onClick={() => void validate()} disabled={!algorithmId || playing}>
                 {t("validate")}
               </button>
+              )}
+              {can("translate") && (
               <button
                 type="button"
                 onClick={() => void translate()}
@@ -1416,13 +1459,20 @@ export function Workbench({
               >
                 {t("translate")}
               </button>
+              )}
+              {can("execute") && (
               <button className="primary" type="button" onClick={() => void execute()} disabled={!algorithmId || playing}>
                 {t("run")}
               </button>
+              )}
+              {can("debug") && (
               <button className="tool-debug" type="button" onClick={() => void debug()} disabled={!algorithmId || playing}>
                 {t("debug")}
               </button>
+              )}
             </div>
+            {can("debug") && (
+            <>
             <div className="tool-group">
               <button type="button" onClick={() => void control("step")} disabled={playing || execution?.status !== "paused"}>
                 {t("step")}
@@ -1448,6 +1498,8 @@ export function Workbench({
                 {t("restart")}
               </button>
             </div>
+            </>
+            )}
             <button className="tool-save" type="button" onClick={() => void saveVersion()} disabled={!algorithmId || reviewing}>
               {t("saveVersion")}
             </button>

@@ -2,9 +2,12 @@ import { useCallback, useEffect, useState } from "react"
 
 import { api, ApiError, ensureCsrf, type Account } from "./api"
 import { AuthScreen } from "./auth/AuthScreen"
+import { AdminHome } from "./admin/AdminHome"
 import { Composer, type DiagramRequest } from "./compose/Composer"
 import { LocaleProvider, readStoredLocale, storeLocale, translate, type Locale } from "./i18n"
 import { LearningLab } from "./learning/LearningLab"
+import { inInstalledApp, installedLocal, rememberAccess } from "./runtime"
+import { AccountOnly } from "./shell/AccountOnly"
 import { Workbench } from "./workbench/Workbench"
 
 export function App() {
@@ -28,6 +31,11 @@ export function App() {
       })
       .finally(() => setReady(true))
   }, [])
+
+  useEffect(() => {
+    if (!account || !installedLocal()) return
+    void rememberAccess(account.access).catch(() => undefined)
+  }, [account])
 
   async function logout() {
     await api.logout()
@@ -56,6 +64,10 @@ function openCompose(payload: { name?: string; source?: string; semicolons: bool
     <main className="auth"><p>{translate(locale, "loading")}</p></main>
   ) : !account ? (
     <AuthScreen onSuccess={setAccount} />
+  ) : account.role === "admin" ? (
+    <AdminHome account={account} onAccount={setAccount} onLogout={() => void logout()} />
+  ) : !inInstalledApp() && !account.access.browser_app ? (
+    <AccountOnly account={account} onAccount={setAccount} onLogout={() => void logout()} />
   ) : (
     <>
       <div className="screen-slot" hidden={screen !== "editor"}>

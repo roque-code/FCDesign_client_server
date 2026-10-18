@@ -1,6 +1,6 @@
 # Modelo de datos
 
-Estado: migrado. Fecha de referencia: 2026-10-17. La traducción del algoritmo y la ventana de escritorio no agregan tablas. La migración `classroom.0002` añade `translation_enabled` a la comunidad y a la membresía. La migración `learning.0016` siembra el banco y la ruta Práctica de concurso, cincuenta retos. El diccionario para consultar, con tipo y longitud de cada campo, está en [diccionario-de-datos.md](diccionario-de-datos.md). El mapa de procesos está en [arquitectura.md](arquitectura.md). Las comunidades de docentes están en `classroom`. Las actividades y las entregas del aula no. El laboratorio tiene tablas propias en `learning`, con el catálogo de conceptos, la ruta Fundamentos de treinta y cuatro retos, el banco y las rutas que arma un docente. `accounts.User.email_confirmed` llegó en la migración `0004_user_email_confirmed`.
+Estado: migrado. Fecha de referencia: 2026-10-17. La traducción del algoritmo y la ventana de escritorio no agregan tablas. La migración `billing.0001` agrega `Plan` y `Subscription`, siembra gratis y premium para alumno y para docente, y asigna el gratis a las cuentas que ya existían. La migración `classroom.0002` añade `translation_enabled` a la comunidad y a la membresía. La migración `learning.0016` siembra el banco y la ruta Práctica de concurso, cincuenta retos. El diccionario para consultar, con tipo y longitud de cada campo, está en [diccionario-de-datos.md](diccionario-de-datos.md). El mapa de procesos está en [arquitectura.md](arquitectura.md). Las comunidades de docentes están en `classroom`. Las actividades y las entregas del aula no. El laboratorio tiene tablas propias en `learning`, con el catálogo de conceptos, la ruta Fundamentos de treinta y cuatro retos, el banco y las rutas que arma un docente. `accounts.User.email_confirmed` llegó en la migración `0004_user_email_confirmed`.
 
 Motor: PostgreSQL. Claves públicas: UUID versión 4. Claves internas de alto volumen: entero de 64 bits. Las marcas de tiempo son `timestamptz`.
 
@@ -11,6 +11,8 @@ El borrado de proyectos, carpetas y algoritmos es lógico con `deleted_at`. Las 
 ```mermaid
 erDiagram
     User ||--|| Profile : tiene
+    User ||--o| Subscription : contrata
+    Plan ||--o{ Subscription : ofrece
     User ||--o{ Project : posee
     User ||--|| EditorPreference : configura
     Project ||--o{ Folder : contiene
@@ -47,9 +49,16 @@ No se usa el usuario por defecto de Django. Cambiarlo después de la primera mig
 - `user`: uno a uno, borrado en cascada;
 - `display_name`: cadena corta;
 - `institution`: cadena opcional;
-- `role`: `student` o `teacher`. Si el alta no lo elige, queda `student`. Se cambia con `PATCH /api/v1/auth/me/`;
+- `role`: `student`, `teacher` o `admin`. El alta pública solo acepta `student` o `teacher`. Si no se elige, queda `student`. No se cambia con `PATCH /api/v1/auth/me/`. `admin` solo lo crea `manage.py create_admin`;
 - `points`: entero. Sube una vez al terminar un reto. El puesto no es una columna: es cuántos perfiles tienen más puntos, más uno;
+- `avatar`, `avatar_type`: foto JPG o PNG, o vacío;
 - `created_at`, `updated_at`.
+
+`billing.Plan` es un nivel de alumno o de docente. El precio, la vigencia, el navegador, los topes y las funciones están en la fila. Se pueden crear más niveles. `code` es único dentro del tipo. Uno por tipo tiene `is_default`: es el que recibe el alta.
+
+`billing.Subscription` une a la cuenta con un nivel y, si el nivel tiene vigencia, con `paid_until`. `browser_allowed` nulo sigue al nivel; un valor en la suscripción abre o cierra el navegador solo para esa cuenta. El administrador no tiene suscripción. Si la fecha ya pasó, las funciones que aplican son las del nivel por defecto del mismo tipo; la cuenta sigue mostrando el nivel asignado como vencido.
+
+El proyecto `Ejemplos` que se siembra al registrarse no cuenta para `max_projects` ni para `max_algorithms`.
 
 `editor.EditorPreference`, uno a uno con el usuario:
 

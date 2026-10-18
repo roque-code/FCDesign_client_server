@@ -59,16 +59,24 @@ class _Live:
 class Host:
     """Un proceso, varias sesiones. Las órdenes llegan por HTTP, no por Redis."""
 
-    def __init__(self) -> None:
+    def __init__(self, entitlements=None) -> None:
+        self.entitlements = entitlements
         self._lock = threading.Lock()
         self._sessions: dict[str, _Live] = {}
 
+    def _need(self, *keys: str) -> None:
+        if self.entitlements is None or self.entitlements.allows(*keys):
+            return
+        raise HostError("Tu nivel no incluye esta función.", code="plan_forbidden", status=403)
+
     def validate(self, body: dict[str, Any]) -> dict[str, object]:
+        self._need("validate")
         source, profile = _source_and_profile(body)
         compiled = compile_source(source, profile)
         return {"diagnostics": [_diagnostic(item) for item in compiled.diagnostics]}
 
     def translate(self, body: dict[str, Any]) -> dict[str, object]:
+        self._need("translate")
         source, profile = _source_and_profile(body)
         result = translate_source(source, profile)
         return {
@@ -85,6 +93,7 @@ class Host:
         }
 
     def flowchart(self, body: dict[str, Any]) -> dict[str, object]:
+        self._need("diagram")
         source, profile = _source_and_profile(body)
         compiled = compile_source(source, profile)
         diagnostics = [_diagnostic(item) for item in compiled.diagnostics]
@@ -93,6 +102,7 @@ class Host:
         return {"graph": build(compiled.program).as_dict(), "diagnostics": diagnostics}
 
     def open_editor(self, body: dict[str, Any]) -> dict[str, object]:
+        self._need("debug" if body.get("interactive") else "execute")
         source, profile = _source_and_profile(body)
         marks = _lines(body.get("breakpoints"))
         interactive = bool(body.get("interactive"))
@@ -164,6 +174,7 @@ class Host:
         return _editor_view(self._require(session_id))
 
     def preview_lab(self, body: dict[str, Any]) -> dict[str, object]:
+        self._need("lab")
         adapted = adapt_workspace(_workspace(body))
         return {
             "source": adapted.source,
@@ -172,6 +183,7 @@ class Host:
         }
 
     def import_lab(self, body: dict[str, Any]) -> dict[str, object]:
+        self._need("lab")
         source = body.get("source")
         if not isinstance(source, str):
             raise HostError("El archivo debe ser texto.")
@@ -184,6 +196,7 @@ class Host:
         }
 
     def open_lab(self, body: dict[str, Any]) -> dict[str, object]:
+        self._need("lab")
         workspace = _workspace(body)
         adapted = adapt_workspace(workspace)
         if adapted.program is None or any(item.severity == "error" for item in adapted.diagnostics):

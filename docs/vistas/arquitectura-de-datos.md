@@ -1,12 +1,14 @@
 # Arquitectura de datos
 
-Fecha de referencia: 2026-10-17. La comunidad y la membresía guardan si la traducción de código está habilitada. El CSV de notas y el del banco de retos no son tablas. Motor: PostgreSQL 16. La traducción no se almacena. La ventana de escritorio lee y escribe las mismas tablas a través de la API. El detalle de columnas, índices y borrado está en [modelo-de-datos.md](../modelo-de-datos.md).
+Fecha de referencia: 2026-10-17. La comunidad y la membresía guardan si la traducción de código está habilitada. El nivel de suscripción está en `Plan` y `Subscription`. El CSV de notas y el del banco de retos no son tablas. Motor: PostgreSQL 16. La traducción no se almacena. La ventana de escritorio lee y escribe las mismas tablas a través de la API. El detalle de columnas, índices y borrado está en [modelo-de-datos.md](../modelo-de-datos.md).
 
 Hay dos grupos que no se mezclan. El banco de trabajo cuelga de `Algorithm`. El laboratorio cuelga de `Challenge` y de `Practice`. Un intento no es una fila de `Execution`.
 
 ```mermaid
 erDiagram
     User ||--|| Profile : tiene
+    User ||--o| Subscription : contrata
+    Plan ||--o{ Subscription : ofrece
     User ||--o{ Project : posee
     User ||--|| EditorPreference : configura
     Project ||--o{ Algorithm : contiene

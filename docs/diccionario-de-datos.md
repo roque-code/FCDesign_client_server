@@ -1,6 +1,6 @@
 # Diccionario de datos
 
-Fecha de referencia: 2026-10-17. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
+Fecha de referencia: 2026-10-17. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. Los niveles viven en `billing_plan` y `billing_subscription`. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
 
 La base se llama `traza` y, con los contenedores levantados, escucha en `127.0.0.1:5434`. El usuario de desarrollo es `traza`. No es la base del contenedor anterior `traza-pg` del puerto `5433`.
 
@@ -42,6 +42,8 @@ La columna foránea se llama `campo_id` y apunta a la clave de la otra tabla. `A
 | Desde | Columna | Hacia | Cardinalidad | Al borrar el padre |
 | --- | --- | --- | --- | --- |
 | `accounts_profile` | `user_id` | `accounts_user.id` | 1 a 1 | se borra el perfil |
+| `billing_subscription` | `user_id` | `accounts_user.id` | 1 a 1 | se borra la suscripción |
+| `billing_subscription` | `plan_id` | `billing_plan.id` | muchos cuentas, un nivel | se impide borrar el nivel |
 | `editor_editorpreference` | `user_id` | `accounts_user.id` | 1 a 1 | se borra la preferencia |
 | `projects_project` | `owner_id` | `accounts_user.id` | 1 usuario, muchos proyectos | se impide borrar al usuario |
 | `projects_folder` | `project_id` | `projects_project.id` | 1 proyecto, muchas carpetas | se borran las carpetas |
@@ -117,10 +119,45 @@ Datos visibles de esa cuenta. Una fila por usuario.
 | `user_id` | `bigint` | NO | Único. Apunta a `accounts_user.id` |
 | `display_name` | `varchar(80)` | NO | Nombre que se muestra. Si el alta no lo trae, se toma la parte del correo antes de `@` |
 | `institution` | `varchar(120)` | NO | Escuela u organización. Vacío si no se indicó |
-| `role` | `varchar(16)` | NO | `student` o `teacher`. Si no se elige, queda `student` |
+| `role` | `varchar(16)` | NO | `student`, `teacher` o `admin`. El alta pública solo escribe los dos primeros. `admin` lo crea el comando `create_admin` |
 | `points` | `integer` | NO | Puntos acumulados. Suben una vez al terminar un reto. El puesto no es una columna: es 1 más la cantidad de perfiles con más puntos |
 | `created_at` | `timestamptz` | NO | Alta del perfil |
-| `updated_at` | `timestamptz` | NO | Último cambio de rol o de puntos |
+| `updated_at` | `timestamptz` | NO | Último cambio del perfil |
+
+### `billing_plan`
+
+Un nivel de suscripción. Hay filas distintas para alumno y para docente. El alta usa la fila con `is_default`.
+
+| Campo | Tipo | Nulo | Descripción |
+| --- | --- | --- | --- |
+| `id` | `uuid` | NO | Clave |
+| `code` | `varchar(32)` | NO | Único junto con `audience`. `gratis` y `premium` son la semilla |
+| `name` | `varchar(80)` | NO | Nombre que ve la cuenta |
+| `audience` | `varchar(16)` | NO | `student` o `teacher` |
+| `price_cents` | `integer` | NO | Precio en centavos. 15000 es 150.00 |
+| `currency` | `varchar(3)` | NO | Moneda, por ejemplo `MXN` |
+| `period_days` | `integer` | NO | Días de vigencia. 0 no vence |
+| `browser_allowed` | `boolean` | NO | Si el navegador abre la aplicación. Falso en la semilla |
+| `max_projects` | `integer` | SÍ | Tope de proyectos propios. Nulo es sin límite. El proyecto Ejemplos no cuenta |
+| `max_algorithms` | `integer` | SÍ | Tope de algoritmos propios. Nulo es sin límite |
+| `features` | `jsonb` | NO | Mapa de funciones encendidas. Las claves salen de `apps.billing.catalog` |
+| `is_default` | `boolean` | NO | Una sola fila por tipo. Es el nivel del alta y el respaldo si otro vence |
+| `is_active` | `boolean` | NO | Si se puede asignar. El nivel por defecto no se desactiva |
+| `sort_order` | `smallint` | NO | Orden en la pantalla de administrador |
+| `created_at`, `updated_at` | `timestamptz` | NO | |
+
+### `billing_subscription`
+
+El nivel asignado a una cuenta. El administrador no tiene fila.
+
+| Campo | Tipo | Nulo | Descripción |
+| --- | --- | --- | --- |
+| `id` | `bigint` | NO | Clave |
+| `user_id` | `bigint` | NO | Único. Apunta a `accounts_user.id` |
+| `plan_id` | `uuid` | NO | Apunta a `billing_plan.id`. No se borra el nivel si alguien lo tiene |
+| `paid_until` | `timestamptz` | SÍ | Fin de la vigencia. Nulo en un nivel que no vence |
+| `browser_allowed` | `boolean` | SÍ | Nulo: sigue al nivel. Verdadero: esta cuenta abre la aplicación en el navegador aunque el nivel no lo permita |
+| `updated_at` | `timestamptz` | NO | Última asignación |
 
 ### `editor_editorpreference`
 

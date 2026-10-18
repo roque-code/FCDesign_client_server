@@ -11,6 +11,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
 from local_host.engine import Host, HostError
+from local_host.entitlements import Entitlements, access_from_account
 from local_host.proxy import ApiProxy
 
 MAX_BODY = 1024 * 1024
@@ -24,7 +25,8 @@ class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, address: tuple[str, int], token: str, api_origin: str) -> None:
-        self.host_engine = Host()
+        self.entitlements = Entitlements()
+        self.host_engine = Host(self.entitlements)
         self.token = token
         self.proxy = ApiProxy(api_origin)
         super().__init__(address, LocalHandler)
@@ -58,6 +60,9 @@ class LocalHandler(BaseHTTPRequestHandler):
                 return
             if self.command == "POST" and path == "/local/v1/proxy":
                 self._proxy()
+                return
+            if self.command == "POST" and path == "/local/v1/access":
+                self._access()
                 return
             body = self._json_body() if self.command == "POST" else {}
             if self.command == "POST" and path == "/local/v1/validate":
@@ -169,15 +174,38 @@ class LocalHandler(BaseHTTPRequestHandler):
             raise HostError("El cuerpo no es válido.")
         outbound = headers if isinstance(headers, dict) else {}
         clean = {str(key): value for key, value in outbound.items() if isinstance(value, str)}
+        clean = {key: value for key, value in clean.items() if key.lower() != "x-traza-client"}
+        clean["X-Traza-Client"] = "desktop"
         status, payload, csrf = self.server.proxy.forward(
             path,
             method,
             raw.encode("utf-8") if isinstance(raw, str) else None,
             clean,
         )
+        self._remember(path, status, payload)
         self._json(
             200, {"status": status, "body": payload.decode("utf-8", errors="replace"), "csrf": csrf}
         )
+
+    def _access(self) -> None:
+        body = self._json_body()
+        access = body.get("access", body)
+        if not isinstance(access, dict) or not isinstance(access.get("features"), dict):
+            raise HostError("El nivel no es válido.")
+        if not self.server.entitlements.has_trusted():
+            self.server.entitlements.remember_hint(access)
+        self._json(200, {"ok": True})
+
+    def _remember(self, path: str, status: int, payload: bytes) -> None:
+        if status < 200 or status >= 300 or not path.startswith("/api/v1/auth/"):
+            return
+        try:
+            parsed = json.loads(payload.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeError):
+            return
+        access = access_from_account(parsed)
+        if access is not None:
+            self.server.entitlements.remember_trusted(access)
 
     def _authorized(self) -> bool:
         query = parse_qs(urlsplit(self.path).query)

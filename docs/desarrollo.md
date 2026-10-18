@@ -31,6 +31,14 @@ cd frontend && npm install && npm run dev
 
 Ese proceso sí importa el intérprete. Los límites lógicos siguen activos. No es el aislamiento del contenedor `runner`.
 
+## 2.1 Administrador
+
+```bash
+cd server && python3 manage.py create_admin --email admin@ejemplo.test --password 'una-clave-larga' --name Administrador
+```
+
+Crea la cuenta con rol `admin`, correo confirmado y sin nivel de alumno o docente. No marca `is_staff`. El alta pública sigue ofreciendo solo estudiante y docente. Después de `migrate`, la base ya tiene los niveles gratis y premium.
+
 ## 3. Pruebas
 
 ```bash

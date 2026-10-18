@@ -1160,3 +1160,111 @@ button.fold {
   }
   .toolbar { flex-wrap: nowrap; overflow-x: auto; }
 }
+
+.shell > .account-only,
+.shell > .admin-home {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.account-only,
+.admin-home {
+  padding: 1.5rem;
+  display: grid;
+  gap: 1.25rem;
+  align-content: start;
+}
+
+.account-card { width: min(36rem, 100%); }
+
+.account-facts {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.account-facts div { display: grid; gap: 0.15rem; }
+.account-facts dt { color: var(--muted); font-size: 0.85rem; }
+.account-facts dd { margin: 0; font-weight: 650; }
+
+.admin-home { max-width: 68rem; }
+.admin-home .account-card { width: 100%; }
+.admin-head, .admin-search {
+  display: flex;
+  gap: 0.75rem;
+  align-items: end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.admin-head .note { max-width: 40rem; }
+.admin-search { justify-content: flex-start; }
+.admin-search input { width: min(18rem, 100%); }
+.plan-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 1rem;
+}
+.plan-groups h3 { margin: 0 0 0.4rem; font-size: 0.95rem; color: var(--muted); }
+.plan-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
+.plan-list button {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.plan-list button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--sheet));
+}
+.table-scroll {
+  overflow-x: auto;
+  background: var(--sheet);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.account-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--sheet);
+}
+.account-table th,
+.account-table td {
+  text-align: left;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+.account-table tr:last-child td { border-bottom: 0; }
+.account-table th {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.account-table select { min-width: 8rem; }
+.admin-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.check-row { display: flex; gap: 0.5rem; align-items: center; }
+.admin-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.75rem;
+}
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.35rem 0.75rem;
+  margin: 0;
+  padding: 0.15rem 0 0;
+  border: 0;
+}
+.feature-grid legend { grid-column: 1 / -1; padding: 0; font-weight: 650; }

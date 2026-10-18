@@ -1,18 +1,86 @@
 import { localMissingMessage } from "./i18n"
 
 export type Role = "student" | "teacher"
+export type AccountRole = Role | "admin"
+
+export type AccountPlan = {
+  code: string
+  name: string
+  audience: Role
+  price_cents: number
+  currency: string
+  period_days: number
+  status: "active" | "expired"
+  paid_until: string | null
+  days_remaining: number | null
+}
+
+export type AccountAccess = {
+  browser_app: boolean
+  features: Record<string, boolean>
+  limits: { max_projects: number | null; max_algorithms: number | null }
+}
 
 export type Account = {
   id: number
   email: string
   display_name: string
   institution: string
-  role: Role
+  role: AccountRole
   points: number
   rank: number
   translation_enabled: boolean
   paste_enabled: boolean
   avatar: string | null
+  plan: AccountPlan | null
+  access: AccountAccess
+  usage: { projects: number; algorithms: number }
+}
+
+export type PlanFeature = {
+  key: string
+  label: string
+  audiences: Role[]
+}
+
+export type BillingPlan = {
+  id: string
+  code: string
+  name: string
+  audience: Role
+  price_cents: number
+  currency: string
+  period_days: number
+  browser_allowed: boolean
+  max_projects: number | null
+  max_algorithms: number | null
+  features: Record<string, boolean>
+  is_default: boolean
+  is_active: boolean
+  sort_order: number
+}
+
+export type BillingPlanInput = {
+  code?: string
+  name: string
+  audience?: Role
+  price_cents: number
+  currency: string
+  period_days: number
+  browser_allowed: boolean
+  max_projects: number | null
+  max_algorithms: number | null
+  features: Record<string, boolean>
+  is_active?: boolean
+}
+
+export type Subscriber = {
+  id: number
+  email: string
+  display_name: string
+  role: AccountRole
+  plan: AccountPlan | null
+  browser_allowed: boolean | null
 }
 
 export type PendingConfirmation = {
@@ -556,12 +624,19 @@ function textError(status: number, body: string): ApiError {
   }
 }
 
+function installedClient(): boolean {
+  if (typeof window === "undefined") return false
+  const host = window as Window & { __TRAZA_LOCAL__?: { origin?: string }; __TAURI_INTERNALS__?: unknown }
+  return Boolean(host.__TRAZA_LOCAL__?.origin) || "__TAURI_INTERNALS__" in host
+}
+
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (desktopProxyEnabled()) return desktopRequest<T>(path, init)
   const headers = new Headers(init.headers)
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json")
   const token = csrfToken()
   if (token) headers.set("X-CSRFToken", token)
+  if (installedClient()) headers.set("X-Traza-Client", "desktop")
   const response = await fetch(path, {
     ...init,
     headers,
@@ -589,6 +664,7 @@ async function desktopRequest<T>(path: string, init: RequestInit): Promise<T> {
   const headers: Record<string, string> = {}
   const token = csrfToken()
   if (token) headers["X-CSRFToken"] = token
+  if (installedClient()) headers["X-Traza-Client"] = "desktop"
   if (init.body) headers["Content-Type"] = "application/json"
   const reply = await internals.invoke("server_fetch", {
     path,
@@ -889,4 +965,19 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ reflection }),
     }),
+  planCatalog: () => request<{ results: PlanFeature[] }>("/api/v1/billing/catalog/"),
+  plans: () => request<{ results: BillingPlan[] }>("/api/v1/billing/plans/"),
+  createPlan: (body: BillingPlanInput) =>
+    request<BillingPlan>("/api/v1/billing/plans/", { method: "POST", body: JSON.stringify(body) }),
+  updatePlan: (id: string, body: Partial<BillingPlanInput>) =>
+    request<BillingPlan>(`/api/v1/billing/plans/${id}/`, { method: "PATCH", body: JSON.stringify(body) }),
+  subscribers: (query: string, page = 1) =>
+    request<{ results: Subscriber[]; count: number; page: number; pages: number }>(
+      `/api/v1/billing/users/?q=${encodeURIComponent(query)}&page=${page}`,
+    ),
+  assignPlan: (
+    userId: number,
+    body: { plan_id?: string; paid_until?: string | null; browser_allowed?: boolean | null },
+  ) =>
+    request<Subscriber>(`/api/v1/billing/users/${userId}/`, { method: "PATCH", body: JSON.stringify(body) }),
 }

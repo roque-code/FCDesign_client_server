@@ -24,7 +24,11 @@ export function AccountIdentity({
           {account.avatar ? <img src={account.avatar} alt="" /> : initials(account.display_name)}
         </button>
         <span className="who-name">{account.display_name}</span>
-        <span className="who-role">{account.role === "teacher" ? t("teacher") : t("student")}</span>
+        <span className="who-role">
+          {account.role === "teacher" ? t("teacher") : account.role === "admin" ? t("administrator") : t("student")}
+          {account.plan ? ` · ${account.plan.name}` : ""}
+          {account.plan?.status === "expired" ? ` · ${t("expired")}` : ""}
+        </span>
       </div>
       <div className="standing">
         <span className="stat" title={t("pointsTitle", { points: account.points })}>
@@ -37,6 +41,12 @@ export function AccountIdentity({
           <strong>{account.rank}</strong>
           <small>{t("place")}</small>
         </span>
+        {account.plan?.days_remaining !== null && account.plan ? (
+          <span className="stat" title={t("daysLeft", { days: account.plan.days_remaining })}>
+            <strong>{account.plan.days_remaining}</strong>
+            <small>{t("daysShort")}</small>
+          </span>
+        ) : null}
       </div>
       {open ? (
         <ProfileDialog

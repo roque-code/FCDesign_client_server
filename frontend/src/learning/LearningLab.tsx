@@ -40,6 +40,7 @@ export function LearningLab({
             className="top-action"
             type="button"
             aria-current={mode === "path" || mode === "challenge" ? "page" : undefined}
+            hidden={!account.access.features.lab_route}
             onClick={() => setMode("path")}
           >
             {t("route")}
@@ -48,11 +49,12 @@ export function LearningLab({
             className="top-action"
             type="button"
             aria-current={mode === "practice" ? "page" : undefined}
+            hidden={!account.access.features.lab_practice}
             onClick={() => setMode("practice")}
           >
             {t("freePractice")}
           </button>
-          {account.role === "teacher" ? (
+          {account.role === "teacher" && account.access.features.lab_bank ? (
             <button
               className="top-action"
               type="button"
@@ -62,7 +64,7 @@ export function LearningLab({
               {t("bank")}
             </button>
           ) : null}
-          {account.role === "teacher" ? (
+          {account.role === "teacher" && account.access.features.lab_routes ? (
             <button
               className="top-action"
               type="button"
@@ -72,7 +74,7 @@ export function LearningLab({
               {t("routes")}
             </button>
           ) : null}
-          {account.role === "teacher" ? (
+          {account.role === "teacher" && account.access.features.lab_progress ? (
             <button
               className="top-action"
               type="button"

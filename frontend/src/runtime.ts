@@ -148,6 +148,10 @@ export function localLabRun(id: string): Promise<LabRun> {
   return localJson(`/local/v1/lab/runs/${id}`, undefined, "GET")
 }
 
+export function rememberAccess(access: { features: Record<string, boolean> }): Promise<{ ok: boolean }> {
+  return localJson("/local/v1/access", { access })
+}
+
 function localUrl(local: LocalEndpoint, path: string): string {
   const url = new URL(`${local.origin}${path}`)
   url.searchParams.set("token", local.token)
