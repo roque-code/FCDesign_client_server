@@ -9,6 +9,7 @@ urlpatterns = [
     path("api/health/", HealthView.as_view(), name="health"),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/v1/auth/", include("apps.accounts.urls")),
+    path("api/v1/", include("apps.billing.urls")),
     path("api/v1/", include("apps.projects.urls")),
     path("api/v1/", include("apps.executions.urls")),
     path("api/v1/", include("apps.flowcharts.urls")),

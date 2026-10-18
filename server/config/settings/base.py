@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "drf_spectacular",
     "apps.accounts",
+    "apps.billing",
     "apps.editor",
     "apps.language",
     "apps.projects",
@@ -41,6 +42,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "config.middleware.ApiCsrfMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.billing.middleware.PlanGateMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "config.middleware.ContentSecurityPolicyMiddleware",
@@ -131,6 +133,8 @@ SPECTACULAR_SETTINGS = {
 
 REDIS_URL = os.environ.get("REDIS_URL", "")
 EXECUTION_RUNNER = "inprocess"
+# El alta real asigna el nivel gratis. Las pruebas usan premium para el comportamiento anterior.
+TRAZA_SIGNUP_PLAN = "gratis"
 MAX_SOURCE_BYTES = 64 * 1024
 MAX_PROJECTS_PER_USER = 50
 MAX_ALGORITHMS_PER_PROJECT = 200

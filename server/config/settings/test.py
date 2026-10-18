@@ -6,6 +6,7 @@ DEBUG = True
 EXECUTION_RUNNER = "inprocess"
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 EMAIL_CONFIRMATION_REQUIRED = False
+TRAZA_SIGNUP_PLAN = "premium"
 TRAZA_MAIL_UI = ""
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 RATE_LIMITS = {

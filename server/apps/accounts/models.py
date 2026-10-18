@@ -44,6 +44,7 @@ class User(AbstractUser):
 class Profile(models.Model):
     STUDENT = "student"
     TEACHER = "teacher"
+    ADMIN = "admin"
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
     display_name = models.CharField(max_length=80)

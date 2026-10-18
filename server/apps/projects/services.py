@@ -141,6 +141,9 @@ def version_payload(version: AlgorithmVersion) -> dict[str, object]:
 
 @transaction.atomic
 def create_project(user, data: dict, ip_address: str | None) -> Project:
+    from apps.billing.services import ensure_quota
+
+    ensure_quota(user, "project")
     if Project.objects.filter(owner=user).count() >= settings.MAX_PROJECTS_PER_USER:
         raise DomainError("Llegaste al máximo de proyectos.")
     visibility = data.get("visibility", "private")
@@ -294,6 +297,9 @@ def _optional_folder(project: Project, folder_id) -> Folder | None:
 
 @transaction.atomic
 def create_algorithm(user, data: dict) -> Algorithm:
+    from apps.billing.services import ensure_quota
+
+    ensure_quota(user, "algorithm")
     project = get_project(user, data.get("project_id"))
     if Algorithm.objects.filter(project=project).count() >= settings.MAX_ALGORITHMS_PER_PROJECT:
         raise DomainError("Llegaste al máximo de algoritmos en este proyecto.")

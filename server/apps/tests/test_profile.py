@@ -31,11 +31,10 @@ def test_cambia_nombre_foto_y_contrasena():
     assert renamed.json()["display_name"] == "Ana Vista"
     assert renamed.json()["avatar"] == _photo()
 
-    kept = client.patch("/api/v1/auth/me/", {"role": "teacher"}, format="json")
-    assert kept.status_code == 200, kept.content
-    assert kept.json()["display_name"] == "Ana Vista"
-    assert kept.json()["avatar"] == _photo()
-    assert kept.json()["role"] == "teacher"
+    refused = client.patch("/api/v1/auth/me/", {"role": "teacher"}, format="json")
+    assert refused.status_code == 400
+    assert client.get("/api/v1/auth/me/").json()["role"] == "student"
+    assert client.get("/api/v1/auth/me/").json()["display_name"] == "Ana Vista"
 
     blank = client.patch("/api/v1/auth/me/", {"display_name": "   "}, format="json")
     assert blank.status_code == 400

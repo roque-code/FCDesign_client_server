@@ -123,10 +123,12 @@ def standing_of(user: User) -> dict[str, int]:
 
 
 def user_payload(user: User) -> dict[str, object]:
+    from apps.billing.services import account_access
     from apps.classroom.services import paste_allowed, translation_allowed
 
     profile = user.profile
     standing = standing_of(user)
+    entitlement = account_access(user)
     return {
         "id": user.pk,
         "email": user.email,
@@ -138,6 +140,9 @@ def user_payload(user: User) -> dict[str, object]:
         "translation_enabled": translation_allowed(user),
         "paste_enabled": paste_allowed(user),
         "avatar": _avatar_data_url(profile),
+        "plan": entitlement["plan"],
+        "access": entitlement["access"],
+        "usage": entitlement["usage"],
     }
 
 
@@ -170,6 +175,9 @@ def register_user(
         if role not in (None, ""):
             profile.role = chosen
         profile.save()
+        from apps.billing.services import assign_default_subscription
+
+        assign_default_subscription(existing)
         _send_confirmation(existing)
         return existing
     user = User.objects.create_user(
@@ -184,7 +192,11 @@ def register_user(
         role=chosen,
     )
     EditorPreference.objects.create(user=user)
-    seed_examples(user)
+    from apps.billing.services import assign_default_subscription
+
+    assign_default_subscription(user)
+    if chosen != Profile.ADMIN:
+        seed_examples(user)
     record(
         "auth.register",
         actor=user,
@@ -315,8 +327,7 @@ def update_profile(user: User, data: dict, request=None) -> User:
             profile.avatar, profile.avatar_type = cleaned
         fields.extend(["avatar", "avatar_type"])
     if "role" in data:
-        profile.role = clean_role(data.get("role"))
-        fields.append("role")
+        raise DomainError("El tipo de cuenta se elige al registrarse y no se puede cambiar.")
     password = data.get("password")
     if password not in (None, ""):
         current = data.get("current_password")

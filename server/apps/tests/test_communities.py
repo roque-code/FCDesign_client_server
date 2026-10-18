@@ -13,15 +13,18 @@ def _session(email, **extra):
     return client, created.json()
 
 
-def test_el_perfil_se_elige_al_crear_la_cuenta_y_se_puede_cambiar(client):
+def test_el_perfil_se_elige_al_crear_la_cuenta_y_no_se_cambia(client):
     created = register(client, email="perfil@ejemplo.test")
     assert created.json()["role"] == "student"
-    changed = client.patch("/api/v1/auth/me/", {"role": "teacher"}, format="json")
-    assert changed.status_code == 200
-    assert changed.json()["role"] == "teacher"
-    assert client.get("/api/v1/auth/me/").json()["role"] == "teacher"
-    refused = client.patch("/api/v1/auth/me/", {"role": "invitado"}, format="json")
+    teacher = register(
+        client, email="perfil-docente@ejemplo.test", display_name="Profe", role="teacher"
+    )
+    assert teacher.json()["role"] == "teacher"
+    refused = client.patch("/api/v1/auth/me/", {"role": "teacher"}, format="json")
     assert refused.status_code == 400
+    assert client.get("/api/v1/auth/me/").json()["role"] == "teacher"
+    unknown = client.patch("/api/v1/auth/me/", {"role": "invitado"}, format="json")
+    assert unknown.status_code == 400
 
 
 def test_el_docente_lista_alumnos_y_agrega_cuentas_registradas(client):

@@ -208,6 +208,10 @@ def remove_member(user: User, community_id, user_id, ip_address: str | None) -> 
 
 
 def translation_allowed(user: User) -> bool:
+    from apps.billing.services import allows
+
+    if not allows(user, "translate"):
+        return False
     if user.profile.role == Profile.TEACHER:
         return True
     memberships = list(Membership.objects.filter(user=user).select_related("community"))
@@ -222,6 +226,10 @@ def translation_allowed(user: User) -> bool:
 
 
 def paste_allowed(user: User) -> bool:
+    from apps.billing.services import allows
+
+    if not allows(user, "paste"):
+        return False
     if user.profile.role == Profile.TEACHER:
         return True
     memberships = list(Membership.objects.filter(user=user).select_related("community"))

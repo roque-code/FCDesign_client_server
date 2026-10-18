@@ -476,9 +476,9 @@ def test_preferences_save_locale_mode_and_language_without_rewriting_source(clie
     assert stored["require_semicolons"] is False
     assert stored["index_base"] == 0
 
-    role = client.patch("/api/v1/auth/me/", {"role": "teacher"}, format="json")
-    assert role.status_code == 200
-    assert client.get("/api/v1/auth/me/").json()["role"] == "teacher"
+    refused = client.patch("/api/v1/auth/me/", {"role": "teacher"}, format="json")
+    assert refused.status_code == 400
+    assert client.get("/api/v1/auth/me/").json()["role"] == "student"
 
     kept = client.get(f"/api/v1/algorithms/{existing['id']}/").json()
     assert kept["source"] == source
