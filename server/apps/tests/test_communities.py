@@ -321,3 +321,70 @@ def test_un_docente_ajeno_no_cambia_la_traduccion(client):
         format="json",
     )
     assert missing.status_code == 404
+
+
+def test_el_docente_bloquea_pegar_en_el_grupo_o_en_un_alumno(client):
+    register(client, email="pega-profe@ejemplo.test", display_name="Profe Pega", role="teacher")
+    student, student_body = _session("pega-ana@ejemplo.test", display_name="Ana Pega")
+    other, other_body = _session("pega-beto@ejemplo.test", display_name="Beto Pega")
+    created = client.post("/api/v1/communities/", {"name": "Sin pegar"}, format="json")
+    assert created.status_code == 201
+    assert created.json()["paste_enabled"] is True
+    community_id = created.json()["id"]
+    for user_id in (student_body["id"], other_body["id"]):
+        assert (
+            client.post(
+                f"/api/v1/communities/{community_id}/members/",
+                {"user_id": user_id},
+                format="json",
+            ).status_code
+            == 201
+        )
+    assert student.get("/api/v1/auth/me/").json()["paste_enabled"] is True
+
+    blocked = client.patch(
+        f"/api/v1/communities/{community_id}/",
+        {"paste_enabled": False},
+        format="json",
+    )
+    assert blocked.status_code == 200, blocked.content
+    assert blocked.json()["paste_enabled"] is False
+    assert all(row["paste_enabled"] is False for row in blocked.json()["students"])
+    assert all("paste_enabled" not in row for row in blocked.json()["teachers"])
+    assert student.get("/api/v1/auth/me/").json()["paste_enabled"] is False
+    assert other.get("/api/v1/auth/me/").json()["paste_enabled"] is False
+    assert client.get("/api/v1/auth/me/").json()["paste_enabled"] is True
+
+    exception = client.patch(
+        f"/api/v1/communities/{community_id}/members/{student_body['id']}/",
+        {"paste_enabled": True},
+        format="json",
+    )
+    assert exception.status_code == 200, exception.content
+    by_email = {row["email"]: row["paste_enabled"] for row in exception.json()["students"]}
+    assert by_email["pega-ana@ejemplo.test"] is True
+    assert by_email["pega-beto@ejemplo.test"] is False
+    assert student.get("/api/v1/auth/me/").json()["paste_enabled"] is True
+    assert other.get("/api/v1/auth/me/").json()["paste_enabled"] is False
+
+    reset = client.patch(
+        f"/api/v1/communities/{community_id}/",
+        {"paste_enabled": True},
+        format="json",
+    )
+    assert reset.status_code == 200
+    assert all(row["paste_enabled"] is True for row in reset.json()["students"])
+    alone = client.patch(
+        f"/api/v1/communities/{community_id}/members/{other_body['id']}/",
+        {"paste_enabled": False},
+        format="json",
+    )
+    assert alone.status_code == 200
+    assert other.get("/api/v1/auth/me/").json()["paste_enabled"] is False
+    assert student.get("/api/v1/auth/me/").json()["paste_enabled"] is True
+    invalid = client.patch(
+        f"/api/v1/communities/{community_id}/",
+        {"paste_enabled": "no"},
+        format="json",
+    )
+    assert invalid.status_code == 400

@@ -26,6 +26,7 @@ def person_payload(
     *,
     member: bool | None = None,
     translation_enabled: bool | None = None,
+    paste_enabled: bool | None = None,
 ) -> dict[str, object]:
     profile = user.profile
     payload: dict[str, object] = {
@@ -38,6 +39,8 @@ def person_payload(
         payload["member"] = member
     if translation_enabled is not None:
         payload["translation_enabled"] = translation_enabled
+    if paste_enabled is not None:
+        payload["paste_enabled"] = paste_enabled
     return payload
 
 
@@ -57,6 +60,7 @@ def community_summary(community: Community) -> dict[str, object]:
         "student_count": students,
         "teacher_count": teachers,
         "translation_enabled": community.translation_enabled,
+        "paste_enabled": community.paste_enabled,
     }
 
 
@@ -69,10 +73,13 @@ def _split(community: Community) -> tuple[list[dict[str, object]], list[dict[str
     )
     for item in memberships:
         enabled = None
+        paste = None
         if item.user.profile.role != Profile.TEACHER:
             choice = item.translation_enabled
             enabled = community.translation_enabled if choice is None else choice
-        person = person_payload(item.user, translation_enabled=enabled)
+            paste_choice = item.paste_enabled
+            paste = community.paste_enabled if paste_choice is None else paste_choice
+        person = person_payload(item.user, translation_enabled=enabled, paste_enabled=paste)
         if item.user.profile.role == Profile.TEACHER:
             teachers.append(person)
         else:
@@ -88,6 +95,7 @@ def community_detail(community: Community) -> dict[str, object]:
         "student_count": len(students),
         "teacher_count": len(teachers),
         "translation_enabled": community.translation_enabled,
+        "paste_enabled": community.paste_enabled,
         "students": students,
         "teachers": teachers,
     }
@@ -213,9 +221,23 @@ def translation_allowed(user: User) -> bool:
     return True
 
 
-def _enabled_flag(value: object) -> bool:
+def paste_allowed(user: User) -> bool:
+    if user.profile.role == Profile.TEACHER:
+        return True
+    memberships = list(Membership.objects.filter(user=user).select_related("community"))
+    if not memberships:
+        return True
+    for item in memberships:
+        choice = item.paste_enabled
+        allowed = item.community.paste_enabled if choice is None else choice
+        if not allowed:
+            return False
+    return True
+
+
+def _enabled_flag(value: object, message: str) -> bool:
     if not isinstance(value, bool):
-        raise DomainError("Indica si la traducción queda habilitada.")
+        raise DomainError(message)
     return value
 
 
@@ -226,7 +248,7 @@ def set_community_translation(
     enabled: object,
     ip_address: str | None,
 ) -> Community:
-    flag = _enabled_flag(enabled)
+    flag = _enabled_flag(enabled, "Indica si la traducción queda habilitada.")
     community = get_community(user, community_id)
     community.translation_enabled = flag
     community.save(update_fields=["translation_enabled", "updated_at"])
@@ -251,7 +273,7 @@ def set_member_translation(
     enabled: object,
     ip_address: str | None,
 ) -> Community:
-    flag = _enabled_flag(enabled)
+    flag = _enabled_flag(enabled, "Indica si la traducción queda habilitada.")
     community = get_community(user, community_id)
     try:
         membership = community.memberships.select_related("user__profile").get(user_id=user_id)
@@ -271,6 +293,61 @@ def set_member_translation(
         object_type="community",
         object_id=str(community.id),
         metadata={"user_id": membership.user_id, "translation_enabled": flag},
+        ip_address=ip_address,
+    )
+    return community
+
+
+@transaction.atomic
+def set_community_paste(
+    user: User,
+    community_id,
+    enabled: object,
+    ip_address: str | None,
+) -> Community:
+    flag = _enabled_flag(enabled, "Indica si se puede pegar texto.")
+    community = get_community(user, community_id)
+    community.paste_enabled = flag
+    community.save(update_fields=["paste_enabled", "updated_at"])
+    community.memberships.filter(user__profile__role=Profile.STUDENT).update(paste_enabled=None)
+    record(
+        "community.paste",
+        actor=user,
+        object_type="community",
+        object_id=str(community.id),
+        metadata={"paste_enabled": flag},
+        ip_address=ip_address,
+    )
+    return community
+
+
+def set_member_paste(
+    user: User,
+    community_id,
+    user_id,
+    enabled: object,
+    ip_address: str | None,
+) -> Community:
+    flag = _enabled_flag(enabled, "Indica si se puede pegar texto.")
+    community = get_community(user, community_id)
+    try:
+        membership = community.memberships.select_related("user__profile").get(user_id=user_id)
+    except Membership.DoesNotExist as exc:
+        raise DomainError(
+            "Esa persona no está en la comunidad.",
+            code=NOT_FOUND,
+            status_code=404,
+        ) from exc
+    if membership.user.profile.role != Profile.STUDENT:
+        raise DomainError("El pegado se ajusta para un alumno.")
+    membership.paste_enabled = flag
+    membership.save(update_fields=["paste_enabled"])
+    record(
+        "community.member_paste",
+        actor=user,
+        object_type="community",
+        object_id=str(community.id),
+        metadata={"user_id": membership.user_id, "paste_enabled": flag},
         ip_address=ip_address,
     )
     return community

@@ -13,11 +13,14 @@ from apps.classroom.services import (
     person_payload,
     remove_member,
     search_people,
+    set_community_paste,
     set_community_translation,
+    set_member_paste,
     set_member_translation,
     student_projects,
 )
 from apps.http import client_ip, current_user, object_body
+from config.errors import DomainError
 
 
 class CommunityListView(APIView):
@@ -38,12 +41,18 @@ class CommunityDetailView(APIView):
         return Response(community_detail(get_community(current_user(request), community_id)))
 
     def patch(self, request: Request, community_id) -> Response:
-        community = set_community_translation(
-            current_user(request),
-            community_id,
-            object_body(request.data).get("translation_enabled"),
-            client_ip(request),
-        )
+        data = object_body(request.data)
+        user = current_user(request)
+        address = client_ip(request)
+        community = None
+        if "translation_enabled" in data:
+            community = set_community_translation(
+                user, community_id, data.get("translation_enabled"), address
+            )
+        if "paste_enabled" in data:
+            community = set_community_paste(user, community_id, data.get("paste_enabled"), address)
+        if community is None:
+            raise DomainError("Indica el acceso que quieres cambiar.")
         return Response(community_detail(community))
 
     def delete(self, request: Request, community_id) -> Response:
@@ -65,13 +74,20 @@ class MemberListView(APIView):
 
 class MemberDetailView(APIView):
     def patch(self, request: Request, community_id, user_id: int) -> Response:
-        community = set_member_translation(
-            current_user(request),
-            community_id,
-            user_id,
-            object_body(request.data).get("translation_enabled"),
-            client_ip(request),
-        )
+        data = object_body(request.data)
+        user = current_user(request)
+        address = client_ip(request)
+        community = None
+        if "translation_enabled" in data:
+            community = set_member_translation(
+                user, community_id, user_id, data.get("translation_enabled"), address
+            )
+        if "paste_enabled" in data:
+            community = set_member_paste(
+                user, community_id, user_id, data.get("paste_enabled"), address
+            )
+        if community is None:
+            raise DomainError("Indica el acceso que quieres cambiar.")
         return Response(community_detail(community))
 
     def delete(self, request: Request, community_id, user_id: int) -> Response:

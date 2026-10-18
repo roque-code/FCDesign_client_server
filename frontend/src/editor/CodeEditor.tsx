@@ -103,6 +103,26 @@ const debugLineField = StateField.define<DecorationSet>({
 
 const debugExtensions: Extension[] = [breakpointField, breakpointGutter, debugLineField]
 
+function blockClipboard(blocked: boolean): Extension[] {
+  if (!blocked) return []
+  return [
+    EditorState.transactionFilter.of((transaction) => {
+      if (transaction.isUserEvent("input.paste") || transaction.isUserEvent("input.drop")) return []
+      return transaction
+    }),
+    EditorView.domEventHandlers({
+      paste(event) {
+        event.preventDefault()
+        return true
+      },
+      drop(event) {
+        event.preventDefault()
+        return true
+      },
+    }),
+  ]
+}
+
 const tabIndent = Prec.highest(
   keymap.of([
     {
@@ -134,6 +154,7 @@ type Props = {
   onChange: (source: string) => void
   onCursor: (line: number) => void
   readOnly?: boolean
+  pasteBlocked?: boolean
 }
 
 export function CodeEditor({
@@ -150,6 +171,7 @@ export function CodeEditor({
   onChange,
   onCursor,
   readOnly = false,
+  pasteBlocked = false,
 }: Props) {
   const locale = useLocale()
   const host = useRef<HTMLDivElement>(null)
@@ -247,6 +269,7 @@ export function CodeEditor({
               EditorView.contentAttributes.of({ "aria-readonly": "true" }),
             ]
           : []),
+        ...blockClipboard(pasteBlocked),
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !applying.current) {
             publish(update.state.doc.toString(), update.state.selection.main.head)
@@ -255,7 +278,7 @@ export function CodeEditor({
         }),
       ]),
     })
-  }, [keywords, stdlib, fontSize, indentSize, theme, readOnly])
+  }, [keywords, stdlib, fontSize, indentSize, theme, readOnly, pasteBlocked])
 
   useEffect(() => {
     const view = viewRef.current
@@ -305,5 +328,12 @@ export function CodeEditor({
     view.dispatch({ effects })
   }, [currentLine])
 
-  return <div className="editor-host" data-readonly={readOnly ? "true" : undefined} ref={host} />
+  return (
+    <div
+      className="editor-host"
+      data-readonly={readOnly ? "true" : undefined}
+      data-paste-blocked={pasteBlocked ? "true" : undefined}
+      ref={host}
+    />
+  )
 }

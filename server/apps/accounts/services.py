@@ -123,7 +123,7 @@ def standing_of(user: User) -> dict[str, int]:
 
 
 def user_payload(user: User) -> dict[str, object]:
-    from apps.classroom.services import translation_allowed
+    from apps.classroom.services import paste_allowed, translation_allowed
 
     profile = user.profile
     standing = standing_of(user)
@@ -136,6 +136,7 @@ def user_payload(user: User) -> dict[str, object]:
         "points": standing["points"],
         "rank": standing["rank"],
         "translation_enabled": translation_allowed(user),
+        "paste_enabled": paste_allowed(user),
         "avatar": _avatar_data_url(profile),
     }
 

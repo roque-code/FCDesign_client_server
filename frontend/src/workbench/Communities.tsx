@@ -127,7 +127,9 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
     setDetail(saved)
     setCommunities((rows) =>
       rows.map((item) =>
-        item.id === saved.id ? { ...item, translation_enabled: saved.translation_enabled } : item,
+        item.id === saved.id
+          ? { ...item, translation_enabled: saved.translation_enabled, paste_enabled: saved.paste_enabled }
+          : item,
       ),
     )
   }
@@ -139,6 +141,26 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
       remember(await api.setCommunityTranslation(selectedId, enabled))
     } catch (caught) {
       setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("translationSaveError"))
+    }
+  }
+
+  async function setGroupPaste(enabled: boolean) {
+    if (!selectedId) return
+    setError("")
+    try {
+      remember(await api.setCommunityPaste(selectedId, enabled))
+    } catch (caught) {
+      setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("pasteSaveError"))
+    }
+  }
+
+  async function setStudentPaste(person: Person, enabled: boolean) {
+    if (!selectedId) return
+    setError("")
+    try {
+      remember(await api.setMemberPaste(selectedId, person.id, enabled))
+    } catch (caught) {
+      setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("pasteSaveError"))
     }
   }
 
@@ -214,6 +236,15 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
                   />
                   <span>{t("translationForGroup")}</span>
                 </label>
+                <label className="translation-switch">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={!detail.paste_enabled}
+                    onChange={(event) => void setGroupPaste(!event.target.checked)}
+                  />
+                  <span>{t("blockPasteForGroup")}</span>
+                </label>
                 <h4>{t("students")}</h4>
                 <MemberList
                   people={detail.students}
@@ -221,6 +252,7 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
                   removeLabel={t("removeMember")}
                   onRemove={remove}
                   onTranslation={(person, enabled) => void setStudentTranslation(person, enabled)}
+                  onPaste={(person, enabled) => void setStudentPaste(person, enabled)}
                 />
                 <h4>{t("teachers")}</h4>
                 <MemberList people={detail.teachers} empty={t("noTeachers")} removeLabel={t("removeMember")} onRemove={remove} />
@@ -267,12 +299,14 @@ function MemberList({
   removeLabel,
   onRemove,
   onTranslation,
+  onPaste,
 }: {
   people: Person[]
   empty: string
   removeLabel: string
   onRemove: (person: Person) => void
   onTranslation?: (person: Person, enabled: boolean) => void
+  onPaste?: (person: Person, enabled: boolean) => void
 }) {
   const t = useT()
   if (people.length === 0) return <p className="note">{empty}</p>
@@ -295,6 +329,18 @@ function MemberList({
                   onChange={(event) => onTranslation(person, event.target.checked)}
                 />
                 <span>{t("translationShort")}</span>
+              </label>
+            )}
+            {onPaste && (
+              <label className="translation-switch">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={person.paste_enabled === false}
+                  aria-label={t("blockPasteForStudent", { name: person.display_name })}
+                  onChange={(event) => onPaste(person, !event.target.checked)}
+                />
+                <span>{t("blockPasteShort")}</span>
               </label>
             )}
             <button type="button" className="danger" onClick={() => onRemove(person)}>{removeLabel}</button>

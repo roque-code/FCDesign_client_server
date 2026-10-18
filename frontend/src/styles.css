@@ -341,7 +341,7 @@ label { display: grid; gap: 0.25rem; font-size: 0.92rem; }
 .member-list strong,
 .people-results strong { overflow: hidden; text-overflow: ellipsis; }
 
-.member-actions { display: flex; align-items: center; gap: 0.45rem; flex: none; }
+.member-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 0.45rem; flex: none; }
 
 .translation-switch {
   display: flex;

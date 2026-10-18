@@ -181,7 +181,13 @@ export function Workbench({
     let active = true
     function refresh() {
       void api.me().then((next) => {
-        if (!active || next.translation_enabled === account.translation_enabled) return
+        if (
+          !active ||
+          (next.translation_enabled === account.translation_enabled &&
+            next.paste_enabled === account.paste_enabled)
+        ) {
+          return
+        }
         if (next.role !== "teacher" && !next.translation_enabled) setTranslateOpen(false)
         onAccount(next)
       }).catch(() => undefined)
@@ -196,7 +202,7 @@ export function Workbench({
       window.removeEventListener("focus", refresh)
       document.removeEventListener("visibilitychange", onVisible)
     }
-  }, [account.translation_enabled, onAccount])
+  }, [account.translation_enabled, account.paste_enabled, onAccount])
 
   useEffect(() => {
     if (!settingsOpen && !functionsOpen) return
@@ -681,6 +687,7 @@ export function Workbench({
   }
 
   const translationOn = account.role === "teacher" || account.translation_enabled !== false
+  const pasteBlocked = account.role !== "teacher" && account.paste_enabled === false
 
   async function translate() {
     if (!translationOn) return
@@ -1459,9 +1466,11 @@ export function Workbench({
             onChange={edit}
             onCursor={setActiveLine}
             readOnly={reviewing}
+            pasteBlocked={pasteBlocked && !reviewing}
           />
           <div className="status-bar">
             <span>{saveLabel}</span>
+            {pasteBlocked && !reviewing ? <span>{t("pasteBlockedNote")}</span> : null}
             {activeLine !== null && <span>{t("cursorLine", { line: activeLine })}</span>}
           </div>
           <button

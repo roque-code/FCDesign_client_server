@@ -11,6 +11,7 @@ export type Account = {
   points: number
   rank: number
   translation_enabled: boolean
+  paste_enabled: boolean
   avatar: string | null
 }
 
@@ -26,6 +27,7 @@ export type Person = {
   role: Role
   member?: boolean
   translation_enabled?: boolean
+  paste_enabled?: boolean
 }
 
 export type CommunitySummary = {
@@ -34,6 +36,7 @@ export type CommunitySummary = {
   student_count: number
   teacher_count: number
   translation_enabled: boolean
+  paste_enabled: boolean
 }
 
 export type Community = CommunitySummary & {
@@ -654,6 +657,16 @@ export const api = {
     request<Community>(`/api/v1/communities/${communityId}/members/${userId}/`, {
       method: "PATCH",
       body: JSON.stringify({ translation_enabled: enabled }),
+    }),
+  setCommunityPaste: (id: string, enabled: boolean) =>
+    request<Community>(`/api/v1/communities/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify({ paste_enabled: enabled }),
+    }),
+  setMemberPaste: (communityId: string, userId: number, enabled: boolean) =>
+    request<Community>(`/api/v1/communities/${communityId}/members/${userId}/`, {
+      method: "PATCH",
+      body: JSON.stringify({ paste_enabled: enabled }),
     }),
   searchPeople: (query: string, communityId: string) =>
     request<{ results: Person[] }>(

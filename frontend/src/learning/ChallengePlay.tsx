@@ -61,11 +61,13 @@ export function ChallengePlay({
   pathId,
   onDone,
   onStanding,
+  pasteBlocked = false,
 }: {
   challengeId: string
   pathId?: string
   onDone: () => void
   onStanding?: (standing: { points: number; rank: number }) => void
+  pasteBlocked?: boolean
 }) {
   const t = useT()
   const locale = useLocale()
@@ -445,7 +447,9 @@ export function ChallengePlay({
                       onToggleBreakpoint={() => undefined}
                       onChange={setCode}
                       onCursor={() => undefined}
+                      pasteBlocked={pasteBlocked}
                     />
+                    {pasteBlocked ? <p className="note">{t("pasteBlockedNote")}</p> : null}
                   </div>
                 ) : null}
                 {tools.includes("diagrama") ? (

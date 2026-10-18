@@ -17,6 +17,7 @@ class Community(models.Model):
     )
     name = models.CharField(max_length=80)
     translation_enabled = models.BooleanField(default=True)
+    paste_enabled = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -39,6 +40,7 @@ class Membership(models.Model):
     )
     # None hereda el grupo. True o False es la decisión para este alumno.
     translation_enabled = models.BooleanField(null=True, default=None)
+    paste_enabled = models.BooleanField(null=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

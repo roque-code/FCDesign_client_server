@@ -97,6 +97,7 @@ export function LearningLab({
           challengeId={challengeId}
           pathId={pathId ?? undefined}
           onStanding={(standing) => onAccount({ ...account, ...standing })}
+          pasteBlocked={account.role !== "teacher" && account.paste_enabled === false}
           onDone={() => {
             setChallengeId(null)
             setMode("path")
