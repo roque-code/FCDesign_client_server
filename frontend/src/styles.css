@@ -177,6 +177,14 @@ form { display: grid; gap: 0.55rem; }
 
 label { display: grid; gap: 0.25rem; font-size: 0.92rem; }
 
+.confirm-banner {
+  margin: 0;
+  padding: 0.7rem 1rem;
+  background: var(--accent-soft);
+  color: var(--ink);
+  text-align: center;
+}
+
 .error { color: var(--danger); margin: 0; }
 
 .note { color: var(--muted); margin: 0; }

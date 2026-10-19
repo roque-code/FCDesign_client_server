@@ -2,6 +2,7 @@ from django.urls import path
 
 from apps.accounts.views import (
     CsrfView,
+    EmailConfirmOpenView,
     EmailConfirmResendView,
     EmailConfirmView,
     LoginView,
@@ -16,6 +17,7 @@ urlpatterns = [
     path("csrf/", CsrfView.as_view(), name="csrf"),
     path("register/", RegisterView.as_view(), name="register"),
     path("confirm-email/", EmailConfirmView.as_view(), name="confirm-email"),
+    path("confirm-email/open/", EmailConfirmOpenView.as_view(), name="confirm-email-open"),
     path("confirm-email/resend/", EmailConfirmResendView.as_view(), name="confirm-email-resend"),
     path("login/", LoginView.as_view(), name="login"),
     path("logout/", LogoutView.as_view(), name="logout"),

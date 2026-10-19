@@ -15,7 +15,7 @@ function readLaunch(): URLSearchParams {
   return new URLSearchParams(raw.startsWith("?") ? raw.slice(1) : raw)
 }
 
-export function AuthScreen({ onSuccess }: { onSuccess: (account: Account) => void }) {
+export function AuthScreen({ onSuccess, notice = "" }: { onSuccess: (account: Account) => void; notice?: string }) {
   const t = useT()
   const launch = readLaunch()
   const resetUid = launch.get("restablecer")
@@ -25,36 +25,13 @@ export function AuthScreen({ onSuccess }: { onSuccess: (account: Account) => voi
   const [password, setPassword] = useState("")
   const [displayName, setDisplayName] = useState("")
   const [role, setRole] = useState<Role>("student")
-  const [message, setMessage] = useState("")
+  const [message, setMessage] = useState(notice)
   const [error, setError] = useState("")
   const [pendingEmail, setPendingEmail] = useState("")
-  const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
-    const params = readLaunch()
-    const uid = params.get("confirmar")
-    const token = params.get("token")
-    if (!uid || !token) return
-    setConfirming(true)
-    setError("")
-    void api
-      .confirmEmail(uid, token)
-      .then((account) => {
-        window.history.replaceState({}, "", window.location.pathname)
-        onSuccess(account)
-      })
-      .catch((caught: unknown) => {
-        const failure = caught instanceof ApiError ? caught : null
-        if (failure?.code === "already_confirmed") {
-          window.history.replaceState({}, "", window.location.pathname)
-          setMode("entrar")
-          setMessage(failure.message)
-        } else {
-          setError(failure?.message ?? t("confirmError"))
-        }
-      })
-      .finally(() => setConfirming(false))
-  }, [onSuccess])
+    if (notice) setMessage(notice)
+  }, [notice])
 
   async function resend() {
     setError("")
@@ -159,7 +136,6 @@ export function AuthScreen({ onSuccess }: { onSuccess: (account: Account) => voi
               />
             </label>
           )}
-          {confirming && <p className="note">{t("confirming")}</p>}
           {error && <p className="error">{error}</p>}
           {message && <p className="note">{message}</p>}
           {pendingEmail && (

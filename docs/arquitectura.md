@@ -201,12 +201,12 @@ sequenceDiagram
     W->>M: SMTP, enlace con uid y token
     W-->>U: pending_confirmation y la dirección del buzón
     U->>M: Abre el mensaje en el puerto 8025
-    U->>W: POST /api/v1/auth/confirm-email/
-    W->>W: Marca el correo y abre la sesión
-    W-->>U: La cuenta
+    U->>W: GET /api/v1/auth/confirm-email/open/?confirmar&token
+    W->>W: Marca el correo en la base compartida
+    W-->>U: Redirige a la aplicación
 ```
 
-El enlace apunta a `TRAZA_PUBLIC_ORIGIN` con `confirmar` y `token`. El token deja de servir cuando `email_confirmed` pasa a verdadero. Entrar antes de eso responde `email_unconfirmed`. Reenviar usa `POST /api/v1/auth/confirm-email/resend/` y, si la cuenta sigue pendiente, manda otro mensaje. Repetir el alta con el mismo correo pendiente actualiza la contraseña y reenvía. Un correo ya confirmado responde que ya está registrado.
+El enlace del correo es `GET /api/v1/auth/confirm-email/open/` en `TRAZA_PUBLIC_ORIGIN`, con `confirmar` y `token`. Confirmar en otro equipo deja `email_confirmed` en verdadero: la cuenta entra desde cualquiera. Si ese navegador ya tiene otra sesión, no la sustituye. El token deja de servir cuando el correo pasa a confirmado. Entrar antes de eso responde `email_unconfirmed`. La aplicación también acepta `POST /api/v1/auth/confirm-email/` al abrir `/?confirmar=`. Reenviar usa `POST /api/v1/auth/confirm-email/resend/` y, si la cuenta sigue pendiente, manda otro mensaje. Repetir el alta con el mismo correo pendiente actualiza la contraseña y reenvía. Un correo ya confirmado responde que ya está registrado.
 
 Las cuentas creadas antes de esta columna, y las de la máquina sin la variable, quedan confirmadas. El restablecimiento de contraseña usa el mismo SMTP. En las pruebas el buzón es el de memoria y la confirmación está apagada, así el alta de la suite sigue entrando al momento.
 

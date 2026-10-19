@@ -183,6 +183,102 @@ def test_register_sends_confirmation_before_login(client):
     assert duplicate.status_code == 400
 
 
+@override_settings(
+    EMAIL_CONFIRMATION_REQUIRED=True,
+    TRAZA_PUBLIC_ORIGIN="http://127.0.0.1:18080",
+    TRAZA_MAIL_UI="http://127.0.0.1:8025",
+)
+def test_confirmar_en_otro_equipo_permite_entrar_en_el_primero(client):
+    created = register(client, email="nuevo@ejemplo.test", display_name="Nuevo")
+    assert created.status_code == 201
+    query = _confirmation_query()
+    link = next(line for line in mail.outbox[-1].body.splitlines() if line.startswith("http"))
+    assert "/api/v1/auth/confirm-email/open/" in link
+
+    teacher = APIClient(enforce_csrf_checks=True)
+    refresh_csrf(teacher)
+    register(teacher, email="docente@ejemplo.test", role="teacher")
+    User.objects.filter(email="docente@ejemplo.test").update(email_confirmed=True)
+    refresh_csrf(teacher)
+    entered = teacher.post(
+        "/api/v1/auth/login/",
+        {"email": "docente@ejemplo.test", "password": PASSWORD},
+        format="json",
+    )
+    assert entered.status_code == 200, entered.content
+    refresh_csrf(teacher)
+    kept = teacher.post(
+        "/api/v1/auth/confirm-email/",
+        {"uid": query["confirmar"][0], "token": query["token"][0]},
+        format="json",
+    )
+    assert kept.status_code == 200, kept.content
+    assert kept.json()["confirmed"] is True
+    assert teacher.get("/api/v1/auth/me/").json()["email"] == "docente@ejemplo.test"
+
+    refresh_csrf(client)
+    logged = client.post(
+        "/api/v1/auth/login/",
+        {"email": "nuevo@ejemplo.test", "password": PASSWORD},
+        format="json",
+    )
+    assert logged.status_code == 200, logged.content
+    assert logged.json()["email"] == "nuevo@ejemplo.test"
+
+
+@override_settings(
+    EMAIL_CONFIRMATION_REQUIRED=True,
+    TRAZA_PUBLIC_ORIGIN="http://127.0.0.1:18080",
+    TRAZA_MAIL_UI="http://127.0.0.1:8025",
+)
+def test_el_enlace_del_correo_confirma_aunque_otra_sesion_este_abierta(client):
+    register(client, email="otro@ejemplo.test", display_name="Otro")
+    query = _confirmation_query()
+    teacher = APIClient(enforce_csrf_checks=True)
+    refresh_csrf(teacher)
+    register(teacher, email="docente.enlace@ejemplo.test", role="teacher")
+    User.objects.filter(email="docente.enlace@ejemplo.test").update(email_confirmed=True)
+    refresh_csrf(teacher)
+    assert (
+        teacher.post(
+            "/api/v1/auth/login/",
+            {"email": "docente.enlace@ejemplo.test", "password": PASSWORD},
+            format="json",
+        ).status_code
+        == 200
+    )
+    opened = teacher.get(
+        "/api/v1/auth/confirm-email/open/",
+        {"confirmar": query["confirmar"][0], "token": query["token"][0]},
+    )
+    assert opened.status_code == 302
+    assert opened["Location"] == "/?correo=confirmado"
+    assert teacher.get("/api/v1/auth/me/").json()["email"] == "docente.enlace@ejemplo.test"
+    assert User.objects.get(email="otro@ejemplo.test").email_confirmed is True
+
+    fresh = APIClient(enforce_csrf_checks=True)
+    refresh_csrf(fresh)
+    again = register(fresh, email="libre@ejemplo.test")
+    assert again.status_code == 201
+    fresh_query = _confirmation_query()
+    visitor = APIClient(enforce_csrf_checks=True)
+    refresh_csrf(visitor)
+    visited = visitor.get(
+        "/api/v1/auth/confirm-email/open/",
+        {"confirmar": fresh_query["confirmar"][0], "token": fresh_query["token"][0]},
+    )
+    assert visited.status_code == 302
+    assert visited["Location"] == "/"
+    assert visitor.get("/api/v1/auth/me/").json()["email"] == "libre@ejemplo.test"
+    refresh_csrf(fresh)
+    home = fresh.post(
+        "/api/v1/auth/login/",
+        {"email": "libre@ejemplo.test", "password": PASSWORD},
+        format="json",
+    )
+    assert home.status_code == 200, home.content
+
+
 def test_login_rate_limit_and_csrf(client):
     for _ in range(3):
         failed = client.post(

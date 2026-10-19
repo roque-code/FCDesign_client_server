@@ -80,7 +80,13 @@ email_confirm_token = EmailConfirmTokenGenerator()
 
 def _open_links(kind: str, uid: str, token: str) -> str:
     """La web sigue siendo el enlace principal. El esquema abre la aplicación si está instalada."""
-    web = f"{settings.TRAZA_PUBLIC_ORIGIN}/?{urlencode({kind: uid, 'token': token})}"
+    if kind == "confirmar":
+        web = (
+            f"{settings.TRAZA_PUBLIC_ORIGIN}/api/v1/auth/confirm-email/open/"
+            f"?{urlencode({'confirmar': uid, 'token': token})}"
+        )
+    else:
+        web = f"{settings.TRAZA_PUBLIC_ORIGIN}/?{urlencode({kind: uid, 'token': token})}"
     app = f"traza://open/?{urlencode({kind: uid, 'token': token})}"
     return f"{web}\n{app}"
 

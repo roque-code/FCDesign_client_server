@@ -113,6 +113,15 @@ export type PendingConfirmation = {
   message: string
 }
 
+export type EmailConfirmed = {
+  confirmed: true
+  message: string
+}
+
+export function isAccount(value: Account | EmailConfirmed): value is Account {
+  return typeof (value as Account).id === "number"
+}
+
 export type Person = {
   id: number
   display_name: string
@@ -727,7 +736,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
   confirmEmail: (uid: string, token: string) =>
-    request<Account>("/api/v1/auth/confirm-email/", {
+    request<Account | EmailConfirmed>("/api/v1/auth/confirm-email/", {
       method: "POST",
       body: JSON.stringify({ uid, token }),
     }),

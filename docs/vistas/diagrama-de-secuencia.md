@@ -15,9 +15,9 @@ sequenceDiagram
     Web->>Buzon: SMTP, enlace con uid y token
     Web-->>Persona: pending_confirmation
     Persona->>Buzon: Abre el mensaje en el puerto 8025
-    Persona->>Web: POST /api/v1/auth/confirm-email/
-    Web->>Web: Marca el correo y abre la sesión
-    Web-->>Persona: Cuenta y ejemplos
+    Persona->>Web: GET /api/v1/auth/confirm-email/open/?confirmar&token
+    Web->>Web: Marca el correo, también si el enlace se abre en otro equipo
+    Web-->>Persona: Entra, o conserva la sesión que ya había
 ```
 
 Si entra antes de confirmar, `POST /api/v1/auth/login/` responde `email_unconfirmed` y no abre sesión.

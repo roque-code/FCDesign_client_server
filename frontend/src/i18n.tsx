@@ -171,6 +171,7 @@ const es = {
   password: "Contraseña",
   confirming: "Confirmando el correo…",
   confirmError: "No se pudo confirmar el correo.",
+  emailConfirmedAnywhere: "El correo quedó confirmado. Esa cuenta ya puede entrar desde cualquier equipo.",
   resendError: "No se pudo reenviar el correo.",
   resend: "Reenviar confirmación",
   sendInstructions: "Enviar instrucciones",
@@ -917,6 +918,7 @@ const en: { [Key in keyof typeof es]: string } = {
   password: "Password",
   confirming: "Confirming the email…",
   confirmError: "The email could not be confirmed.",
+  emailConfirmedAnywhere: "The email is confirmed. That account can sign in from any computer.",
   resendError: "The email could not be sent again.",
   resend: "Resend confirmation",
   sendInstructions: "Send instructions",
@@ -1505,6 +1507,8 @@ export function translate(locale: Locale, key: MessageKey, vars?: Record<string,
 }
 
 const SERVER_TEXT: Record<string, MessageKey> = {
+  "El correo quedó confirmado. Esa cuenta ya puede entrar desde cualquier equipo.": "emailConfirmedAnywhere",
+  "El correo ya está confirmado. Entra con tu contraseña.": "emailConfirmedAnywhere",
   "El tipo de cuenta se elige al registrarse y no se puede cambiar.": "roleFixed",
   "Esta función solo está disponible en la aplicación.": "browserForbidden",
   "Tu nivel no incluye esta función.": "planForbidden",
