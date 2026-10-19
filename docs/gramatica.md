@@ -243,7 +243,9 @@ Consecuencias:
 - `NO a Y b` es `(NO a) Y b`.
 - `a O b Y c` es `a O (b Y c)`.
 
-`!=` es sinónimo de `<>`.
+`!=` es sinónimo de `<>`. `%` es sinónimo de `MOD`.
+
+El botón **Operadores** del editor muestra esta lista y el mismo orden: `^`, luego `* / DIV MOD`, luego `+` y `-`, luego las comparaciones, y al final `NO`, `Y` y `O`. `<-` asigna y no va dentro de una expresión. Con el idioma en inglés, el panel escribe `Div`, `Mod`, `Not`, `And` y `Or`.
 
 ## 6. Tipos
 

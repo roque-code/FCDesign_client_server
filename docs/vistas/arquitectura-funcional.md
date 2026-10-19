@@ -50,7 +50,8 @@ flowchart TB
 | Ejecutar | Consola con `Escribir` y con cada `Leer` aceptado |
 | Depurar | Paso, entrar, salir, continuar, pausa, detener, reiniciar y puntos de interrupción |
 | Diagrama | Figuras desde el AST, descarga SVG, PNG y PDF, e impresión |
-| Laboratorio | Retos de clasificar, ordenar, construir y predecir, con el mismo intérprete |
+| Laboratorio | Retos de clasificar, ordenar, construir y predecir, con el mismo intérprete. El docente descarga un tipo en CSV |
+| Ayuda | Operadores muestra símbolos y ligadura. Manuales abre el documento en la aplicación y descarga el PDF |
 | Comunidades | Lista de alumnos y docentes ya registrados, tope de 30 comunidades y 200 personas. Traducción y pegado nacen habilitados y se pueden apagar |
 | Cuenta | Nombre, foto JPG o PNG y contraseña. El tipo de cuenta no cambia |
 | Nivel | Menús, topes de proyectos y códigos, y si el navegador abre la aplicación |

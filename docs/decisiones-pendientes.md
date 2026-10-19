@@ -159,7 +159,7 @@ La traducción nace habilitada. El docente la apaga para una comunidad o para un
 
 ### Práctica de concurso y CSV
 
-La ruta **Práctica de concurso** trae cincuenta problemas de creación de código, con tres casos cada uno. El banco del sistema se llama **Banco de concurso**. Un CSV del docente agrega retos a su propio banco, no a ese. El formato está en [ejemplos-de-retos.md](ejemplos-de-retos.md). El avance de una ruta se descarga como CSV de notas.
+La ruta **Práctica de concurso** trae cincuenta problemas de creación de código, con tres casos cada uno. El banco del sistema se llama **Banco de concurso**. Un CSV del docente agrega retos a su propio banco, no al de concurso. **Descargar CSV**, en Concurso y con el tipo Construir, entrega esos cincuenta problemas en `retos-construir-concurso.csv`. La carga sigue yendo al banco del docente y admite hasta 250 filas y 1 MB. El formato está en [ejemplos-de-retos.md](ejemplos-de-retos.md). El avance de una ruta se descarga como CSV de notas.
 
 ### Aplicación de escritorio
 

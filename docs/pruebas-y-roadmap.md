@@ -63,7 +63,7 @@ Algoritmos completos que deben pasar como fixtures, en la fase que los haga ejec
 - El alta no crea un administrador. `create_admin` sí. El nivel gratis limita proyectos y códigos. Sin la cabecera de la aplicación, el navegador recibe 403 fuera de la cuenta.
 - Pegar se apaga por comunidad o por alumno. El docente sigue pudiendo pegar si su nivel lo incluye.
 - Un docente lee y ejecuta el algoritmo de su alumno sin crear una versión. Otra persona recibe 404.
-- El CSV de una ruta trae una fila por alumno y la nota. El CSV de retos, si una fila falla, no guarda ninguna.
+- El CSV de una ruta trae una fila por alumno y la nota. El docente descarga los retos de un tipo; un alumno recibe 403. La carga admite hasta 250 filas y 1 MB y, si una fila falla, no guarda ninguna.
 - La ruta Práctica de concurso publica 50 retos. El primero está abierto y el segundo, cerrado.
 - Ejecutar persiste salida y error, y no persiste cada línea del depurador.
 - El autoguardado no multiplica versiones; ejecutar con fuente nuevo sí abre versión.

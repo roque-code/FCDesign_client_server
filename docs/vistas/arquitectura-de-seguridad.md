@@ -43,6 +43,7 @@ flowchart TB
 | Traducción | No ejecuta el texto generado ni lo guarda en la base. Responde 403 si el docente o el nivel la apagaron |
 | Pegar | El editor rechaza el pegado. El texto se sigue escribiendo. La foto del perfil solo acepta JPG o PNG de hasta 120 KB |
 | Repaso | El docente lee algoritmos solo de alumnos de sus comunidades. No crea versiones |
+| Retos en CSV | Solo un docente descarga el banco. La carga no escribe en el banco de concurso |
 
 El enlace de confirmación lleva `uid` y `token` en la query del origen público. Al confirmar, el token deja de servir. Entrar antes responde `email_unconfirmed`.
 

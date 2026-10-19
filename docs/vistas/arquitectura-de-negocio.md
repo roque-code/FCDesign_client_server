@@ -7,7 +7,7 @@ Fecha de referencia: 2026-10-19. Traza enseña programación estructurada. El ca
 | Actor | Objetivo |
 | --- | --- |
 | Estudiante | Practicar algoritmos con diagnóstico de línea y columna, consola y diagrama |
-| Docente | Formar comunidades, publicar rutas, apagar traducción y pegado, ver el tablero, descargar notas y abrir el trabajo de un alumno, dentro de su nivel |
+| Docente | Formar comunidades, publicar rutas, apagar traducción y pegado, ver el tablero, descargar notas y retos, y abrir el trabajo de un alumno, dentro de su nivel |
 | Administrador | Definir niveles, precios y funciones, y asignar un nivel a una cuenta ya creada |
 | Plataforma | Conservar la cuenta, el fuente y el intento, y ejecutar el programa fuera del proceso web |
 

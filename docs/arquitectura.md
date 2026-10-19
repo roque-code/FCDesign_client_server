@@ -310,7 +310,7 @@ El runner no abre SMTP ni PostgreSQL. El detalle del contenedor está en [ejecuc
 
 El camino del editor es texto → AST. El del laboratorio es bloques → AST → texto, validación, diagrama y ejecución. El adaptador está en `language_core/block_adapter.py`. La impresora, en `pseudocode.py`. Abrir un `.txt` en la práctica libre usa `block_import.py` y el parser del editor.
 
-La ruta de sistema Fundamentos publica treinta y cuatro retos: clasificar, ordenar, construir y predecir, con `Si`, `Mientras`, `Segun`, `Para`, `Repetir`, arreglos y funciones. La ruta Práctica de concurso publica cincuenta problemas de creación de código, con varios casos de entrada y salida para calificarlos. Un docente ve el avance de las cuentas de sus comunidades, arma rutas propias, toma retos del banco y los asigna a una comunidad o a un alumno. También puede cargar retos desde un CSV; el formato de cada tipo está en [ejemplos-de-retos.md](ejemplos-de-retos.md). La práctica libre se guarda en `learning.Practice` y no aparece entre los algoritmos del banco de trabajo.
+La ruta de sistema Fundamentos publica treinta y cuatro retos: clasificar, ordenar, construir y predecir, con `Si`, `Mientras`, `Segun`, `Para`, `Repetir`, arreglos y funciones. La ruta Práctica de concurso publica cincuenta problemas de creación de código, con varios casos de entrada y salida para calificarlos. Un docente ve el avance de las cuentas de sus comunidades, arma rutas propias, toma retos del banco y los asigna a una comunidad o a un alumno. También puede cargar retos desde un CSV y descargar los de un tipo. En el catálogo el archivo se llama `retos-clasificar.csv` (o `ordenar`, `construir`, `predecir`) e incluye el banco del sistema y los retos propios. En el concurso, `retos-construir-concurso.csv` trae los cincuenta problemas de creación. Un alumno no descarga ese archivo. La carga admite hasta 250 retos y 1 MB, entra solo al banco del docente y, si una fila falla, no se guarda ninguna. El formato está en [ejemplos-de-retos.md](ejemplos-de-retos.md). La práctica libre se guarda en `learning.Practice` y no aparece entre los algoritmos del banco de trabajo.
 
 Los puntos del reto se suman una vez, al terminarlo, en `Profile.points`. El puesto es cuántos perfiles tienen más puntos, más uno. La identidad de la barra muestra los dos números.
 
@@ -452,6 +452,8 @@ La ventana tiene proyectos a la izquierda, el editor y la consola en el centro, 
 - **Repaso** abre, en solo lectura, los proyectos de un alumno de las comunidades del docente.
 - **Actualizar** vuelve a cargar proyectos, algoritmos y comunidades desde el servidor.
 - **Funciones** lista la biblioteca.
+- **Operadores** abre asignación, aritmética, comparación, lógica y paréntesis, con el orden de ligadura. No cambia el fuente.
+- **Manuales** abre el manual del lenguaje y el del alumno dentro de la aplicación, y descarga el PDF. El docente ve además el manual del docente. Los archivos salen de `docs/` y el cliente los publica en `/manuals/`.
 - **Configuración** reúne idioma, cuerpo, tema, punto y coma y base de índices. El idioma es de la cuenta. El punto y coma y la base de índices, del algoritmo abierto.
 - Cada proyecto y cada algoritmo se renombra, se descarga como `{nombre}.txt` y el algoritmo se puede eliminar.
 - El tabulador indenta. La barra bajo el código muestra el guardado y la línea del cursor.

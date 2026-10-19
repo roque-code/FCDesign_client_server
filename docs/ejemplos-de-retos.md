@@ -143,7 +143,7 @@ FinAlgoritmo
 
 ## Archivo CSV
 
-En **Laboratorio**, **Banco**, **Formato CSV** se ve el formato y se descarga una plantilla. **Descargar CSV** guarda los retos de un tipo para que otro docente los suba. **Subir CSV** agrega los retos al banco del docente. Un archivo admite hasta 250 retos y 1 MB. Si una fila falla, no se guarda ninguna.
+En **Laboratorio**, **Banco**, **Formato CSV** se ve el formato y se descarga una plantilla. **Descargar CSV** guarda los retos del tipo elegido en el estante abierto, para que otro docente los suba. Con el tipo en Todos, la pantalla pide elegir Clasificar, Ordenar, Construir o Predecir. El catálogo produce `retos-clasificar.csv`, `retos-ordenar.csv`, `retos-construir.csv` o `retos-predecir.csv`, con el banco del sistema y los retos de quien descarga. El concurso produce `retos-construir-concurso.csv`, con los cincuenta problemas de creación. Un alumno no puede descargar. **Subir CSV** agrega los retos al banco del docente, no al concurso. Un archivo admite hasta 250 retos y 1 MB. Si una fila falla, no se guarda ninguna.
 
 La primera fila es el encabezado. El separador es la coma. Si el encabezado trae más punto y coma que comas, el separador pasa a ser el punto y coma. Un campo con coma, salto de línea o comillas va entre comillas dobles. Las listas internas se separan con `|`, así que no chocan con el punto y coma de una hoja en español.
 
