@@ -1,32 +1,27 @@
 import { useEffect, useState } from "react"
-import mammoth from "mammoth"
 
 import type { AccountRole } from "../api"
 import { useLocale, useT, type MessageKey } from "../i18n"
 
 type Manual = {
-  viewHref: string
-  downloadHref: string
+  href: string
   file: string
   label: MessageKey
 }
 
 const MANUALS: Record<"language" | "student" | "teacher", Manual> = {
   language: {
-    viewHref: "/manuals/lenguaje.docx",
-    downloadHref: "/manuals/lenguaje.pdf",
+    href: "/manuals/lenguaje.pdf",
     file: "Manual-del-lenguaje.pdf",
     label: "languageManual",
   },
   student: {
-    viewHref: "/manuals/alumno.docx",
-    downloadHref: "/manuals/alumno.pdf",
+    href: "/manuals/alumno.pdf",
     file: "Manual-del-alumno.pdf",
     label: "studentManual",
   },
   teacher: {
-    viewHref: "/manuals/docente.docx",
-    downloadHref: "/manuals/docente.pdf",
+    href: "/manuals/docente.pdf",
     file: "Manual-del-docente.pdf",
     label: "teacherManual",
   },
@@ -156,7 +151,7 @@ export function GuideButtons({ role }: { role: AccountRole }) {
             <h2>{t("manualsTitle")}</h2>
             <ul>
               {manuals.map((manual) => (
-                <li key={manual.downloadHref} className="manual-row">
+                <li key={manual.href} className="manual-row">
                   <strong>{t(manual.label)}</strong>
                   <span>
                     <button
@@ -168,7 +163,7 @@ export function GuideButtons({ role }: { role: AccountRole }) {
                     >
                       {t("viewManual")}
                     </button>
-                    <a className="manual-download" href={manual.downloadHref} download={manual.file}>
+                    <a className="manual-download" href={manual.href} download={manual.file}>
                       {t("downloadManual")}
                     </a>
                   </span>
@@ -185,30 +180,6 @@ export function GuideButtons({ role }: { role: AccountRole }) {
 
 function ManualView({ manual, onClose }: { manual: Manual; onClose: () => void }) {
   const t = useT()
-  const [html, setHtml] = useState("")
-  const [failed, setFailed] = useState(false)
-
-  useEffect(() => {
-    let active = true
-    setHtml("")
-    setFailed(false)
-    void fetch(manual.viewHref)
-      .then(async (response) => {
-        if (!response.ok) throw new Error("missing")
-        const arrayBuffer = await response.arrayBuffer()
-        const result = await mammoth.convertToHtml(
-          { arrayBuffer },
-          { convertImage: mammoth.images.dataUri },
-        )
-        if (active) setHtml(result.value)
-      })
-      .catch(() => {
-        if (active) setFailed(true)
-      })
-    return () => {
-      active = false
-    }
-  }, [manual])
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -230,15 +201,13 @@ function ManualView({ manual, onClose }: { manual: Manual; onClose: () => void }
         <header>
           <h2>{t(manual.label)}</h2>
           <span>
-            <a className="manual-download" href={manual.downloadHref} download={manual.file}>
+            <a className="manual-download" href={manual.href} download={manual.file}>
               {t("downloadManual")}
             </a>
             <button type="button" onClick={onClose}>{t("close")}</button>
           </span>
         </header>
-        {failed ? <p className="error">{t("manualError")}</p> : null}
-        {!failed && html === "" ? <p className="note">{t("manualLoading")}</p> : null}
-        {html !== "" ? <article className="manual-sheet" dangerouslySetInnerHTML={{ __html: html }} /> : null}
+        <iframe className="manual-frame" title={t(manual.label)} src={manual.href} />
       </section>
     </div>
   )
