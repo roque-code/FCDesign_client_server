@@ -20,7 +20,7 @@ from apps.learning.authoring import (
     update_entry,
     update_path,
 )
-from apps.learning.csv_import import formats_payload, import_challenges, template_csv
+from apps.learning.csv_import import export_challenges, formats_payload, import_challenges, template_csv
 from config.errors import DomainError
 
 
@@ -36,10 +36,13 @@ class BankView(APIView):
 
 class ChallengeCsvView(APIView):
     def get(self, request: Request) -> Response:
-        _teacher(request)
+        teacher = _teacher(request)
         kind = request.query_params.get("tipo")
         if not isinstance(kind, str) or not kind:
             return Response(formats_payload())
+        if request.query_params.get("contenido") == "retos":
+            shelf = request.query_params.get("banco") or "catalogo"
+            return Response(export_challenges(teacher, kind, shelf))
         return Response({"tipo": kind, "filename": f"{kind}.csv", "csv": template_csv(kind)})
 
     def post(self, request: Request) -> Response:

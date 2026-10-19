@@ -1,6 +1,6 @@
 # Arquitectura funcional
 
-Fecha de referencia: 2026-10-17. Las funciones están agrupadas por lo que la persona hace, no por el archivo que las implementa.
+Fecha de referencia: 2026-10-19. Las funciones están agrupadas por lo que la persona hace, no por el archivo que las implementa.
 
 ```mermaid
 flowchart TB
@@ -9,6 +9,8 @@ flowchart TB
         confirmar[Confirmar correo]
         entrar[Entrar y salir]
         clave[Restablecer contraseña]
+        ficha[Nombre, foto y contraseña]
+        nivel[Nivel y menús]
     end
     subgraph trabajo [Banco de trabajo]
         proy[Proyectos y algoritmos]
@@ -49,7 +51,9 @@ flowchart TB
 | Depurar | Paso, entrar, salir, continuar, pausa, detener, reiniciar y puntos de interrupción |
 | Diagrama | Figuras desde el AST, descarga SVG, PNG y PDF, e impresión |
 | Laboratorio | Retos de clasificar, ordenar, construir y predecir, con el mismo intérprete |
-| Comunidades | Lista de alumnos y docentes ya registrados, tope de 30 comunidades y 200 personas. La traducción nace habilitada y se puede apagar |
+| Comunidades | Lista de alumnos y docentes ya registrados, tope de 30 comunidades y 200 personas. Traducción y pegado nacen habilitados y se pueden apagar |
+| Cuenta | Nombre, foto JPG o PNG y contraseña. El tipo de cuenta no cambia |
+| Nivel | Menús, topes de proyectos y códigos, y si el navegador abre la aplicación |
 | Repaso | El docente abre los proyectos del alumno en solo lectura. No crea versiones |
 | Notas | Tablero por alumno y CSV de una ruta. La nota promedia puntuaciones de 0 a 100 |
 | Idioma | Textos, bloques, figuras y palabras reservadas en español o en inglés. El fuente guardado no se reescribe |

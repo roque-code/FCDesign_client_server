@@ -59,7 +59,9 @@ Algoritmos completos que deben pasar como fixtures, en la fase que los haga ejec
 - Un usuario no lee ni modifica el proyecto de otro: la respuesta es 404.
 - El enlace revocado o caducado no entrega el fuente.
 - Validar no crea una ejecución.
-- Traducir no crea una ejecución y, con un fuente válido, devuelve los siete lenguajes. Si el docente la apagó, responde 403.
+- Traducir no crea una ejecución y, con un fuente válido, devuelve los siete lenguajes. Si el docente o el nivel la apagaron, responde 403.
+- El alta no crea un administrador. `create_admin` sí. El nivel gratis limita proyectos y códigos. Sin la cabecera de la aplicación, el navegador recibe 403 fuera de la cuenta.
+- Pegar se apaga por comunidad o por alumno. El docente sigue pudiendo pegar si su nivel lo incluye.
 - Un docente lee y ejecuta el algoritmo de su alumno sin crear una versión. Otra persona recibe 404.
 - El CSV de una ruta trae una fila por alumno y la nota. El CSV de retos, si una fila falla, no guarda ninguna.
 - La ruta Práctica de concurso publica 50 retos. El primero está abierto y el segundo, cerrado.

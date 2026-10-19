@@ -19,6 +19,7 @@ import { applyConsoleOutput } from "../console/output"
 import { FlowView } from "../diagram/FlowView"
 import { CodeEditor } from "../editor/CodeEditor"
 import { editorKeywords } from "../dialect"
+import { GuideButtons } from "../help/Guides"
 import { translatedMessage, useLocale, useT, type Locale } from "../i18n"
 import {
   inInstalledApp,
@@ -1122,6 +1123,7 @@ export function Workbench({
             )}
           </div>
           )}
+          <GuideButtons role={account.role} />
           <div className="settings" ref={settingsRef}>
             <button
               className="top-action"

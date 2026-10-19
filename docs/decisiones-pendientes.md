@@ -149,6 +149,10 @@ La cuenta elige español o inglés en **Configuración**. El valor vive en `Edit
 
 El algoritmo se puede emitir en Python, JavaScript, TypeScript, Java, C, C++ y C#. El emisor es `language_core/translate.py`. Recorre el AST de Validar, conserva comentarios, base de índices, `DIV`, `MOD` y referencias, y no ejecuta el programa. Un error deja la lista de traducciones vacía. `Segun` usa `switch` o `match` cuando el tipo cabe; si no, una cadena de `Si`. `Para` incluye los dos extremos. `Repetir` niega la condición de `Hasta Que`.
 
+### Cuenta y pegado
+
+`PATCH /api/v1/auth/me/` cambia el nombre, una foto JPG o PNG de hasta 120 KB y la contraseña, si se envía la actual. El tipo de cuenta no cambia. Pegar sigue la misma regla que traducir: nace habilitado, el docente lo apaga por comunidad o por alumno, y el nivel puede tenerlo apagado de antemano. El editor deja escribir.
+
 ### Traducción por comunidad
 
 La traducción nace habilitada. El docente la apaga para una comunidad o para un alumno. El ajuste del alumno, si no es nulo, manda. Si el alumno está en varias comunidades y en una está apagada, no traduce. Un docente siempre puede. El repaso de un alumno abre sus proyectos en solo lectura y no crea versiones.

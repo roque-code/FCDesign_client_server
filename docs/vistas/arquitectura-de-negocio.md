@@ -1,13 +1,13 @@
 # Arquitectura de negocio
 
-Fecha de referencia: 2026-10-17. Traza enseña programación estructurada. El canónico del lenguaje es el español y la cuenta puede ver la interfaz y las palabras reservadas en inglés. El estudiante escribe pseudocódigo, lo valida, lo ejecuta, lo depura, ve el diagrama y puede pedir el mismo algoritmo en otro lenguaje de programación. El docente agrupa cuentas ya registradas y sigue el avance del laboratorio. La ventana de escritorio ofrece lo mismo: el intérprete corre en la máquina y la cuenta sigue en el servidor.
+Fecha de referencia: 2026-10-19. Traza enseña programación estructurada. El canónico del lenguaje es el español y la cuenta puede ver la interfaz y las palabras reservadas en inglés. El estudiante escribe pseudocódigo, lo valida, lo ejecuta, lo depura, ve el diagrama y puede pedir el mismo algoritmo en otro lenguaje de programación. El docente agrupa cuentas ya registradas y sigue el avance del laboratorio. La ventana de escritorio ofrece lo mismo: el intérprete corre en la máquina y la cuenta sigue en el servidor.
 
 ## Actores
 
 | Actor | Objetivo |
 | --- | --- |
 | Estudiante | Practicar algoritmos con diagnóstico de línea y columna, consola y diagrama |
-| Docente | Formar comunidades, publicar rutas, apagar la traducción, ver el tablero, descargar notas y abrir el trabajo de un alumno, dentro de su nivel |
+| Docente | Formar comunidades, publicar rutas, apagar traducción y pegado, ver el tablero, descargar notas y abrir el trabajo de un alumno, dentro de su nivel |
 | Administrador | Definir niveles, precios y funciones, y asignar un nivel a una cuenta ya creada |
 | Plataforma | Conservar la cuenta, el fuente y el intento, y ejecutar el programa fuera del proceso web |
 

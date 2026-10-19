@@ -420,7 +420,7 @@ Se lexica, parsea, analiza y ejecuta todo lo descrito arriba: el algoritmo, los 
 
 Traducir no es una segunda gramática ni un segundo intérprete. `language_core/translate.py` recorre el mismo AST que Validar y emite un programa. No lo ejecuta y no modifica el fuente. Si hay diagnósticos de severidad `error`, el resultado trae esos diagnósticos y ninguna traducción. Las advertencias no lo impiden.
 
-Los destinos son Python, JavaScript, TypeScript, Java, C, C++ y C#. En el navegador la orden es `POST /api/v1/algorithms/{id}/translate/`. En la aplicación de escritorio es `POST /local/v1/translate`, contra el mismo núcleo. El botón **Traducir** del banco de trabajo muestra una pestaña por lenguaje, permite ampliar el recuadro y copiar el texto. Un docente puede apagar esa acción para una comunidad o para un alumno. Si está apagada, el servidor responde 403 y no emite código.
+Los destinos son Python, JavaScript, TypeScript, Java, C, C++ y C#. En el navegador la orden es `POST /api/v1/algorithms/{id}/translate/`. En la aplicación de escritorio es `POST /local/v1/translate`, contra el mismo núcleo. El botón **Traducir** del banco de trabajo muestra una pestaña por lenguaje, permite ampliar el recuadro y copiar el texto. Un docente puede apagar esa acción para una comunidad o para un alumno. Si está apagada, el servidor responde 403 y no emite código. El nivel de la cuenta es el techo: si el plan no incluye traducir, la comunidad no lo enciende. Pegar es del editor, no de esta gramática: se puede escribir y, si el docente o el nivel lo apagaron, no se pega texto.
 
 Se conservan los comentarios, la base de índices del algoritmo, `DIV` y `MOD` hacia cero, los parámetros por referencia y el resultado de la biblioteca.
 

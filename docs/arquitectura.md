@@ -1,6 +1,6 @@
 # Arquitectura
 
-Estado: el editor, el laboratorio, el correo de confirmación, el idioma español o inglés, la traducción a otros lenguajes y la aplicación de escritorio están en el código de desarrollo. Fecha de referencia: 2026-10-17. `DEBUG` sigue en verdadero. `config.settings.production` no lo carga el compose.
+Estado: el editor, el laboratorio, el correo de confirmación, el idioma español o inglés, la traducción a otros lenguajes, la aplicación de escritorio, los niveles de suscripción y el bloqueo de pegar están en el código de desarrollo. Fecha de referencia: 2026-10-19. `DEBUG` sigue en verdadero. `config.settings.production` no lo carga el compose.
 
 Este documento describe el sistema que corre hoy. La gramática está en [gramatica.md](gramatica.md), el árbol en [ast.md](ast.md), las tablas en [modelo-de-datos.md](modelo-de-datos.md) y el aislamiento del intérprete en [ejecucion.md](ejecucion.md).
 
@@ -212,6 +212,8 @@ Las cuentas creadas antes de esta columna, y las de la máquina sin la variable,
 
 `config.settings.production` exige `EMAIL_HOST` además de `TRAZA_RUNNER=redis` y `REDIS_URL`. Mailpit no es ese servidor: solo guarda el correo de esta máquina.
 
+`PATCH /api/v1/auth/me/` cambia el nombre visible, la foto y la contraseña. La foto es JPG o PNG, de 32 bytes a 120 KB, y se guarda en `accounts.Profile`. El tipo de cuenta no se cambia ahí. Para cambiar la contraseña hace falta la actual; la sesión sigue abierta.
+
 ## 8.1 Niveles
 
 El alta asigna el plan `gratis` del tipo elegido. `TRAZA_SIGNUP_PLAN` puede nombrar otro código; las pruebas lo ponen en `premium` para conservar el comportamiento anterior de la suite. El valor real, en `config.settings.base`, es `gratis`.
@@ -318,7 +320,7 @@ El modelo y las fases están en [laboratorio-fase-0.md](laboratorio-fase-0.md). 
 
 Una comunidad pertenece a un docente. Solo él la crea, la lista y la borra. El nombre es único entre las suyas. Hay un tope de 30 comunidades y de 200 personas. El docente busca por nombre o correo entre cuentas ya registradas y agrega el resultado. No puede agregarse a sí mismo. No se crean cuentas desde la comunidad.
 
-La traducción de código nace habilitada en `classroom.Community.translation_enabled`. El docente puede apagarla para la comunidad o para un alumno. El valor del alumno, si no es nulo, manda sobre el de la comunidad. Cambiar el de la comunidad pone en nulo los ajustes de sus alumnos, y todos vuelven a heredar. Un docente siempre puede traducir. Un alumno que no está en ninguna comunidad también. Si está en varias y en una la traducción está apagada, no puede: `POST /api/v1/algorithms/{id}/translate/` responde 403 con `translation_disabled`.
+La traducción de código nace habilitada en `classroom.Community.translation_enabled`. Pegar texto nace habilitado en `paste_enabled`. Las dos siguen la misma regla: el docente las apaga para la comunidad o para un alumno; el valor del alumno, si no es nulo, manda; cambiar el de la comunidad pone en nulo los ajustes de sus alumnos. Un docente siempre puede, si su nivel incluye la función. Un alumno que no está en ninguna comunidad también. Si está en varias y en una está apagada, no puede. Traducir responde 403 con `translation_disabled`. Pegar no llama al servidor: el editor deja escribir y rechaza el pegado. El nivel es el techo. Si el plan tiene la función apagada, la comunidad no la enciende.
 
 En el banco de trabajo, **Repaso** abre los proyectos de un alumno de sus comunidades. El editor queda en solo lectura. Validar, ejecutar, depurar, traducir y el diagrama usan ese fuente y no crean una versión ni lo guardan. En el laboratorio, el avance abre con un tablero: cada barra suma los retos terminados en las rutas asignadas a ese alumno. Desde una ruta se descarga `progreso-{nombre}.csv`, con nombre, correo, comunidades, nota y una columna por reto. La puntuación de un intento va de 0 a 100. La nota es el promedio entero de esas puntuaciones, redondeado al más cercano, y un reto sin terminar cuenta como cero. Abrir un reto muestra la respuesta, el pseudocódigo, los casos, la predicción y la explicación.
 

@@ -1,6 +1,6 @@
 # Diagrama de despliegue
 
-Fecha de referencia: 2026-10-17. El nodo de desarrollo sigue siendo la máquina con el compose. El nodo de `config.settings.production` está descrito y no está activo. La ventana de escritorio es un nodo distinto: interfaz y `local_host` en la máquina de la persona, API en `TRAZA_API_ORIGIN`.
+Fecha de referencia: 2026-10-19. El nodo de desarrollo sigue siendo la máquina con el compose. El nodo de `config.settings.production` está descrito y no está activo. La ventana de escritorio es un nodo distinto: interfaz y `local_host` en la máquina de la persona, API en `TRAZA_API_ORIGIN`.
 
 ```mermaid
 flowchart TB

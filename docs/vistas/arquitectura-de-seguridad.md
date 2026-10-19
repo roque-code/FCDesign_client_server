@@ -1,6 +1,6 @@
 # Arquitectura de seguridad
 
-Fecha de referencia: 2026-10-17. El perímetro de desarrollo tiene tres zonas. La ventana de escritorio añade el anfitrión local, que solo acepta el token de arranque y solo proxifica `/api/`. La de producción, cuando exista, sustituye Mailpit por un SMTP real y pone TLS delante de Nginx.
+Fecha de referencia: 2026-10-19. El perímetro de desarrollo tiene tres zonas. La ventana de escritorio añade el anfitrión local, que solo acepta el token de arranque y solo proxifica `/api/`. La de producción, cuando exista, sustituye Mailpit por un SMTP real y pone TLS delante de Nginx.
 
 ```mermaid
 flowchart TB
@@ -40,7 +40,8 @@ flowchart TB
 | Anfitrión local | Token de arranque. El proxy rechaza una ruta que no empiece por `/api/` y marca `X-Traza-Client: desktop` |
 | Nivel de suscripción | La API de la aplicación exige la cabecera de la aplicación cuando el nivel no permite el navegador. La cuenta y `/api/v1/billing/` siguen abiertas |
 | Administrador | Rol `admin` solo por `create_admin`. No es `is_staff` y no sale en el formulario de alta |
-| Traducción | No ejecuta el texto generado ni lo guarda en la base. Responde 403 si el docente la apagó |
+| Traducción | No ejecuta el texto generado ni lo guarda en la base. Responde 403 si el docente o el nivel la apagaron |
+| Pegar | El editor rechaza el pegado. El texto se sigue escribiendo. La foto del perfil solo acepta JPG o PNG de hasta 120 KB |
 | Repaso | El docente lee algoritmos solo de alumnos de sus comunidades. No crea versiones |
 
 El enlace de confirmación lleva `uid` y `token` en la query del origen público. Al confirmar, el token deja de servir. Entrar antes responde `email_unconfirmed`.

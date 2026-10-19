@@ -1,6 +1,6 @@
 # Arquitectura de integración
 
-Fecha de referencia: 2026-10-17. No hay un bus de empresa ni un proveedor de correo externo. Las integraciones son los contratos entre las piezas del propio sistema, y el proxy de la ventana de escritorio hacia la API.
+Fecha de referencia: 2026-10-19. No hay un bus de empresa ni un proveedor de correo externo. Las integraciones son los contratos entre las piezas del propio sistema, y el proxy de la ventana de escritorio hacia la API.
 
 ```mermaid
 flowchart LR
@@ -35,9 +35,11 @@ flowchart LR
 | API y buzón | SMTP al puerto `1025` | Confirmación y restablecimiento |
 | Navegador y buzón | HTTP en `127.0.0.1:8025` | Lectura humana del mensaje. No pasa por Nginx |
 | Esquema | OpenAPI en `GET /api/schema/` | Contrato vivo de la API |
-| Traducción | `POST /api/v1/algorithms/{id}/translate/` o `POST /local/v1/translate` | Diagnósticos y, sin errores, un programa por lenguaje. No hay ejecución. 403 si el docente la apagó |
+| Traducción | `POST /api/v1/algorithms/{id}/translate/` o `POST /local/v1/translate` | Diagnósticos y, sin errores, un programa por lenguaje. No hay ejecución. 403 si el docente o el nivel la apagaron |
+| Nivel | `GET /api/v1/auth/me/` y `/api/v1/billing/` | El plan viaja con la cuenta. El administrador define niveles. No hay cobro automático |
+| Aplicación | Cabecera `X-Traza-Client: desktop` | Sin ella, y si el navegador no está permitido, el resto de `/api/v1/` responde 403 |
 | Notas | `GET /api/v1/learning/roster/{id}/progress/` | CSV de la ruta. No se guarda |
-| Retos | `POST /api/v1/learning/challenges/csv/` | Hasta 80 retos. Si una fila falla, no se guarda ninguna |
+| Retos | `GET /api/v1/learning/challenges/csv/?tipo=&contenido=retos` y `POST /api/v1/learning/challenges/csv/` | La descarga sale por tipo. La carga admite hasta 250 retos. Si una fila falla, no se guarda ninguna |
 | Escritorio y API | `POST /local/v1/proxy`, solo rutas `/api/` | La misma JSON de la API. El token del anfitrión local no viaja al servidor |
 | Escritorio y núcleo | HTTP en `127.0.0.1` con el token de arranque | Validar, traducir, ejecutar, depurar y el laboratorio |
 

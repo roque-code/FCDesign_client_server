@@ -907,6 +907,10 @@ export const api = {
     request<{ results: LabCatalogChallenge[]; concepts: LabConcept[] }>("/api/v1/learning/catalog/"),
   labBank: () => request<LabBank>("/api/v1/learning/bank/"),
   labCsvFormats: () => request<{ types: CsvChallengeFormat[] }>("/api/v1/learning/challenges/csv/"),
+  exportLabCsv: (tipo: string, banco: "catalogo" | "concurso") =>
+    request<{ tipo: string; filename: string; csv: string; count: number }>(
+      `/api/v1/learning/challenges/csv/?tipo=${encodeURIComponent(tipo)}&contenido=retos&banco=${banco}`,
+    ),
   importLabCsv: (csv: string) =>
     request<{ created: number; titles: string[] }>("/api/v1/learning/challenges/csv/", {
       method: "POST",

@@ -164,3 +164,94 @@ def test_el_formato_rechaza_un_tipo_desconocido():
     register(teacher, email="csv-tipo@ejemplo.test", display_name="Profe Tipo", role="teacher")
     response = teacher.get("/api/v1/learning/challenges/csv/?tipo=dibujo")
     assert response.status_code == 400
+
+
+def _owned(bank: dict, title: str) -> dict:
+    return next(
+        item
+        for unit in bank["units"]
+        for item in unit["challenges"]
+        if item["owned"] and item["title"] == title
+    )
+
+
+def test_un_docente_descarga_los_retos_de_un_tipo_y_otro_los_carga():
+    author = APIClient()
+    register(author, email="csv-exporta@ejemplo.test", display_name="Profe Exporta", role="teacher")
+    student = APIClient()
+    register(student, email="csv-exporta-alumno@ejemplo.test")
+    assert student.get("/api/v1/learning/challenges/csv/?tipo=clasificar&contenido=retos").status_code == 403
+
+    for kind in ("clasificar", "ordenar", "construir", "predecir"):
+        created = author.post(
+            "/api/v1/learning/challenges/csv/",
+            {"csv": template_csv(kind)},
+            format="json",
+        )
+        assert created.status_code == 201, created.content
+
+    colleague = APIClient()
+    register(colleague, email="csv-recibe@ejemplo.test", display_name="Profe Recibe", role="teacher")
+    expected = {
+        "clasificar": "Señales del dato",
+        "ordenar": "Pasos del saludo",
+        "construir": "El doble leído",
+        "predecir": "Después de sumar uno",
+    }
+    bodies = {}
+    for kind, title in expected.items():
+        exported = author.get(f"/api/v1/learning/challenges/csv/?tipo={kind}&contenido=retos")
+        assert exported.status_code == 200, exported.content
+        body = exported.json()
+        assert body["count"] >= 1
+        assert title in body["csv"]
+        assert body["csv"].splitlines()[0].startswith("tipo,titulo,enunciado,concepto")
+        csv_text = body["csv"]
+        expected_count = body["count"]
+        if kind == "predecir":
+            import csv as csvmod
+            import io
+
+            rows = list(csvmod.DictReader(io.StringIO(csv_text)))
+            own = next(row for row in rows if row["pregunta"] == "¿Qué número se escribe?")
+            buffer = io.StringIO()
+            writer = csvmod.DictWriter(buffer, fieldnames=rows[0].keys(), lineterminator="\n")
+            writer.writeheader()
+            writer.writerow(own)
+            csv_text = buffer.getvalue()
+            expected_count = 1
+        loaded = colleague.post("/api/v1/learning/challenges/csv/", {"csv": csv_text}, format="json")
+        assert loaded.status_code == 201, loaded.content
+        assert loaded.json()["created"] == expected_count
+        bodies[kind] = body
+    body = bodies["clasificar"]
+    assert body["filename"] == "retos-clasificar.csv"
+
+    origin = author.get("/api/v1/learning/bank/").json()
+    copy = colleague.get("/api/v1/learning/bank/").json()
+    source = _owned(origin, "Señales del dato")
+    shared = _owned(copy, "Señales del dato")
+    assert shared["categories"] == source["categories"]
+    assert shared["items"] == source["items"]
+    assert shared["hints"] == source["hints"]
+    assert shared["concept"] == source["concept"]
+    assert shared["difficulty"] == source["difficulty"]
+    assert shared["points"] == source["points"]
+    built = _owned(origin, "El doble leído")
+    built_copy = _owned(copy, "El doble leído")
+    assert built_copy["cases"] == built["cases"]
+    assert built_copy["accepted"] == built["accepted"]
+    predicted = _owned(origin, "Después de sumar uno")
+    predicted_copy = _owned(copy, "Después de sumar uno")
+    assert predicted_copy["source"] == predicted["source"]
+    assert predicted_copy["accepted"] == predicted["accepted"]
+    ordered = _owned(origin, "Pasos del saludo")
+    ordered_copy = _owned(copy, "Pasos del saludo")
+    assert [item["text"] for item in ordered_copy["items"]] == [item["text"] for item in ordered["items"]]
+
+    contest = author.get("/api/v1/learning/challenges/csv/?tipo=clasificar&contenido=retos&banco=concurso")
+    assert contest.status_code == 400
+    programs = author.get("/api/v1/learning/challenges/csv/?tipo=construir&contenido=retos&banco=concurso")
+    assert programs.status_code == 200, programs.content
+    assert programs.json()["count"] == 50
+    assert programs.json()["filename"] == "retos-construir-concurso.csv"

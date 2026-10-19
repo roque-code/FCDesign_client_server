@@ -1,6 +1,6 @@
 # Diccionario de datos
 
-Fecha de referencia: 2026-10-17. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. Los niveles viven en `billing_plan` y `billing_subscription`. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
+Fecha de referencia: 2026-10-19. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. Los niveles viven en `billing_plan` y `billing_subscription`. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
 
 La base se llama `traza` y, con los contenedores levantados, escucha en `127.0.0.1:5434`. El usuario de desarrollo es `traza`. No es la base del contenedor anterior `traza-pg` del puerto `5433`.
 
@@ -121,6 +121,8 @@ Datos visibles de esa cuenta. Una fila por usuario.
 | `institution` | `varchar(120)` | NO | Escuela u organización. Vacío si no se indicó |
 | `role` | `varchar(16)` | NO | `student`, `teacher` o `admin`. El alta pública solo escribe los dos primeros. `admin` lo crea el comando `create_admin` |
 | `points` | `integer` | NO | Puntos acumulados. Suben una vez al terminar un reto. El puesto no es una columna: es 1 más la cantidad de perfiles con más puntos |
+| `avatar` | `bytea` | SÍ | Foto JPG o PNG, de 32 bytes a 120 KB. Nula si no hay |
+| `avatar_type` | `varchar(16)` | NO | `image/jpeg` o `image/png`. Vacío si no hay foto |
 | `created_at` | `timestamptz` | NO | Alta del perfil |
 | `updated_at` | `timestamptz` | NO | Último cambio del perfil |
 
@@ -156,7 +158,7 @@ El nivel asignado a una cuenta. El administrador no tiene fila.
 | `user_id` | `bigint` | NO | Único. Apunta a `accounts_user.id` |
 | `plan_id` | `uuid` | NO | Apunta a `billing_plan.id`. No se borra el nivel si alguien lo tiene |
 | `paid_until` | `timestamptz` | SÍ | Fin de la vigencia. Nulo en un nivel que no vence |
-| `browser_allowed` | `boolean` | SÍ | Nulo: sigue al nivel. Verdadero: esta cuenta abre la aplicación en el navegador aunque el nivel no lo permita |
+| `browser_allowed` | `boolean` | SÍ | Nulo: sigue al nivel. Verdadero o falso manda para esa cuenta, aunque el nivel diga lo contrario |
 | `updated_at` | `timestamptz` | NO | Última asignación |
 
 ### `editor_editorpreference`
@@ -323,6 +325,7 @@ No hay actividades ni entregas. Una comunidad solo agrupa cuentas que ya existen
 | `owner_id` | `bigint` | NO | Docente dueño. El nombre es único entre las suyas |
 | `name` | `varchar(80)` | NO | Nombre visible |
 | `translation_enabled` | `boolean` | NO | Si los alumnos heredan la traducción de código. Nace en verdadero |
+| `paste_enabled` | `boolean` | NO | Si los alumnos heredan el permiso de pegar. Nace en verdadero |
 | `created_at` | `timestamptz` | NO | Alta |
 | `updated_at` | `timestamptz` | NO | Último cambio |
 
@@ -335,7 +338,8 @@ Tope de aplicación: 30 comunidades por docente y 200 personas por comunidad.
 | `id` | `bigint` | NO | Clave |
 | `community_id` | `uuid` | NO | Comunidad |
 | `user_id` | `bigint` | NO | Miembro. Único dentro de la comunidad. No es el dueño: el dueño no se agrega a sí mismo |
-| `translation_enabled` | `boolean` | SÍ | Ajuste del alumno. Nulo significa heredar el de la comunidad |
+| `translation_enabled` | `boolean` | SÍ | Ajuste de traducción del alumno. Nulo significa heredar el de la comunidad |
+| `paste_enabled` | `boolean` | SÍ | Ajuste de pegar del alumno. Nulo significa heredar el de la comunidad |
 | `created_at` | `timestamptz` | NO | Momento en que se agregó |
 
 El papel de alumno o docente de esa fila sale de `accounts_profile.role`, no de esta tabla.

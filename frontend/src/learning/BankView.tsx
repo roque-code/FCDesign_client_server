@@ -21,6 +21,13 @@ const CSV_KIND: Record<string, MessageKey> = {
   predecir: "predict",
 }
 
+const ACTIVITY_CSV: Record<string, string> = {
+  classify: "clasificar",
+  order: "ordenar",
+  build: "construir",
+  predict: "predecir",
+}
+
 const CSV_NOTE: Record<string, MessageKey> = {
   clasificar: "csvNoteClassify",
   ordenar: "csvNoteOrder",
@@ -31,6 +38,15 @@ const CSV_NOTE: Record<string, MessageKey> = {
 const BLOCK_LABEL = new Map(
   TOOL_GROUPS.flatMap((group) => group.blocks.map((block) => [block.id, block.labelKey])),
 )
+
+function saveCsv(csv: string, filename: string) {
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }))
+  const link = document.createElement("a")
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
 
 function messageOf(error: unknown, fallback: string): string {
   return error instanceof ApiError ? translatedMessage(error.message) : fallback
@@ -262,12 +278,23 @@ export function BankView() {
   }
 
   function download(item: CsvChallengeFormat) {
-    const url = URL.createObjectURL(new Blob([item.example], { type: "text/csv;charset=utf-8" }))
-    const link = document.createElement("a")
-    link.href = url
-    link.download = `${item.tipo}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
+    saveCsv(item.example, `${item.tipo}.csv`)
+  }
+
+  async function downloadChallenges(tipo: string) {
+    setBusy(true)
+    setError("")
+    setNotice("")
+    try {
+      const result = await api.exportLabCsv(tipo, shelf === "contest" ? "concurso" : "catalogo")
+      const body = result.csv.charCodeAt(0) === 0xfeff ? result.csv : `\ufeff${result.csv}`
+      saveCsv(body, result.filename)
+      setNotice(t("csvExported", { count: result.count }))
+    } catch (caught) {
+      setError(messageOf(caught, t("bankError")))
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function retire(item: LabBankChallenge) {
@@ -351,6 +378,20 @@ export function BankView() {
             <button type="button" onClick={() => void openFormat()} disabled={busy}>
               {formatOpen ? t("closeFormat") : t("csvFormat")}
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                const tipo = ACTIVITY_CSV[activity]
+                if (!tipo) {
+                  setError(t("csvChooseKind"))
+                  return
+                }
+                void downloadChallenges(tipo)
+              }}
+              disabled={busy}
+            >
+              {t("downloadChallenges")}
+            </button>
             <input
               ref={fileRef}
               type="file"
@@ -366,9 +407,14 @@ export function BankView() {
               <section key={item.tipo}>
                 <header>
                   <h3>{CSV_KIND[item.tipo] ? t(CSV_KIND[item.tipo]) : item.tipo}</h3>
-                  <button type="button" onClick={() => download(item)}>
-                    {t("downloadTemplate")}
-                  </button>
+                  <span>
+                    <button type="button" onClick={() => download(item)} disabled={busy}>
+                      {t("downloadTemplate")}
+                    </button>
+                    <button type="button" onClick={() => void downloadChallenges(item.tipo)} disabled={busy}>
+                      {t("downloadChallenges")}
+                    </button>
+                  </span>
                 </header>
                 <p>{CSV_NOTE[item.tipo] ? t(CSV_NOTE[item.tipo]) : item.notes}</p>
                 <h4>{t("csvColumns")}</h4>

@@ -6,13 +6,18 @@ import csv
 import io
 
 from django.db import transaction
+from django.db.models import Q
 
 from apps.learning.authoring import create_challenge
+from apps.learning.bank_data import BANK_NAME
 from apps.learning.catalog import CONCEPTS
+from apps.learning.contest_data import CONTEST_BANK_NAME
+from apps.learning.models import Challenge
 from config.errors import DomainError
+from language_core.block_adapter import adapt_workspace
 
-_MAX_BYTES = 200_000
-_MAX_ROWS = 80
+_MAX_BYTES = 1_000_000
+_MAX_ROWS = 250
 _TYPES = {
     "clasificar": "classify",
     "classify": "classify",
@@ -85,6 +90,30 @@ def formats_payload() -> dict[str, object]:
             }
             for kind in ("clasificar", "ordenar", "construir", "predecir")
         ]
+    }
+
+
+def export_challenges(teacher, kind: str, shelf: str) -> dict[str, object]:
+    """CSV de un tipo, listo para que otro docente lo vuelva a cargar."""
+    if kind not in _SPECIFIC:
+        raise DomainError("El tipo de plantilla no existe.")
+    if shelf not in {"catalogo", "concurso"}:
+        raise DomainError("El banco no existe.")
+    challenges = _export_queryset(teacher, _TYPES[kind], shelf)
+    if not challenges:
+        raise DomainError("No hay retos de ese tipo para descargar.")
+    columns = _columns(kind)
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=columns, lineterminator="\n", extrasaction="ignore")
+    writer.writeheader()
+    for challenge in challenges:
+        writer.writerow(_export_row(challenge, kind))
+    filename = f"retos-{kind}.csv" if shelf == "catalogo" else f"retos-{kind}-concurso.csv"
+    return {
+        "tipo": kind,
+        "filename": filename,
+        "count": len(challenges),
+        "csv": buffer.getvalue(),
     }
 
 
@@ -271,6 +300,87 @@ def _cases(row: dict[str, str]) -> list[dict[str, object]]:
 
 def _unescape(value: str) -> str:
     return value.replace("\\n", "\n").replace("\\t", "\t")
+
+
+def _escape_cell(value: str) -> str:
+    return value.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\\n").replace("\t", "\\t")
+
+
+def _export_queryset(teacher, activity: str, shelf: str) -> list[Challenge]:
+    base = (
+        Challenge.objects.filter(is_published=True, activity_type=activity)
+        .select_related("unit__concept", "unit__path")
+        .prefetch_related("hints", "test_cases")
+    )
+    if shelf == "concurso":
+        chosen = base.filter(
+            unit__path__name=CONTEST_BANK_NAME,
+            unit__path__is_bank=True,
+            unit__path__owner__isnull=True,
+        )
+    else:
+        chosen = base.filter(
+            Q(
+                unit__path__name=BANK_NAME,
+                unit__path__is_bank=True,
+                unit__path__owner__isnull=True,
+            )
+            | Q(unit__path__is_bank=True, unit__path__owner=teacher)
+        )
+    return list(chosen.order_by("unit__position", "position", "title"))
+
+
+def _export_row(challenge: Challenge, kind: str) -> dict[str, str]:
+    restrictions = challenge.restrictions if isinstance(challenge.restrictions, dict) else {}
+    seconds = challenge.time_limit_seconds
+    row: dict[str, str] = {
+        "tipo": kind,
+        "titulo": challenge.title,
+        "enunciado": challenge.prompt,
+        "concepto": str(challenge.unit.concept_id),
+        "dificultad": str(challenge.difficulty),
+        "puntos": str(challenge.points),
+        "minutos": "" if seconds is None else str(max(1, round(seconds / 60))),
+    }
+    hints = sorted(challenge.hints.all(), key=lambda hint: (hint.level, hint.position))
+    for index, hint in enumerate(hints[:5], start=1):
+        row[f"pista{index}"] = hint.body
+    if kind == "clasificar":
+        categories = restrictions.get("categories")
+        items = restrictions.get("items")
+        row["categorias"] = "|".join(str(item) for item in categories) if isinstance(categories, list) else ""
+        phrases = []
+        if isinstance(items, list):
+            for item in items:
+                if isinstance(item, dict):
+                    phrases.append(f"{item.get('text', '')} => {item.get('category', '')}")
+        row["frases"] = "|".join(phrases)
+    elif kind == "ordenar":
+        items = restrictions.get("items")
+        rows = [item for item in items if isinstance(item, dict)] if isinstance(items, list) else []
+        by_id = {str(item.get("id")): str(item.get("text", "")) for item in rows}
+        solution = restrictions.get("solution")
+        ordered = solution if isinstance(solution, list) and solution else [item.get("id") for item in rows]
+        row["instrucciones"] = "|".join(by_id.get(str(item_id), "") for item_id in ordered)
+    elif kind == "construir":
+        accepted = restrictions.get("accepted")
+        row["pregunta"] = str(restrictions.get("question") or "")
+        row["respuestas"] = "|".join(str(item) for item in accepted) if isinstance(accepted, list) else ""
+        cases = sorted(challenge.test_cases.all(), key=lambda case: case.position)[:6]
+        for index, case in enumerate(cases, start=1):
+            inputs = case.inputs if isinstance(case.inputs, list) else []
+            row[f"caso{index}_entradas"] = "|".join(str(item) for item in inputs)
+            row[f"caso{index}_salida"] = _escape_cell(case.expected_output)
+    else:
+        accepted = restrictions.get("accepted")
+        row["pregunta"] = str(restrictions.get("question") or "")
+        row["respuestas"] = "|".join(str(item) for item in accepted) if isinstance(accepted, list) else ""
+        source = restrictions.get("source")
+        if not isinstance(source, str) or not source:
+            starter = restrictions.get("starter")
+            source = adapt_workspace(starter).source if isinstance(starter, dict) else ""
+        row["pseudocodigo"] = _escape_cell(source)
+    return row
 
 
 def _example(kind: str) -> dict[str, str]:

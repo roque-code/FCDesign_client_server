@@ -1,6 +1,6 @@
 # Diagrama C4
 
-Fecha de referencia: 2026-10-17. Tres niveles. El cuarto, el código, está en el repositorio y no se dibuja aquí.
+Fecha de referencia: 2026-10-19. Tres niveles. El cuarto, el código, está en el repositorio y no se dibuja aquí.
 
 ## Nivel 1. Contexto
 
@@ -65,6 +65,7 @@ flowchart TB
         executions[executions]
         learning[learning]
         classroom[classroom]
+        billing[billing]
         charts[flowcharts]
     end
     subgraph nucleo [language_core]
@@ -84,6 +85,6 @@ flowchart TB
     sem --> flow
 ```
 
-`accounts` no interpreta. `executions` y `learning` piden el recorrido al runner, que es el único que importa el núcleo en los contenedores.
+`accounts` no interpreta. `billing` no interpreta: guarda niveles y cierra la API cuando el navegador no está permitido. `executions` y `learning` piden el recorrido al runner, que es el único que importa el núcleo en los contenedores.
 
 Volver al [índice](indice.md).

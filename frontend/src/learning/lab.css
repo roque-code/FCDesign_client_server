@@ -1401,6 +1401,12 @@
   align-items: center;
 }
 
+.bank-format header span {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
 .bank-format pre,
 .csv-columns {
   overflow: auto;
