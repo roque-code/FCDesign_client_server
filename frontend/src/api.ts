@@ -37,6 +37,31 @@ export type Account = {
   usage: { projects: number; algorithms: number }
 }
 
+export function accessOf(account: { access?: AccountAccess | null } | null | undefined): AccountAccess {
+  const access = account?.access
+  if (!access || typeof access !== "object") {
+    return { browser_app: false, features: {}, limits: { max_projects: null, max_algorithms: null } }
+  }
+  const features = access.features && typeof access.features === "object" ? access.features : {}
+  const limits = access.limits
+  return {
+    browser_app: access.browser_app === true,
+    features,
+    limits: {
+      max_projects: typeof limits?.max_projects === "number" ? limits.max_projects : null,
+      max_algorithms: typeof limits?.max_algorithms === "number" ? limits.max_algorithms : null,
+    },
+  }
+}
+
+export function asAccount(value: Account): Account {
+  return {
+    ...value,
+    access: accessOf(value),
+    usage: value.usage ?? { projects: 0, algorithms: 0 },
+  }
+}
+
 export type PlanFeature = {
   key: string
   label: string
@@ -644,7 +669,15 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     cache: "no-store",
   })
   if (response.status === 204) return undefined as T
-  const data = (await response.json()) as { error?: { code?: string; message?: string } }
+  const raw = await response.text()
+  let data: { error?: { code?: string; message?: string } } = {}
+  if (raw) {
+    try {
+      data = JSON.parse(raw) as { error?: { code?: string; message?: string } }
+    } catch {
+      throw new ApiError(response.status, "invalid", "No se pudo completar la solicitud.")
+    }
+  }
   if (!response.ok) {
     const error = data.error ?? {}
     throw new ApiError(

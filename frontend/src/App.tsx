@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 
-import { api, ApiError, ensureCsrf, type Account } from "./api"
+import { api, asAccount, ensureCsrf, type Account } from "./api"
 import { AuthScreen } from "./auth/AuthScreen"
 import { AdminHome } from "./admin/AdminHome"
 import { Composer, type DiagramRequest } from "./compose/Composer"
@@ -21,16 +21,17 @@ export function App() {
     storeLocale(next)
     setLocale(next)
   }, [])
+  const holdAccount = useCallback((next: Account) => {
+    setAccount(asAccount(next))
+  }, [])
 
   useEffect(() => {
     void ensureCsrf()
       .then(() => api.me())
-      .then(setAccount)
-      .catch((caught: unknown) => {
-        if (!(caught instanceof ApiError) || caught.code !== "not_authenticated") return
-      })
+      .then(holdAccount)
+      .catch(() => undefined)
       .finally(() => setReady(true))
-  }, [])
+  }, [holdAccount])
 
   useEffect(() => {
     if (!account || !installedLocal()) return
@@ -63,18 +64,18 @@ function openCompose(payload: { name?: string; source?: string; semicolons: bool
   const shell = !ready ? (
     <main className="auth"><p>{translate(locale, "loading")}</p></main>
   ) : !account ? (
-    <AuthScreen onSuccess={setAccount} />
+    <AuthScreen onSuccess={holdAccount} />
   ) : account.role === "admin" ? (
-    <AdminHome account={account} onAccount={setAccount} onLogout={() => void logout()} />
-  ) : !inInstalledApp() && !account.access.browser_app ? (
-    <AccountOnly account={account} onAccount={setAccount} onLogout={() => void logout()} />
+    <AdminHome account={account} onAccount={holdAccount} onLogout={() => void logout()} />
+  ) : !inInstalledApp() && !account.access?.browser_app ? (
+    <AccountOnly account={account} onAccount={holdAccount} onLogout={() => void logout()} />
   ) : (
     <>
       <div className="screen-slot" hidden={screen !== "editor"}>
         <Workbench
           key={account.id}
           account={account}
-          onAccount={setAccount}
+          onAccount={holdAccount}
           onLogout={() => void logout()}
           onOpenLab={() => setScreen("lab")}
           onOpenCompose={openCompose}
@@ -83,10 +84,10 @@ function openCompose(payload: { name?: string; source?: string; semicolons: bool
         />
       </div>
       {screen === "lab" && (
-        <LearningLab account={account} onAccount={setAccount} onBack={backToEditor} />
+        <LearningLab account={account} onAccount={holdAccount} onBack={backToEditor} />
       )}
       <div className="screen-slot" hidden={screen !== "compose"}>
-        <Composer account={account} onAccount={setAccount} active={screen === "compose"} incoming={diagramRequest} onBack={backToEditor} onOpenInEditor={openInEditor} />
+        <Composer account={account} onAccount={holdAccount} active={screen === "compose"} incoming={diagramRequest} onBack={backToEditor} onOpenInEditor={openInEditor} />
       </div>
     </>
   )

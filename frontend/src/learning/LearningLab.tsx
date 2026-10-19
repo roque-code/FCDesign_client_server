@@ -1,6 +1,6 @@
 import { useState } from "react"
 
-import { type Account } from "../api"
+import { accessOf, type Account } from "../api"
 import { useT } from "../i18n"
 import { AccountIdentity } from "../shell/Identity"
 import { BankView } from "./BankView"
@@ -23,6 +23,7 @@ export function LearningLab({
   onBack: () => void
 }) {
   const t = useT()
+  const access = accessOf(account)
   const [mode, setMode] = useState<Mode>("path")
   const [challengeId, setChallengeId] = useState<string | null>(null)
   const [pathId, setPathId] = useState<string | null>(null)
@@ -40,7 +41,7 @@ export function LearningLab({
             className="top-action"
             type="button"
             aria-current={mode === "path" || mode === "challenge" ? "page" : undefined}
-            hidden={!account.access.features.lab_route}
+            hidden={!access.features.lab_route}
             onClick={() => setMode("path")}
           >
             {t("route")}
@@ -49,12 +50,12 @@ export function LearningLab({
             className="top-action"
             type="button"
             aria-current={mode === "practice" ? "page" : undefined}
-            hidden={!account.access.features.lab_practice}
+            hidden={!access.features.lab_practice}
             onClick={() => setMode("practice")}
           >
             {t("freePractice")}
           </button>
-          {account.role === "teacher" && account.access.features.lab_bank ? (
+          {account.role === "teacher" && access.features.lab_bank ? (
             <button
               className="top-action"
               type="button"
@@ -64,7 +65,7 @@ export function LearningLab({
               {t("bank")}
             </button>
           ) : null}
-          {account.role === "teacher" && account.access.features.lab_routes ? (
+          {account.role === "teacher" && access.features.lab_routes ? (
             <button
               className="top-action"
               type="button"
@@ -74,7 +75,7 @@ export function LearningLab({
               {t("routes")}
             </button>
           ) : null}
-          {account.role === "teacher" && account.access.features.lab_progress ? (
+          {account.role === "teacher" && access.features.lab_progress ? (
             <button
               className="top-action"
               type="button"

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type PointerEvent as ReactPointerEvent } from "react"
 
 import {
+  accessOf,
   api,
   ApiError,
   type Account,
@@ -72,6 +73,7 @@ export function Workbench({
 }) {
   const t = useT()
   const locale = useLocale()
+  const access = accessOf(account)
   const [projects, setProjects] = useState<Project[]>([])
   const [projectId, setProjectId] = useState("")
   const [algorithms, setAlgorithms] = useState<Algorithm[]>([])
@@ -174,11 +176,11 @@ export function Workbench({
   }, [])
 
   useEffect(() => {
-    if (account.role !== "teacher" || account.access.features.communities !== true) {
+    if (account.role !== "teacher" || access.features.communities !== true) {
       setCommunitiesOpen(false)
       setStudents([])
     }
-  }, [account.role, account.access.features.communities])
+  }, [account.role, access.features.communities])
 
   useEffect(() => {
     let active = true
@@ -191,11 +193,11 @@ export function Workbench({
             next.plan?.code === account.plan?.code &&
             next.plan?.status === account.plan?.status &&
             next.plan?.days_remaining === account.plan?.days_remaining &&
-            next.access.browser_app === account.access.browser_app &&
-            JSON.stringify(next.access.features) === JSON.stringify(account.access.features) &&
-            JSON.stringify(next.access.limits) === JSON.stringify(account.access.limits) &&
-            next.usage.projects === account.usage.projects &&
-            next.usage.algorithms === account.usage.algorithms)
+            accessOf(next).browser_app === access.browser_app &&
+            JSON.stringify(accessOf(next).features) === JSON.stringify(access.features) &&
+            JSON.stringify(accessOf(next).limits) === JSON.stringify(access.limits) &&
+            next.usage?.projects === account.usage?.projects &&
+            next.usage?.algorithms === account.usage?.algorithms)
         ) {
           return
         }
@@ -243,7 +245,7 @@ export function Workbench({
   }, [execution?.output])
 
   useEffect(() => {
-    const seeStudents = account.role === "teacher" && account.access.features.communities === true
+    const seeStudents = account.role === "teacher" && access.features.communities === true
     if (!seeStudents && reviewIdRef.current !== null) {
       setReviewId(null)
       return
@@ -295,10 +297,10 @@ export function Workbench({
     return () => {
       active = false
     }
-  }, [reloadToken, reviewId, account.role, account.access.features.communities])
+  }, [reloadToken, reviewId, account.role, access.features.communities])
 
   useEffect(() => {
-    if (account.role !== "teacher" || account.access.features.communities !== true) return
+    if (account.role !== "teacher" || access.features.communities !== true) return
     let active = true
     void api
       .classroomStudents()
@@ -311,7 +313,7 @@ export function Workbench({
     return () => {
       active = false
     }
-  }, [reloadToken, account.role, account.access.features.communities])
+  }, [reloadToken, account.role, access.features.communities])
 
   useEffect(() => {
     if (!projectId) return
@@ -479,7 +481,7 @@ export function Workbench({
   }
 
   function loadDiagram(id: string) {
-    if (account.access.features.diagram !== true) {
+    if (access.features.diagram !== true) {
       setGraph(null)
       setDiagramNote("")
       return Promise.resolve()
@@ -724,13 +726,13 @@ export function Workbench({
     setDiagnostics(result.diagnostics)
   }
 
-  const can = (key: string) => account.access.features[key] === true
+  const can = (key: string) => access.features[key] === true
   const translationOn = can("translate") && account.translation_enabled !== false
   const pasteBlocked = !can("paste") || (account.role !== "teacher" && account.paste_enabled === false)
-  const projectsLeft = account.access.limits.max_projects
-  const algorithmsLeft = account.access.limits.max_algorithms
-  const canCreateProject = projectsLeft === null || account.usage.projects < projectsLeft
-  const canCreateAlgorithm = algorithmsLeft === null || account.usage.algorithms < algorithmsLeft
+  const projectsLeft = access.limits.max_projects
+  const algorithmsLeft = access.limits.max_algorithms
+  const canCreateProject = projectsLeft === null || (account.usage?.projects ?? 0) < projectsLeft
+  const canCreateAlgorithm = algorithmsLeft === null || (account.usage?.algorithms ?? 0) < algorithmsLeft
 
   async function translate() {
     if (!translationOn) return

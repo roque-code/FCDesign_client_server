@@ -189,3 +189,17 @@ def test_una_cuenta_puede_usar_el_navegador_aunque_el_nivel_no(settings):
     assert current.status_code == 200
     assert current.json()["access"]["browser_app"] is True
     assert browser.get("/api/v1/projects/").status_code == 200
+
+
+def test_la_cuenta_incluye_access_si_no_hay_niveles(client):
+    created = register(client, email="sin-nivel@ejemplo.test")
+    assert created.status_code == 201
+    from apps.billing.models import Subscription
+
+    Subscription.objects.all().delete()
+    Plan.objects.all().delete()
+    current = client.get("/api/v1/auth/me/")
+    assert current.status_code == 200
+    body = current.json()
+    assert body["access"]["browser_app"] is False
+    assert "features" in body["access"]

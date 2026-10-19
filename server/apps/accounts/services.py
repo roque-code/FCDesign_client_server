@@ -128,7 +128,18 @@ def user_payload(user: User) -> dict[str, object]:
 
     profile = user.profile
     standing = standing_of(user)
-    entitlement = account_access(user)
+    try:
+        entitlement = account_access(user)
+    except Exception:
+        entitlement = {
+            "plan": None,
+            "access": {
+                "browser_app": False,
+                "features": {},
+                "limits": {"max_projects": None, "max_algorithms": None},
+            },
+            "usage": {"projects": 0, "algorithms": 0},
+        }
     return {
         "id": user.pk,
         "email": user.email,

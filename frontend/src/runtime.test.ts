@@ -1,6 +1,6 @@
 import { expect, test } from "vitest"
 
-import { attemptCheckPath } from "./api"
+import { accessOf, asAccount, attemptCheckPath, type Account } from "./api"
 import { editorEventUrl, labEventUrl, searchFromLaunch } from "./runtime"
 
 const local = { origin: "http://127.0.0.1:9", token: "secreto" }
@@ -21,6 +21,14 @@ test("en la aplicación instalada el depurador va al proceso local", () => {
 test("la entrega de un reto no sale del servidor", () => {
   expect(attemptCheckPath("intento")).toBe("/api/v1/learning/attempts/intento/check/")
   expect(attemptCheckPath("intento").includes("/local/")).toBe(false)
+})
+
+test("si la cuenta llega sin access no se consulta browser_app sobre undefined", () => {
+  const raw = { id: 1, email: "a@b.c", role: "student" } as Account
+  const account = asAccount(raw)
+  expect(account.access.browser_app).toBe(false)
+  expect(account.access.features).toEqual({})
+  expect(accessOf(undefined).browser_app).toBe(false)
 })
 
 test("el enlace de la aplicación conserva la misma consulta que la web", () => {

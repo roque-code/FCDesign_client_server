@@ -92,15 +92,15 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.development
       DJANGO_SECRET_KEY: dev-container-not-production
-      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,web,nginx
-      DJANGO_CSRF_ORIGINS: http://127.0.0.1:18080,http://localhost:18080,http://127.0.0.1:5173,http://localhost:5173
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,web,nginx,18.118.112.206
+      DJANGO_CSRF_ORIGINS: http://127.0.0.1:18080,http://localhost:18080,http://127.0.0.1:5173,http://localhost:5173,http://18.118.112.206:18080
       TRAZA_RUNNER: redis
       REDIS_URL: redis://web:traza-web-dev@redis:6379/0
       EMAIL_HOST: mail
       EMAIL_PORT: "1025"
       DEFAULT_FROM_EMAIL: traza@localhost
       TRAZA_EMAIL_CONFIRMATION: "1"
-      TRAZA_PUBLIC_ORIGIN: http://127.0.0.1:18080
+      TRAZA_PUBLIC_ORIGIN: http://18.118.112.206:18080
       TRAZA_MAIL_UI: http://127.0.0.1:8025
       POSTGRES_DB: traza
       POSTGRES_USER: traza
@@ -126,7 +126,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/')",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/auth/csrf/')",
         ]
       interval: 5s
       timeout: 5s

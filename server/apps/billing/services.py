@@ -214,9 +214,20 @@ def account_access(user: User) -> dict[str, object]:
     try:
         subscription = user.subscription
     except Subscription.DoesNotExist:
-        subscription = assign_default_subscription(user)
+        try:
+            subscription = assign_default_subscription(user)
+        except Exception:
+            subscription = None
     if subscription is None:
-        raise DomainError("Esta cuenta no tiene un nivel.")
+        return {
+            "plan": None,
+            "access": {
+                "browser_app": False,
+                "features": {item.key: False for item in FEATURES},
+                "limits": {"max_projects": None, "max_algorithms": None},
+            },
+            "usage": _usage(user),
+        }
     assigned = subscription.plan
     active = _current(assigned, subscription.paid_until)
     effective = assigned if active else _fallback(assigned)
