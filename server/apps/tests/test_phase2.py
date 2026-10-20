@@ -356,6 +356,41 @@ def test_una_sola_sesion_por_cuenta_y_se_cierra_por_inactividad(client, settings
     assert browser.get("/api/v1/auth/me/").status_code == 200
 
 
+def test_otra_ventana_del_navegador_no_entra(client):
+    created = register(client, email="ventana@ejemplo.test", display_name="Ventana")
+    assert created.status_code == 201
+    owner = client.get("/api/v1/auth/me/", HTTP_X_TRAZA_WINDOW="ventana-aaaa")
+    assert owner.status_code == 200, owner.content
+
+    other = APIClient(enforce_csrf_checks=True, HTTP_X_TRAZA_WINDOW="ventana-bbbb")
+    other.cookies["sessionid"] = client.cookies["sessionid"].value
+    denied = other.get("/api/v1/auth/me/")
+    assert denied.status_code == 401, denied.content
+    assert denied.json()["error"]["code"] == "session_open"
+    assert client.get("/api/v1/auth/me/", HTTP_X_TRAZA_WINDOW="ventana-aaaa").status_code == 200
+
+    other.cookies["csrftoken"] = client.cookies["csrftoken"].value
+    other.credentials(HTTP_X_CSRFTOKEN=client.cookies["csrftoken"].value)
+    again = other.post(
+        "/api/v1/auth/login/",
+        {"email": "ventana@ejemplo.test", "password": PASSWORD},
+        format="json",
+        HTTP_X_TRAZA_WINDOW="ventana-bbbb",
+    )
+    assert again.status_code == 401, again.content
+    assert again.json()["error"]["code"] == "session_open"
+    assert client.get("/api/v1/auth/me/", HTTP_X_TRAZA_WINDOW="ventana-aaaa").status_code == 200
+
+    stored = client.session
+    stored["window_seen"] = int(time.time()) - 60
+    stored.save()
+    taken = other.get("/api/v1/auth/me/", HTTP_X_TRAZA_WINDOW="ventana-bbbb")
+    assert taken.status_code == 200, taken.content
+    blocked = client.get("/api/v1/auth/me/", HTTP_X_TRAZA_WINDOW="ventana-aaaa")
+    assert blocked.status_code == 401
+    assert blocked.json()["error"]["code"] == "session_open"
+
+
 def test_duplicate_email_and_weak_password(client):
     assert register(client).status_code == 201
     other = APIClient(enforce_csrf_checks=True)

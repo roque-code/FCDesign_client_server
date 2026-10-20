@@ -658,8 +658,26 @@ function textError(status: number, body: string): ApiError {
   }
 }
 
+let memoryWindow = ""
+
+function browserWindow(): string {
+  if (typeof window === "undefined") return ""
+  const key = "traza-window"
+  try {
+    const existing = window.sessionStorage.getItem(key)
+    if (existing && /^[A-Za-z0-9-]{8,64}$/.test(existing)) return existing
+    const created = window.crypto.randomUUID()
+    window.sessionStorage.setItem(key, created)
+    return created
+  } catch {
+    if (!memoryWindow) memoryWindow = window.crypto.randomUUID()
+    return memoryWindow
+  }
+}
+
 function raiseApi(status: number, code: string, message: string): never {
-  if (code === "session_idle" && typeof window !== "undefined") {
+  const ended = status === 401 && (code === "session_idle" || code === "session_open")
+  if (ended && typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("traza-session-end", { detail: message }))
   }
   throw new ApiError(status, code, message)
@@ -677,6 +695,8 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json")
   const token = csrfToken()
   if (token) headers.set("X-CSRFToken", token)
+  const windowId = browserWindow()
+  if (windowId) headers.set("X-Traza-Window", windowId)
   if (installedClient()) headers.set("X-Aulivana-FCDdesign-Client", "desktop")
   const response = await fetch(path, {
     ...init,
@@ -711,8 +731,13 @@ async function desktopRequest<T>(path: string, init: RequestInit): Promise<T> {
   const internals = (window as Window & { __TAURI_INTERNALS__?: { invoke: (command: string, args: Record<string, unknown>) => Promise<ProxyReply> } }).__TAURI_INTERNALS__
   if (!internals) throw new ApiError(0, "local_missing", localMissingMessage())
   const headers: Record<string, string> = {}
+  if (init.headers) new Headers(init.headers).forEach((value, key) => {
+    headers[key] = value
+  })
   const token = csrfToken()
   if (token) headers["X-CSRFToken"] = token
+  const windowId = browserWindow()
+  if (windowId) headers["X-Traza-Window"] = windowId
   if (installedClient()) headers["X-Aulivana-FCDdesign-Client"] = "desktop"
   if (init.body) headers["Content-Type"] = "application/json"
   const reply = await internals.invoke("server_fetch", {
@@ -737,6 +762,8 @@ export function ensureCsrf(): Promise<{ ok: boolean }> {
 
 export const api = {
   me: () => request<Account>("/api/v1/auth/me/"),
+  presence: () =>
+    request<Account>("/api/v1/auth/me/", { headers: { "X-Traza-Presence": "1" } }),
   register: (body: { email: string; password: string; display_name?: string; role?: Role }) =>
     request<Account | PendingConfirmation>("/api/v1/auth/register/", {
       method: "POST",

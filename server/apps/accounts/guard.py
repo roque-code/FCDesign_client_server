@@ -19,10 +19,16 @@ _OPEN_MESSAGE = (
     "Ya hay una sesión abierta en otro equipo. Ciérrala ahí o espera 30 minutos sin usarla."
 )
 _IDLE_MESSAGE = "La sesión se cerró por inactividad. Vuelve a entrar."
+_WINDOW_SECONDS = 25
+_WINDOW_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-")
 
 
 def session_idle_message() -> str:
     return _IDLE_MESSAGE
+
+
+def session_open_message() -> str:
+    return _OPEN_MESSAGE
 
 
 def refuse_locked_login(email: str) -> None:
@@ -59,12 +65,66 @@ def begin_session(request, user: User) -> User:
         current = User.objects.select_for_update().get(pk=user.pk)
         if _elsewhere(current, request):
             raise DomainError(_OPEN_MESSAGE, code="session_open", status_code=409)
+        sent = sent_window(request)
+        if window_blocks(request.session, sent):
+            raise DomainError(_OPEN_MESSAGE, code="session_open", status_code=409)
         login(request, current, backend=_BACKEND)
         request.session["last_activity"] = int(time.time())
+        remember_window(request.session, sent)
         request.session.save()
         current.session_key = request.session.session_key or ""
         current.save(update_fields=["session_key"])
     return current
+
+
+def hold_active_session(user: User, request) -> bool:
+    """La petición es la sesión vigente. Otra cookie abierta no la sustituye."""
+    current_key = request.session.session_key or ""
+    if not current_key or user.session_key == current_key:
+        return True
+    with transaction.atomic():
+        locked = User.objects.select_for_update().get(pk=user.pk)
+        if locked.session_key == current_key:
+            user.session_key = current_key
+            return True
+        if locked.session_key and _store(locked.session_key).exists(locked.session_key):
+            return False
+        locked.session_key = current_key
+        locked.save(update_fields=["session_key"])
+    user.session_key = current_key
+    return True
+
+
+def sent_window(request) -> str:
+    raw = request.headers.get("X-Traza-Window", "")
+    if not isinstance(raw, str):
+        return ""
+    cleaned = raw.strip()
+    if len(cleaned) < 8 or len(cleaned) > 64:
+        return ""
+    if any(char not in _WINDOW_CHARS for char in cleaned):
+        return ""
+    return cleaned
+
+
+def window_blocks(session, sent: str) -> bool:
+    """Otra ventana del mismo navegador sigue usando esta cookie."""
+    if not sent:
+        return False
+    stored = session.get("window_id")
+    if not isinstance(stored, str) or not stored or stored == sent:
+        return False
+    seen = session.get("window_seen")
+    if not isinstance(seen, int):
+        return True
+    return int(time.time()) - seen < _WINDOW_SECONDS
+
+
+def remember_window(session, sent: str) -> None:
+    if not sent:
+        return
+    session["window_id"] = sent
+    session["window_seen"] = int(time.time())
 
 
 def release_session(user: User, session_key: str | None) -> None:

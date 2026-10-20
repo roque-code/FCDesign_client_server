@@ -15,14 +15,22 @@ function report(message: string) {
 }
 
 function browserDownload(filename: string, blob: Blob) {
-  const url = URL.createObjectURL(blob)
+  // application/pdf hace que Chrome abra el visor y deje el archivo como
+  // "Sin confirmar *.crdownload" en macOS, Windows y Linux. Un tipo genérico
+  // obliga a guardarlo, y el blob tiene que seguir vivo hasta que el gestor
+  // termine de copiarlo.
+  const file = blob.type === "application/octet-stream" ? blob : new Blob([blob], { type: "application/octet-stream" })
+  const url = URL.createObjectURL(file)
   const link = document.createElement("a")
   link.href = url
   link.download = filename
+  link.rel = "noopener"
   document.body.append(link)
   link.click()
-  link.remove()
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  window.setTimeout(() => {
+    link.remove()
+    URL.revokeObjectURL(url)
+  }, 60_000)
 }
 
 function encodeBase64(bytes: Uint8Array): string {

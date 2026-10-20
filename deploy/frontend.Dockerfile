@@ -6,6 +6,7 @@ COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
 COPY frontend/ ./
+COPY docs /docs
 COPY deploy/frontend-entrypoint.sh /usr/local/bin/frontend-entrypoint
 RUN chmod 755 /usr/local/bin/frontend-entrypoint
 

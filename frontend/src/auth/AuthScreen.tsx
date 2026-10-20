@@ -16,7 +16,15 @@ function readLaunch(): URLSearchParams {
   return new URLSearchParams(raw.startsWith("?") ? raw.slice(1) : raw)
 }
 
-export function AuthScreen({ onSuccess, notice = "" }: { onSuccess: (account: Account) => void; notice?: string }) {
+export function AuthScreen({
+  onSuccess,
+  notice = "",
+  locked = false,
+}: {
+  onSuccess: (account: Account) => void
+  notice?: string
+  locked?: boolean
+}) {
   const t = useT()
   const launch = readLaunch()
   const resetUid = launch.get("restablecer")
@@ -85,6 +93,10 @@ export function AuthScreen({ onSuccess, notice = "" }: { onSuccess: (account: Ac
     <main className="auth">
       <section className="card">
         <h1><Logo /></h1>
+        {locked ? (
+          message ? <p className="note" role="status">{message}</p> : null
+        ) : (
+        <>
         <p className="note">{t("authNote")}</p>
         <div className="tabs" role="tablist">
           <button type="button" aria-selected={mode === "entrar"} onClick={() => setMode("entrar")}>
@@ -148,6 +160,8 @@ export function AuthScreen({ onSuccess, notice = "" }: { onSuccess: (account: Ac
             {mode === "entrar" ? t("signIn") : mode === "crear" ? t("createAccount") : mode === "nueva" ? t("password") : t("sendInstructions")}
           </button>
         </form>
+        </>
+        )}
       </section>
     </main>
   )

@@ -6,6 +6,12 @@ import { layoutGraph } from "./layout"
 import { pdfFromJpeg } from "./pdf"
 import { buildSvg, type Drawing } from "./svg"
 
+function latin1(bytes: Uint8Array): string {
+  let text = ""
+  for (const byte of bytes) text += String.fromCharCode(byte)
+  return text
+}
+
 function node(partial: Partial<FlowNode> & Pick<FlowNode, "id" | "text">): FlowNode {
   return {
     kind: "process",
@@ -182,11 +188,31 @@ describe("diagrama", () => {
   })
 
   it("arma un pdf con la imagen jpeg", () => {
-    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9])
+    const jpeg = new Uint8Array([0xff, 0xd8, 0x65, 0x6e, 0x64, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x0a, 0xff, 0xd9])
     const pdf = pdfFromJpeg(jpeg, 20, 10)
-    expect(new TextDecoder().decode(pdf.slice(0, 8))).toBe("%PDF-1.4")
-    expect(pdf.includes(0xd8)).toBe(true)
-    expect(new TextDecoder().decode(pdf)).toContain("/DCTDecode")
+    const text = latin1(pdf)
+    expect(text.startsWith("%PDF-1.4\n")).toBe(true)
+    expect(text.endsWith("%%EOF\n")).toBe(true)
+    expect(text).toContain("/DCTDecode")
+    expect(text).toContain("/Width 20 /Height 10")
+    expect(text).toContain("/MediaBox [0 0 20 10]")
+    const xrefAt = text.lastIndexOf("\nxref\n") + 1
+    expect(pdf[xrefAt]).toBe("x".charCodeAt(0))
+    const lines = text.slice(xrefAt).split("\n")
+    expect(lines[0]).toBe("xref")
+    expect(lines[1]).toBe("0 6")
+    expect(lines[2]).toBe("0000000000 65535 f ")
+    for (let object = 1; object <= 5; object += 1) {
+      expect(lines[object + 2]?.length).toBe(19)
+      const offset = Number(lines[object + 2]?.slice(0, 10))
+      expect(text.startsWith(`${object} 0 obj\n`, offset)).toBe(true)
+    }
+    const imageAt = pdf.indexOf(jpeg[0])
+    expect(Array.from(pdf.slice(imageAt, imageAt + jpeg.length))).toEqual(Array.from(jpeg))
+
+    const huge = latin1(pdfFromJpeg(jpeg, 20_000, 10_000))
+    expect(huge).toContain("/MediaBox [0 0 14400 7200]")
+    expect(huge).toContain("/Width 20000 /Height 10000")
   })
 
   it("acomoda un ciclo con coordenadas finitas", async () => {

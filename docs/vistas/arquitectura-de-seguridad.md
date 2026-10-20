@@ -32,7 +32,7 @@ flowchart TB
 | Objeto ajeno responde 404 | proyectos, intentos y comunidades |
 | Tope de 64 KiB antes de lexicar | servicio, no el núcleo |
 | Límite de ingreso | 3 intentos; luego el correo queda bloqueado 15 minutos |
-| Una sesión por cuenta | La web, la aplicación y otra máquina no conviven. Tras 30 minutos sin uso se cierra |
+| Una sesión por cuenta | La web, otra ventana, la aplicación y otra máquina no conviven. Tras 30 minutos sin uso se cierra |
 | Límite de peticiones | ejecución |
 | Auditoría sin fuente completo ni secretos | `audit` |
 | Credencial Redis del runner acotada a `traza:*` | ACL |

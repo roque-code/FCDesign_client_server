@@ -19,6 +19,7 @@ export function App() {
   const [editorFocus, setEditorFocus] = useState<{ projectId: string; algorithmId: string; token: number } | null>(null)
   const [locale, setLocale] = useState<Locale>(readStoredLocale)
   const [notice, setNotice] = useState("")
+  const [occupied, setOccupied] = useState(false)
   const applyLocale = useCallback((next: Locale) => {
     storeLocale(next)
     setLocale(next)
@@ -108,9 +109,39 @@ export function App() {
   }, [holdAccount])
 
   useEffect(() => {
-    if (!account || !installedLocal()) return
-    void rememberAccess(account.access).catch(() => undefined)
+    if (!account) return
+    if (installedLocal()) void rememberAccess(account.access).catch(() => undefined)
   }, [account])
+
+  useEffect(() => {
+    if (!account) return
+    const timer = window.setInterval(() => {
+      void api.presence().catch(() => undefined)
+    }, 10000)
+    return () => window.clearInterval(timer)
+  }, [account?.id])
+
+  useEffect(() => {
+    if (!account?.id || !navigator.locks) return
+    let release: (() => void) | undefined
+    let cancelled = false
+    void navigator.locks.request("traza-account", { ifAvailable: true }, (lock) => {
+      if (cancelled) return undefined
+      if (!lock) {
+        setAccount(null)
+        setOccupied(true)
+        setNotice(translate(readStoredLocale(), "sessionOpen"))
+        return undefined
+      }
+      return new Promise<void>((done) => {
+        release = done
+      })
+    })
+    return () => {
+      cancelled = true
+      release?.()
+    }
+  }, [account?.id])
 
   async function logout() {
     await api.logout()
@@ -141,9 +172,11 @@ function openCompose(payload: { name?: string; source?: string; semicolons: bool
     <AuthScreen
       onSuccess={(next) => {
         setNotice("")
+        setOccupied(false)
         holdAccount(next)
       }}
       notice={notice}
+      locked={occupied}
     />
   ) : account.role === "admin" ? (
     <AdminHome account={account} onAccount={holdAccount} onLogout={() => void logout()} />

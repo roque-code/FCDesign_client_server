@@ -239,7 +239,7 @@ export function FlowView({
     const bytes = new Uint8Array(await blob.arrayBuffer())
     const pdf = pdfFromJpeg(bytes, canvas.width, canvas.height)
     const page = pdf.buffer.slice(pdf.byteOffset, pdf.byteOffset + pdf.byteLength) as ArrayBuffer
-    download(`${fileBase(filename)}.pdf`, new Blob([page], { type: "application/pdf" }))
+    download(`${fileBase(filename)}.pdf`, new Blob([page], { type: "application/octet-stream" }))
   }
 
   return (

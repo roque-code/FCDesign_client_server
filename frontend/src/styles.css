@@ -367,11 +367,19 @@ a.manual-download:hover, button.manual-download:hover { background: var(--hover)
 
 .manual-dialog h2 { margin: 0; font-size: 1.05rem; }
 
-.manual-frame {
+.manual-frame,
+.manual-status {
   width: 100%;
   height: min(72vh, 44rem);
   border: 0;
   background: #fff;
+}
+
+.manual-status {
+  display: grid;
+  place-items: center;
+  margin: 0;
+  background: var(--sheet);
 }
 
 .manual-sheet { display: grid; gap: 0.7rem; line-height: 1.5; }

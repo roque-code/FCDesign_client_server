@@ -2,7 +2,6 @@ import { useEffect, useState } from "react"
 
 import type { AccountRole } from "../api"
 import { useLocale, useT, type MessageKey } from "../i18n"
-import { saveRemote } from "../saveFile"
 
 type Manual = {
   href: string
@@ -164,9 +163,9 @@ export function GuideButtons({ role }: { role: AccountRole }) {
                     >
                       {t("viewManual")}
                     </button>
-                    <button type="button" className="manual-download" onClick={() => void saveRemote(manual.file, manual.href)}>
+                    <a className="manual-download" href={`${manual.href}?download=1`} download={manual.file}>
                       {t("downloadManual")}
-                    </button>
+                    </a>
                   </span>
                 </li>
               ))}
@@ -179,8 +178,13 @@ export function GuideButtons({ role }: { role: AccountRole }) {
   )
 }
 
+function isPdf(bytes: Uint8Array): boolean {
+  return bytes.length >= 5 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d
+}
+
 function ManualView({ manual, onClose }: { manual: Manual; onClose: () => void }) {
   const t = useT()
+  const [preview, setPreview] = useState<{ status: "loading" | "error" | "ready" }>({ status: "loading" })
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -190,25 +194,53 @@ function ManualView({ manual, onClose }: { manual: Manual; onClose: () => void }
     return () => document.removeEventListener("keydown", onKey)
   }, [onClose])
 
+  useEffect(() => {
+    let cancel = false
+    async function load() {
+      try {
+        const response = await fetch(manual.href, {
+          cache: "no-store",
+          headers: { Range: "bytes=0-4" },
+        })
+        const bytes = new Uint8Array(await response.arrayBuffer())
+        if ((response.status !== 200 && response.status !== 206) || !isPdf(bytes)) throw new Error("pdf")
+        if (!cancel) setPreview({ status: "ready" })
+      } catch {
+        if (!cancel) setPreview({ status: "error" })
+      }
+    }
+    void load()
+    return () => {
+      cancel = true
+    }
+  }, [manual.href])
+
   return (
     <div className="manual-backdrop" onMouseDown={onClose}>
       <section
         className="manual-dialog"
         role="dialog"
         aria-modal="true"
+        aria-busy={preview.status === "loading"}
         aria-label={t(manual.label)}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <header>
           <h2>{t(manual.label)}</h2>
           <span>
-            <button type="button" className="manual-download" onClick={() => void saveRemote(manual.file, manual.href)}>
+            <a className="manual-download" href={`${manual.href}?download=1`} download={manual.file}>
               {t("downloadManual")}
-            </button>
+            </a>
             <button type="button" onClick={onClose}>{t("close")}</button>
           </span>
         </header>
-        <iframe className="manual-frame" title={t(manual.label)} src={manual.href} />
+        {preview.status === "ready" ? (
+          <iframe className="manual-frame" title={t(manual.label)} src={manual.href} />
+        ) : (
+          <p className={preview.status === "error" ? "error manual-status" : "note manual-status"}>
+            {t(preview.status === "error" ? "manualError" : "manualLoading")}
+          </p>
+        )}
       </section>
     </div>
   )
