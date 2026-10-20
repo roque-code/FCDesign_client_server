@@ -27,6 +27,22 @@ export function App() {
   }, [])
 
   useEffect(() => {
+    function onEnd(event: Event) {
+      const detail = (event as CustomEvent<string>).detail
+      setAccount(null)
+      setNotice(
+        typeof detail === "string" && detail
+          ? translatedMessage(detail)
+          : translate(readStoredLocale(), "sessionIdle"),
+      )
+      setReady(true)
+      setScreen("editor")
+    }
+    window.addEventListener("traza-session-end", onEnd)
+    return () => window.removeEventListener("traza-session-end", onEnd)
+  }, [])
+
+  useEffect(() => {
     let ignore = false
     async function start(search: string) {
       const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search)
@@ -35,6 +51,10 @@ export function App() {
       if (params.get("correo") === "confirmado") {
         window.history.replaceState({}, "", window.location.pathname)
         if (!ignore) setNotice(translate(readStoredLocale(), "emailConfirmedAnywhere"))
+      }
+      if (params.get("sesion") === "abierta") {
+        window.history.replaceState({}, "", window.location.pathname)
+        if (!ignore) setNotice(translate(readStoredLocale(), "sessionOpen"))
       }
       try {
         await ensureCsrf()
@@ -109,7 +129,13 @@ function openCompose(payload: { name?: string; source?: string; semicolons: bool
   const shell = !ready ? (
     <main className="auth"><p>{translate(locale, "loading")}</p></main>
   ) : !account ? (
-    <AuthScreen onSuccess={holdAccount} notice={notice} />
+    <AuthScreen
+      onSuccess={(next) => {
+        setNotice("")
+        holdAccount(next)
+      }}
+      notice={notice}
+    />
   ) : account.role === "admin" ? (
     <AdminHome account={account} onAccount={holdAccount} onLogout={() => void logout()} />
   ) : !inInstalledApp() && !account.access?.browser_app ? (

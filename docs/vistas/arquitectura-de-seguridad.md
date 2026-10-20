@@ -31,7 +31,9 @@ flowchart TB
 | CSRF en los cambios de estado | middleware y cabecera `X-CSRFToken` |
 | Objeto ajeno responde 404 | proyectos, intentos y comunidades |
 | Tope de 64 KiB antes de lexicar | servicio, no el núcleo |
-| Límite de peticiones | entrada y ejecución |
+| Límite de ingreso | 3 intentos; luego el correo queda bloqueado 15 minutos |
+| Una sesión por cuenta | La web, la aplicación y otra máquina no conviven. Tras 30 minutos sin uso se cierra |
+| Límite de peticiones | ejecución |
 | Auditoría sin fuente completo ni secretos | `audit` |
 | Credencial Redis del runner acotada a `traza:*` | ACL |
 | Runner sin red pública, sin capacidades y con tope de recursos | compose |

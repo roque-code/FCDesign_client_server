@@ -33,6 +33,7 @@ class User(AbstractUser):
     username = None  # type: ignore[assignment]
     email = models.EmailField("correo", unique=True)
     email_confirmed = models.BooleanField("correo confirmado", default=True)
+    session_key = models.CharField("sesión activa", max_length=40, blank=True, default="")
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
     objects = UserManager()  # type: ignore[misc,assignment]

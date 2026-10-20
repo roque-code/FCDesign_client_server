@@ -658,6 +658,13 @@ function textError(status: number, body: string): ApiError {
   }
 }
 
+function raiseApi(status: number, code: string, message: string): never {
+  if (code === "session_idle" && typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("traza-session-end", { detail: message }))
+  }
+  throw new ApiError(status, code, message)
+}
+
 function installedClient(): boolean {
   if (typeof window === "undefined") return false
   const host = window as Window & { __TRAZA_LOCAL__?: { origin?: string }; __TAURI_INTERNALS__?: unknown }
@@ -689,7 +696,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   }
   if (!response.ok) {
     const error = data.error ?? {}
-    throw new ApiError(
+    raiseApi(
       response.status,
       error.code ?? "invalid",
       error.message ?? "No se pudo completar la solicitud.",
@@ -719,7 +726,7 @@ async function desktopRequest<T>(path: string, init: RequestInit): Promise<T> {
   const data = JSON.parse(reply.body || "{}") as { error?: { code?: string; message?: string } }
   if (reply.status < 200 || reply.status >= 300) {
     const error = data.error ?? {}
-    throw new ApiError(reply.status, error.code ?? "invalid", error.message ?? "No se pudo completar la solicitud.")
+    raiseApi(reply.status, error.code ?? "invalid", error.message ?? "No se pudo completar la solicitud.")
   }
   return data as T
 }

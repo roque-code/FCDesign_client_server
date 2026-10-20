@@ -414,7 +414,8 @@ Laboratorio: `/api/v1/learning/path/`, `paths/`, `catalog/`, `bank/`, `challenge
 - Consultas por el ORM.
 - En producción las cookies de sesión son `Secure` y `HttpOnly`, con `SameSite=Lax`. El CSRF lo lee el cliente porque el SPA envía el token.
 - Cabeceras: HSTS en producción, `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options` y una política de contenido limitada al propio origen.
-- Límite de peticiones en el inicio de sesión y en la ejecución.
+- Límite de peticiones en la ejecución. El ingreso admite 3 intentos; si el correo o la contraseña no coinciden, ese correo queda bloqueado 15 minutos.
+- Una cuenta solo tiene una sesión abierta. Otra máquina o la aplicación recibe `session_open` hasta cerrarla o hasta 30 minutos sin uso. La inactividad responde `session_idle`.
 - Tope de 64 KiB del fuente antes de lexicar.
 - Un docente lee el algoritmo de un alumno solo si ese alumno está en una comunidad suya. La respuesta ajena sigue siendo 404.
 - Traducir responde 403 cuando el docente apagó esa acción para el alumno.

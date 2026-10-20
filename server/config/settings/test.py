@@ -10,6 +10,5 @@ TRAZA_SIGNUP_PLAN = "premium"
 TRAZA_MAIL_UI = ""
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 RATE_LIMITS = {
-    "auth.login": (3, 60),
     "execution.start": (3, 60),
 }

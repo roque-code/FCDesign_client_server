@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react"
 
 import { api, ApiError, type Account, type PendingConfirmation, type Role } from "../api"
-import { useT } from "../i18n"
+import { useT, translatedMessage } from "../i18n"
 import { launchSearch } from "../runtime"
 
 type Mode = "entrar" | "crear" | "recuperar" | "nueva"
@@ -76,7 +76,7 @@ export function AuthScreen({ onSuccess, notice = "" }: { onSuccess: (account: Ac
       if (caught instanceof ApiError && caught.code === "email_unconfirmed") {
         setPendingEmail(email)
       }
-      setError(caught instanceof ApiError ? caught.message : t("requestError"))
+      setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("requestError"))
     }
   }
 

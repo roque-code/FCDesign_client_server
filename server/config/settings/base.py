@@ -42,6 +42,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "config.middleware.ApiCsrfMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.accounts.middleware.IdleSessionMiddleware",
     "apps.billing.middleware.PlanGateMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -105,6 +106,9 @@ CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_IDLE_SECONDS = 30 * 60
+LOGIN_FAILURE_LIMIT = 3
+LOGIN_LOCK_SECONDS = 15 * 60
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
@@ -142,6 +146,5 @@ MAX_COMMUNITIES_PER_TEACHER = 30
 MAX_MEMBERS_PER_COMMUNITY = 200
 MAX_FOLDER_DEPTH = 8
 RATE_LIMITS = {
-    "auth.login": (10, 60),
     "execution.start": (30, 60),
 }

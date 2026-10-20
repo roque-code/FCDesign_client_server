@@ -1,4 +1,3 @@
-from django.contrib.auth import login
 from django.http import HttpResponse, HttpResponseRedirect
 from django.utils.decorators import method_decorator
 from django.utils.html import escape
@@ -22,10 +21,10 @@ from apps.accounts.services import (
     update_profile,
     user_payload,
 )
+from apps.accounts.guard import begin_session
 from apps.http import client_ip, current_user, object_body
 from config.errors import DomainError
 
-_AUTH_BACKEND = "django.contrib.auth.backends.ModelBackend"
 _CONFIRMED_ELSEWHERE = "El correo quedó confirmado. Esa cuenta ya puede entrar desde cualquier equipo."
 
 
@@ -57,7 +56,7 @@ class RegisterView(APIView):
                 {"pending_confirmation": True, "message": confirmation_notice()},
                 status=201,
             )
-        login(request, user)
+        begin_session(request, user)
         return Response(user_payload(user), status=201)
 
 
@@ -100,7 +99,12 @@ class EmailConfirmView(APIView):
         user = confirm_email(data.get("uid"), data.get("token"), client_ip(request))
         if _other_session(request, user):
             return Response({"confirmed": True, "message": _CONFIRMED_ELSEWHERE})
-        login(request, user, backend=_AUTH_BACKEND)
+        try:
+            begin_session(request, user)
+        except DomainError as exc:
+            if exc.code != "session_open":
+                raise
+            return Response({"confirmed": True, "message": exc.message})
         return Response(user_payload(user))
 
 
@@ -131,7 +135,12 @@ class EmailConfirmOpenView(View):
             )
         if _other_session(request, user):
             return HttpResponseRedirect("/?correo=confirmado")
-        login(request, user, backend=_AUTH_BACKEND)
+        try:
+            begin_session(request, user)
+        except DomainError as exc:
+            if exc.code != "session_open":
+                raise
+            return HttpResponseRedirect("/?sesion=abierta")
         return HttpResponseRedirect("/")
 
 

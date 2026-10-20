@@ -6,7 +6,7 @@ from smtplib import SMTPException
 from urllib.parse import urlencode
 
 from django.conf import settings
-from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
+from django.contrib.auth import authenticate, logout, update_session_auth_hash
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import PasswordResetTokenGenerator, default_token_generator
 from django.core.exceptions import ValidationError
@@ -21,7 +21,6 @@ from apps.audit.services import record
 from apps.editor.models import EditorPreference
 from apps.projects.examples import seed_examples
 from config.errors import DomainError
-from config.ratelimit import allow
 
 
 def clean_email(value: object) -> str:
@@ -228,20 +227,29 @@ def register_user(
 
 
 def login_user(request, email: object, password: object) -> User:
-    allow("auth.login", request.META.get("REMOTE_ADDR") or "unknown")
+    from apps.accounts.guard import (
+        begin_session,
+        clear_login_failures,
+        note_login_failure,
+        refuse_locked_login,
+    )
+
     cleaned = clean_email(email)
-    if not isinstance(password, str):
-        raise DomainError("Correo o contraseña incorrectos.")
-    authenticated = authenticate(request, username=cleaned, password=password)
+    refuse_locked_login(cleaned)
+    authenticated = None
+    if isinstance(password, str):
+        authenticated = authenticate(request, username=cleaned, password=password)
     if not isinstance(authenticated, User):
+        note_login_failure(cleaned)
         raise DomainError("Correo o contraseña incorrectos.")
     user = authenticated
+    clear_login_failures(cleaned)
     if not user.email_confirmed:
         raise DomainError(
             "Confirma el correo antes de entrar. Revisa el mensaje que te enviamos.",
             code="email_unconfirmed",
         )
-    login(request, user)
+    user = begin_session(request, user)
     record(
         "auth.login",
         actor=user,
@@ -254,7 +262,11 @@ def login_user(request, email: object, password: object) -> User:
 
 
 def logout_user(request) -> None:
+    from apps.accounts.guard import release_session
+
     user = request.user if getattr(request.user, "is_authenticated", False) else None
+    if isinstance(user, User):
+        release_session(user, request.session.session_key)
     logout(request)
     if user is not None:
         record(

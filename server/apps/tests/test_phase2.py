@@ -1,5 +1,6 @@
 """API de cuentas, proyectos, versiones y ejecución en proceso."""
 
+import time
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -276,11 +277,13 @@ def test_el_enlace_del_correo_confirma_aunque_otra_sesion_este_abierta(client):
         {"email": "libre@ejemplo.test", "password": PASSWORD},
         format="json",
     )
-    assert home.status_code == 200, home.content
+    assert home.status_code == 409, home.content
+    assert home.json()["error"]["code"] == "session_open"
+    assert visitor.get("/api/v1/auth/me/").status_code == 200
 
 
 def test_login_rate_limit_and_csrf(client):
-    for _ in range(3):
+    for _ in range(2):
         failed = client.post(
             "/api/v1/auth/login/",
             {"email": "ana@ejemplo.test", "password": "mala"},
@@ -289,10 +292,21 @@ def test_login_rate_limit_and_csrf(client):
         assert failed.status_code == 400
     blocked = client.post(
         "/api/v1/auth/login/",
-        {"email": "ana@ejemplo.test", "password": PASSWORD},
+        {"email": "ana@ejemplo.test", "password": "mala"},
         format="json",
     )
     assert blocked.status_code == 429
+    assert blocked.json()["error"]["code"] == "login_locked"
+    other = APIClient(enforce_csrf_checks=True)
+    refresh_csrf(other)
+    away = other.post(
+        "/api/v1/auth/login/",
+        {"email": "ana@ejemplo.test", "password": PASSWORD},
+        format="json",
+        REMOTE_ADDR="10.9.9.9",
+    )
+    assert away.status_code == 429
+    assert away.json()["error"]["code"] == "login_locked"
     bare = APIClient(enforce_csrf_checks=True)
     denied = bare.post(
         "/api/v1/auth/login/",
@@ -302,6 +316,44 @@ def test_login_rate_limit_and_csrf(client):
     )
     assert denied.status_code == 403
     assert denied.json()["error"]["code"] == "csrf_failed"
+
+
+def test_una_sola_sesion_por_cuenta_y_se_cierra_por_inactividad(client, settings):
+    created = register(client, email="unica@ejemplo.test", display_name="Unica")
+    assert created.status_code == 201
+    browser = APIClient(enforce_csrf_checks=True, HTTP_X_TRAZA_CLIENT="")
+    refresh_csrf(browser)
+    denied = browser.post(
+        "/api/v1/auth/login/",
+        {"email": "unica@ejemplo.test", "password": PASSWORD},
+        format="json",
+    )
+    assert denied.status_code == 409, denied.content
+    assert denied.json()["error"]["code"] == "session_open"
+    assert client.get("/api/v1/auth/me/").status_code == 200
+
+    stored = client.session
+    stored["last_activity"] = int(time.time()) - settings.SESSION_IDLE_SECONDS - 5
+    stored.save()
+    idle = client.get("/api/v1/auth/me/")
+    assert idle.status_code == 401
+    assert idle.json()["error"]["code"] == "session_idle"
+
+    refresh_csrf(browser)
+    entered = browser.post(
+        "/api/v1/auth/login/",
+        {"email": "unica@ejemplo.test", "password": PASSWORD},
+        format="json",
+    )
+    assert entered.status_code == 200, entered.content
+    refresh_csrf(client)
+    again = client.post(
+        "/api/v1/auth/login/",
+        {"email": "unica@ejemplo.test", "password": PASSWORD},
+        format="json",
+    )
+    assert again.status_code == 409
+    assert browser.get("/api/v1/auth/me/").status_code == 200
 
 
 def test_duplicate_email_and_weak_password(client):
