@@ -642,7 +642,7 @@ async function requestText(path: string): Promise<string> {
     if (reply.status < 200 || reply.status >= 300) throw textError(reply.status, reply.body)
     return reply.body
   }
-  const response = await fetch(path, { credentials: "same-origin", cache: "no-store" })
+  const response = await fetch(path, { credentials: "same-origin" })
   const text = await response.text()
   if (!response.ok) throw textError(response.status, text)
   return text
@@ -702,7 +702,6 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     ...init,
     headers,
     credentials: "same-origin",
-    cache: "no-store",
   })
   if (response.status === 204) return undefined as T
   const raw = await response.text()

@@ -37,6 +37,7 @@ export function AuthScreen({
   const [message, setMessage] = useState(notice)
   const [error, setError] = useState("")
   const [pendingEmail, setPendingEmail] = useState("")
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (notice) setMessage(notice)
@@ -54,6 +55,8 @@ export function AuthScreen({
 
   async function submit(event: FormEvent) {
     event.preventDefault()
+    if (busy) return
+    setBusy(true)
     setError("")
     setMessage("")
     setPendingEmail("")
@@ -85,7 +88,10 @@ export function AuthScreen({
       if (caught instanceof ApiError && caught.code === "email_unconfirmed") {
         setPendingEmail(email)
       }
-      setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("requestError"))
+      const detail = caught instanceof Error ? caught.message : ""
+      setError(caught instanceof ApiError ? translatedMessage(caught.message) : detail || t("requestError"))
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -156,8 +162,8 @@ export function AuthScreen({
               {t("resend")}
             </button>
           )}
-          <button className="primary" type="submit">
-            {mode === "entrar" ? t("signIn") : mode === "crear" ? t("createAccount") : mode === "nueva" ? t("password") : t("sendInstructions")}
+          <button className="primary" type="submit" disabled={busy}>
+            {busy ? "…" : mode === "entrar" ? t("signIn") : mode === "crear" ? t("createAccount") : mode === "nueva" ? t("password") : t("sendInstructions")}
           </button>
         </form>
         </>
