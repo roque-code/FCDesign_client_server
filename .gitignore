@@ -9,6 +9,7 @@ htmlcov/
 .env
 server/staticfiles/
 desktop/node_modules/
+frontend/node_modules/
 desktop/src-tauri/target/
 desktop/src-tauri/binaries/
 desktop/src-tauri/gen/schemas/
