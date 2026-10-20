@@ -1,0 +1,173 @@
+# Servidor HTTP en el puerto 18080. Django envía la confirmación a Gmail.
+# No levanta Mailpit. Las claves se leen del .env de esta misma carpeta.
+# Sigue en config.settings.development: con HTTP, production marca las
+# cookies Secure y el navegador no guardaría la sesión.
+name: traza
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: traza
+      POSTGRES_USER: traza
+      POSTGRES_PASSWORD: traza
+    volumes:
+      - traza-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U traza -d traza"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - web
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "/etc/traza/redis.conf"]
+    volumes:
+      - ./deploy/redis/redis.conf:/etc/traza/redis.conf:ro
+      - ./deploy/redis/users.acl:/etc/traza/users.acl:ro
+      - traza-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--user", "web", "--pass", "traza-web-dev", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - web
+      - isolated
+
+  runner:
+    build:
+      context: .
+      dockerfile: deploy/runner.Dockerfile
+    environment:
+      HOME: /tmp
+      REDIS_URL: redis://runner:traza-runner-dev@redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    cpus: 0.50
+    pids_limit: 64
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import os,redis; r=redis.Redis.from_url(os.environ['REDIS_URL'], decode_responses=True); raise SystemExit(0 if r.get('traza:hb') else 1)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    networks:
+      - isolated
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/web.Dockerfile
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-container-not-production}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,web,nginx,18.118.112.206}
+      DJANGO_CSRF_ORIGINS: ${DJANGO_CSRF_ORIGINS:-http://18.118.112.206:18080,http://127.0.0.1:18080,http://localhost:18080}
+      TRAZA_RUNNER: redis
+      REDIS_URL: redis://web:traza-web-dev@redis:6379/0
+      EMAIL_HOST: smtp.gmail.com
+      EMAIL_PORT: "587"
+      EMAIL_HOST_USER: aulivana.fcdesign@gmail.com
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:?Falta EMAIL_HOST_PASSWORD en el .env de esta carpeta}
+      EMAIL_USE_TLS: "1"
+      DEFAULT_FROM_EMAIL: aulivana.fcdesign@gmail.com
+      TRAZA_EMAIL_CONFIRMATION: "1"
+      TRAZA_PUBLIC_ORIGIN: ${TRAZA_PUBLIC_ORIGIN:-http://18.118.112.206:18080}
+      TRAZA_MAIL_UI: ""
+      POSTGRES_DB: traza
+      POSTGRES_USER: traza
+      POSTGRES_PASSWORD: traza
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+    volumes:
+      - .:/opt/traza
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      runner:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/auth/csrf/')",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 25s
+    networks:
+      - web
+
+  frontend:
+    build:
+      context: .
+      dockerfile: deploy/frontend.Dockerfile
+    environment:
+      VITE_HOST: 0.0.0.0
+      VITE_HMR_CLIENT_PORT: "18080"
+      VITE_USE_POLLING: "1"
+    volumes:
+      - ./frontend:/app
+      - ./docs:/docs:ro
+      - frontend-modules:/app/node_modules
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:5173/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    networks:
+      - web
+
+  nginx:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./deploy/nginx/desarrollo.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "18080:80"
+    depends_on:
+      web:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    networks:
+      - web
+
+networks:
+  web:
+  isolated:
+    internal: true
+
+volumes:
+  traza-db:
+  traza-redis:
+  frontend-modules:

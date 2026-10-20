@@ -24,13 +24,6 @@ services:
     image: axllent/mailpit:v1.27
     environment:
       MP_MAX_MESSAGES: "500"
-      MP_SMTP_RELAY_HOST: smtp.gmail.com
-      MP_SMTP_RELAY_PORT: "587"
-      MP_SMTP_RELAY_STARTTLS: "true"
-      MP_SMTP_RELAY_AUTH: plain
-      MP_SMTP_RELAY_USERNAME: aulivana.fcdesign@gmail.com
-      MP_SMTP_RELAY_PASSWORD: ${GMAIL_APP_PASSWORD}
-      MP_SMTP_RELAY_ALL: "true"
     ports:
       - "8025:8025"
     healthcheck:
@@ -107,7 +100,7 @@ services:
       EMAIL_PORT: "1025"
       DEFAULT_FROM_EMAIL: aulivana.fcdesign@gmail.com
       TRAZA_EMAIL_CONFIRMATION: "1"
-      TRAZA_PUBLIC_ORIGIN: http://18.118.112.206:18080
+      TRAZA_PUBLIC_ORIGIN: ${TRAZA_PUBLIC_ORIGIN:-http://127.0.0.1:18080}
       TRAZA_MAIL_UI: http://127.0.0.1:8025
       POSTGRES_DB: traza
       POSTGRES_USER: traza
