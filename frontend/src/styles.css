@@ -142,6 +142,42 @@ h1, h2 { font-weight: 650; letter-spacing: -0.02em; }
 
 .card h1 { margin: 0; font-size: 1.7rem; }
 
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.logo-mark { width: 2.35rem; height: 2.35rem; flex: none; display: block; }
+
+.logo-words {
+  display: grid;
+  justify-items: start;
+  line-height: 1;
+  gap: 0.16rem;
+}
+
+.logo-name {
+  color: var(--ink);
+  font-size: 1.35rem;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+}
+
+.logo-sub {
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.card .logo-mark { width: 3.15rem; height: 3.15rem; }
+.card .logo-name { font-size: 1.85rem; }
+.card .logo-sub { font-size: 0.82rem; }
+.loading-card { width: min(22rem, 100%); }
+.loading-card p { margin: 0; color: var(--muted); }
+
 .tabs {
   display: flex;
   gap: 0.15rem;
@@ -471,18 +507,17 @@ a.manual-download:hover, button.manual-download:hover { background: var(--hover)
 .settings-menu button { width: 100%; }
 .settings-menu .note { margin: 0; font-size: 0.78rem; }
 
-.brand { display: flex; gap: 0.55rem; align-items: baseline; }
-.brand h1 { margin: 0; font-size: 1.15rem; }
-.brand h1::before {
-  content: "";
-  display: inline-block;
-  width: 0.72rem;
-  height: 0.72rem;
-  margin-right: 0.45rem;
-  border-radius: 5px;
-  background: var(--accent);
-  vertical-align: -0.05em;
+.brand { display: flex; gap: 0.55rem; align-items: center; }
+.brand h1 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 1.15rem;
 }
+.topbar-editor .logo-mark { width: 1.85rem; height: 1.85rem; }
+.topbar-editor .logo-name { font-size: 1.02rem; }
+.topbar-editor .logo-sub { font-size: 0.62rem; letter-spacing: 0.1em; }
 .brand p { margin: 0; color: var(--muted); font-size: 0.92rem; }
 
 .topbar-editor {

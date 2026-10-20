@@ -8,6 +8,7 @@ import { LocaleProvider, readStoredLocale, storeLocale, translate, translatedMes
 import { LearningLab } from "./learning/LearningLab"
 import { inInstalledApp, installedLocal, launchSearch, rememberAccess } from "./runtime"
 import { AccountOnly } from "./shell/AccountOnly"
+import { Logo } from "./shell/Logo"
 import { Workbench } from "./workbench/Workbench"
 
 export function App() {
@@ -135,7 +136,7 @@ function openCompose(payload: { name?: string; source?: string; semicolons: bool
   }
 
   const shell = !ready ? (
-    <main className="auth"><p>{translate(locale, "loading")}</p></main>
+    <main className="auth"><div className="card loading-card"><Logo /><p>{translate(locale, "loading")}</p></div></main>
   ) : !account ? (
     <AuthScreen
       onSuccess={(next) => {

@@ -1,6 +1,7 @@
 import { type Account } from "../api"
 import { useT } from "../i18n"
 import { AccountIdentity } from "./Identity"
+import { Logo } from "./Logo"
 
 export function AccountOnly({
   account,
@@ -17,7 +18,7 @@ export function AccountOnly({
     <div className="shell">
       <header className="topbar topbar-editor">
         <div className="brand">
-          <h1>Traza</h1>
+          <h1><Logo /></h1>
           <AccountIdentity account={account} onAccount={onAccount} />
         </div>
         <div className="actions">

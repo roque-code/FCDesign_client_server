@@ -37,7 +37,7 @@ flowchart LR
 | Esquema | OpenAPI en `GET /api/schema/` | Contrato vivo de la API |
 | Traducción | `POST /api/v1/algorithms/{id}/translate/` o `POST /local/v1/translate` | Diagnósticos y, sin errores, un programa por lenguaje. No hay ejecución. 403 si el docente o el nivel la apagaron |
 | Nivel | `GET /api/v1/auth/me/` y `/api/v1/billing/` | El plan viaja con la cuenta. El administrador define niveles. No hay cobro automático |
-| Aplicación | Cabecera `X-Traza-Client: desktop` | Sin ella, y si el navegador no está permitido, el resto de `/api/v1/` responde 403 |
+| Aplicación | Cabecera `X-Aulivana-FCDdesign-Client: desktop` | Sin ella, y si el navegador no está permitido, el resto de `/api/v1/` responde 403 |
 | Notas | `GET /api/v1/learning/roster/{id}/progress/` | CSV de la ruta. No se guarda |
 | Retos | `GET /api/v1/learning/challenges/csv/?tipo=&contenido=retos&banco=` y `POST /api/v1/learning/challenges/csv/` | La descarga sale por tipo y por banco (`catalogo` o `concurso`). Un alumno recibe 403. La carga admite hasta 250 retos y 1 MB. Si una fila falla, no se guarda ninguna |
 | Escritorio y API | `POST /local/v1/proxy`, solo rutas `/api/` | La misma JSON de la API. El token del anfitrión local no viaja al servidor |

@@ -1,14 +1,14 @@
 #!/bin/sh
 # Sin notarización de Apple, macOS marca la descarga y responde -47 al abrir
-# Traza.app. La firma ad hoc cubre el programa y el intérprete. El acceso
-# «Abrir Traza» copia la app fuera de la imagen y quita esa marca.
+# Aulivana-FCDdesign.app. La firma ad hoc cubre el programa y el intérprete. El acceso
+# «Abrir Aulivana-FCDdesign» copia la app fuera de la imagen y quita esa marca.
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 bundle="$root/src-tauri/target/release/bundle"
 app=$(find "$bundle/macos" -maxdepth 1 -name '*.app' -print | head -n 1)
 if [ -z "$app" ]; then
-  echo "traza: no hay una aplicación de Mac para empaquetar."
+  echo "Aulivana-FCDdesign: no hay una aplicación de Mac para empaquetar."
   exit 1
 fi
 
@@ -34,35 +34,35 @@ payload=$(mktemp -d)/"$name"
 mkdir -p "$payload"
 ditto "$app" "$payload/$name.app"
 
-cat >"$payload/Abrir Traza.command" <<'EOF'
+cat >"$payload/Abrir Aulivana-FCDdesign.command" <<'EOF'
 #!/bin/bash
 here=$(cd "$(dirname "$0")" && pwd)
-src="$here/Traza.app"
-dest="$HOME/Applications/Traza.app"
+src="$here/Aulivana-FCDdesign.app"
+dest="$HOME/Applications/Aulivana-FCDdesign.app"
 if [ ! -d "$src" ]; then
-  echo "No encuentro Traza.app junto a este archivo."
+  echo "No encuentro Aulivana-FCDdesign.app junto a este archivo."
   read -r -p "Pulsa Retorno para cerrar." _
   exit 1
 fi
 mkdir -p "$HOME/Applications"
 if [ -d "$dest" ] && ! rm -rf "$dest"; then
-  echo "Cierra Traza si está abierta e inténtalo de nuevo."
+  echo "Cierra Aulivana-FCDdesign si está abierta e inténtalo de nuevo."
   read -r -p "Pulsa Retorno para cerrar." _
   exit 1
 fi
 cp -R "$src" "$dest"
 xattr -cr "$dest"
 open "$dest"
-echo "Traza quedó en Aplicaciones de tu usuario y ya se abrió."
+echo "Aulivana-FCDdesign quedó en Aplicaciones de tu usuario y ya se abrió."
 EOF
-chmod 755 "$payload/Abrir Traza.command"
+chmod 755 "$payload/Abrir Aulivana-FCDdesign.command"
 
 cat >"$payload/Leeme.txt" <<'EOF'
-macOS no abre Traza.app con doble clic cuando la copia llega desde GitHub.
+macOS no abre Aulivana-FCDdesign.app con doble clic cuando la copia llega desde GitHub.
 Muestra «no se puede abrir» y el código -47. La app no está dañada: falta la notarización de Apple.
 
-Abre «Abrir Traza.command». Si macOS pregunta, elige Abrir.
-Ese archivo copia Traza a tu carpeta Aplicaciones y la abre.
+Abre «Abrir Aulivana-FCDdesign.command». Si macOS pregunta, elige Abrir.
+Ese archivo copia Aulivana-FCDdesign a tu carpeta Aplicaciones y la abre.
 
 Después ábrela desde esa carpeta. No hace falta repetir el paso.
 EOF
@@ -80,4 +80,4 @@ if [ -d "$bundle/dmg" ]; then
 fi
 
 rm -rf "$app" "$payload"
-echo "traza: imagen de Mac lista. Abre «Abrir Traza.command» dentro del .zip o del .dmg."
+echo "Aulivana-FCDdesign: imagen de Mac lista. Abre «Abrir Aulivana-FCDdesign.command» dentro del .zip o del .dmg."

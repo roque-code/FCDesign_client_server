@@ -25,7 +25,7 @@ class MetaView(APIView):
             )
         return Response(
             {
-                "product": "Traza",
+                "product": "Aulivana-FCDdesign",
                 "runner": settings.EXECUTION_RUNNER,
                 "debug": settings.DEBUG,
                 "notice": notice,

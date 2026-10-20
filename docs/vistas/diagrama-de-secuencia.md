@@ -66,7 +66,7 @@ sequenceDiagram
 
 Si el docente o el nivel apagaron la traducción, la respuesta es 403 y no hay programas. El repaso de un alumno usa las mismas órdenes de validar y ejecutar, sin crear una versión.
 
-Si el navegador no está permitido y la petición no trae `X-Traza-Client: desktop`, entrar y cambiar la cuenta siguen abiertos. El resto de `/api/v1/` responde 403 antes de llegar a la vista.
+Si el navegador no está permitido y la petición no trae `X-Aulivana-FCDdesign-Client: desktop`, entrar y cambiar la cuenta siguen abiertos. El resto de `/api/v1/` responde 403 antes de llegar a la vista.
 
 El laboratorio repite la segunda secuencia con `POST /api/v1/learning/run/` y `GET /api/v1/learning/runs/{id}/events/`. No inserta `executions.Execution`.
 

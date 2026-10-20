@@ -2,6 +2,7 @@ import { Component, StrictMode, type ErrorInfo, type ReactNode } from "react"
 import { createRoot } from "react-dom/client"
 
 import { App } from "./App"
+import { Logo } from "./shell/Logo"
 import "./styles.css"
 
 class RootError extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -20,7 +21,7 @@ class RootError extends Component<{ children: ReactNode }, { error: Error | null
     return (
       <main className="auth">
         <section className="card">
-          <h1>Traza</h1>
+          <h1><Logo /></h1>
           <p>{this.state.error.message}</p>
           <button type="button" onClick={() => window.location.reload()}>
             Reintentar

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import { ApiError, api, type Account, type BillingPlan, type PlanFeature, type Role, type Subscriber } from "../api"
 import { useT } from "../i18n"
 import { AccountIdentity } from "../shell/Identity"
+import { Logo } from "../shell/Logo"
 
 type Draft = {
   id: string | null
@@ -177,7 +178,7 @@ export function AdminHome({
     <div className="shell">
       <header className="topbar topbar-editor">
         <div className="brand">
-          <h1>{t("levels")}</h1>
+          <h1><Logo mark />{t("levels")}</h1>
           <AccountIdentity account={account} onAccount={onAccount} />
         </div>
         <div className="actions">

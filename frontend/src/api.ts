@@ -677,7 +677,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json")
   const token = csrfToken()
   if (token) headers.set("X-CSRFToken", token)
-  if (installedClient()) headers.set("X-Traza-Client", "desktop")
+  if (installedClient()) headers.set("X-Aulivana-FCDdesign-Client", "desktop")
   const response = await fetch(path, {
     ...init,
     headers,
@@ -713,7 +713,7 @@ async function desktopRequest<T>(path: string, init: RequestInit): Promise<T> {
   const headers: Record<string, string> = {}
   const token = csrfToken()
   if (token) headers["X-CSRFToken"] = token
-  if (installedClient()) headers["X-Traza-Client"] = "desktop"
+  if (installedClient()) headers["X-Aulivana-FCDdesign-Client"] = "desktop"
   if (init.body) headers["Content-Type"] = "application/json"
   const reply = await internals.invoke("server_fetch", {
     path,

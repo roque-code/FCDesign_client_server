@@ -175,7 +175,7 @@ class LocalHandler(BaseHTTPRequestHandler):
         outbound = headers if isinstance(headers, dict) else {}
         clean = {str(key): value for key, value in outbound.items() if isinstance(value, str)}
         clean = {key: value for key, value in clean.items() if key.lower() != "x-traza-client"}
-        clean["X-Traza-Client"] = "desktop"
+        clean["X-Aulivana-FCDdesign-Client"] = "desktop"
         status, payload, csrf = self.server.proxy.forward(
             path,
             method,

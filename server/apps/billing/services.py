@@ -134,7 +134,7 @@ def normalize_features(audience: str, raw: object) -> dict[str, bool]:
 
 
 def client_is_desktop(request) -> bool:
-    header = request.META.get("HTTP_X_TRAZA_CLIENT", "")
+    header = request.META.get("HTTP_X_AULIVANA_FCDDESIGN_CLIENT", "")
     return isinstance(header, str) and header == DESKTOP_CLIENT
 
 

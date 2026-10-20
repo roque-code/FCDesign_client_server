@@ -6,7 +6,7 @@ Las secciones 1 a 11 conservan el diseño con el que se autorizó el módulo. Va
 
 ## 1. Diagnóstico
 
-Traza ya es el editor: el estudiante escribe pseudocódigo, lo valida, lo ejecuta, lo depura y ve el diagrama. El núcleo recorre un AST. No usa `eval` ni `exec`. Traducir a Python u otro lenguaje es otra acción y no corre el algoritmo. Las fases 1 a 6 del producto están hechas en desarrollo. El laboratorio no depende de un servidor de producción. En los contenedores, la pasada del laboratorio usa el mismo runner. En la máquina, sin la ventana de escritorio, sigue en el proceso de Django. En esa ventana la pasada va a `local_host`, que importa el mismo núcleo.
+Aulivana-FCDdesign ya es el editor: el estudiante escribe pseudocódigo, lo valida, lo ejecuta, lo depura y ve el diagrama. El núcleo recorre un AST. No usa `eval` ni `exec`. Traducir a Python u otro lenguaje es otra acción y no corre el algoritmo. Las fases 1 a 6 del producto están hechas en desarrollo. El laboratorio no depende de un servidor de producción. En los contenedores, la pasada del laboratorio usa el mismo runner. En la máquina, sin la ventana de escritorio, sigue en el proceso de Django. En esa ventana la pasada va a `local_host`, que importa el mismo núcleo.
 
 El diseño nuevo pide otra cosa encima de ese motor: una secuencia pedagógica. El alumno comprende el problema, razona reglas y casos, construye con bloques, predice, ejecuta paso a paso y explica. Blockly es la entrada visual. El AST actual sigue siendo la representación canónica. El pseudocódigo, el diagrama, la validación y la ejecución salen de ese mismo árbol.
 

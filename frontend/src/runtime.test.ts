@@ -32,8 +32,8 @@ test("si la cuenta llega sin access no se consulta browser_app sobre undefined",
 })
 
 test("el enlace de la aplicación conserva la misma consulta que la web", () => {
-  expect(searchFromLaunch("", "traza://open/?confirmar=abc&token=xyz")).toBe("?confirmar=abc&token=xyz")
-  expect(searchFromLaunch("?confirmar=web&token=1", "traza://open/?confirmar=app&token=2")).toBe(
+  expect(searchFromLaunch("", "Aulivana-FCDdesign://open/?confirmar=abc&token=xyz")).toBe("?confirmar=abc&token=xyz")
+  expect(searchFromLaunch("?confirmar=web&token=1", "Aulivana-FCDdesign://open/?confirmar=app&token=2")).toBe(
     "?confirmar=web&token=1",
   )
 })

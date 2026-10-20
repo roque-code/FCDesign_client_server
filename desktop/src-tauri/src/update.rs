@@ -21,7 +21,7 @@ pub fn spawn() {
     }
     std::thread::spawn(move || {
         if let Err(error) = check(&url) {
-            eprintln!("traza: la actualización no se aplicó: {error}");
+            eprintln!("Aulivana-FCDdesign: la actualización no se aplicó: {error}");
         }
     });
 }
@@ -65,7 +65,7 @@ fn download(url: &str) -> Result<Vec<u8>, String> {
 
 fn install(bytes: &[u8]) -> Result<(), String> {
     let exe = std::env::current_exe().map_err(|error| error.to_string())?;
-    let folder = std::env::temp_dir().join("traza-update");
+    let folder = std::env::temp_dir().join("Aulivana-FCDdesign-update");
     fs::create_dir_all(&folder).map_err(|error| error.to_string())?;
     let staged = folder.join("paquete.bin");
     fs::write(&staged, bytes).map_err(|error| error.to_string())?;
@@ -77,7 +77,7 @@ fn install(bytes: &[u8]) -> Result<(), String> {
         return Ok(());
     }
     eprintln!(
-        "traza: paquete nuevo en {}. No se tocó el directorio de datos del usuario.",
+        "Aulivana-FCDdesign: paquete nuevo en {}. No se tocó el directorio de datos del usuario.",
         staged.display()
     );
     Ok(())

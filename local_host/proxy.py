@@ -1,4 +1,4 @@
-"""Reenvía al servidor de Traza la sesión, el alta y la calificación.
+"""Reenvía al servidor de Aulivana-FCDdesign la sesión, el alta y la calificación.
 
 La cookie queda en este proceso. El navegador de la ventana no tiene que
 compartir origen con Django.

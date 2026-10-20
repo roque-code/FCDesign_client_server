@@ -131,7 +131,7 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Traza",
+    "TITLE": "Aulivana-FCDdesign",
     "VERSION": "0.2.0",
 }
 

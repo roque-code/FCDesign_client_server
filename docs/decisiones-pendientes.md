@@ -58,10 +58,10 @@ Recomendación: el perfil estricto lo exige en sentencias simples y no lo exige 
 
 ### 7. Nombre
 
-Recomendación: **Traza**, como nombre de trabajo.
+Recomendación: **Aulivana-FCDdesign**.
 
-- Ventaja: en español, corto, y no se parece al nombre de las herramientas existentes de pseudocódigo.
-- Desventaja: es provisional hasta elegir marca, dominio y logotipo.
+- Ventaja: nombre propio del producto, distinto de otras herramientas de pseudocódigo.
+- Desventaja: hace falta logotipo y dominio si se publican aparte.
 - Impacto: títulos de la interfaz y del manual. No cambia los paquetes: el núcleo sigue llamándose `language_core`.
 
 ### 8. Cliente web

@@ -1,8 +1,8 @@
-# Traza
+# Aulivana-FCDdesign
 
 Aplicación web educativa para escribir, validar, ejecutar, depurar y visualizar algoritmos en pseudocódigo estructurado en español.
 
-**Traza** es el nombre de trabajo. La identidad visual, el código y el lenguaje son propios. No se reutiliza código ni material gráfico de otras herramientas de pseudocódigo.
+**Aulivana-FCDdesign** es el nombre del producto. La identidad visual, el código y el lenguaje son propios. No se reutiliza código ni material gráfico de otras herramientas de pseudocódigo.
 
 ## Estado
 
@@ -63,7 +63,7 @@ print(result.output)
 
 ## Editor en contenedores
 
-Un solo origen, `http://127.0.0.1:18080`. Nginx entrega Vite y proxifica `/api` con el buffer apagado en el canal de eventos. PostgreSQL del compose publica el puerto `5434` para no chocar con el contenedor `traza-pg` del puerto `5433`. Al crear la cuenta, Traza envía un enlace de confirmación; el buzón de desarrollo está en `http://127.0.0.1:8025`. La cuenta no entra hasta abrir ese enlace.
+Un solo origen, `http://127.0.0.1:18080`. Nginx entrega Vite y proxifica `/api` con el buffer apagado en el canal de eventos. PostgreSQL del compose publica el puerto `5434` para no chocar con el contenedor `traza-pg` del puerto `5433`. Al crear la cuenta, Aulivana-FCDdesign envía un enlace de confirmación; el buzón de desarrollo está en `http://127.0.0.1:8025`. La cuenta no entra hasta abrir ese enlace.
 
 ```bash
 docker compose up --build
@@ -73,7 +73,7 @@ El detalle está en [instalación](docs/instalacion.md). La máquina sin Docker 
 
 ## Editor en la máquina
 
-PostgreSQL local en `127.0.0.1:5433`, base `traza`. El cliente en `http://127.0.0.1:5173` proxifica `/api` hacia Django. En esta máquina el puerto 8000 lo usa otra aplicación, así que Traza escucha en `127.0.0.1:8002` y el proxy de Vite apunta ahí. Ese modo usa el ejecutor en proceso.
+PostgreSQL local en `127.0.0.1:5433`, base `traza`. El cliente en `http://127.0.0.1:5173` proxifica `/api` hacia Django. En esta máquina el puerto 8000 lo usa otra aplicación, así que Aulivana-FCDdesign escucha en `127.0.0.1:8002` y el proxy de Vite apunta ahí. Ese modo usa el ejecutor en proceso.
 
 ```bash
 python3 -m pip install -e ".[dev,server]"

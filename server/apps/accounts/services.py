@@ -86,7 +86,7 @@ def _open_links(kind: str, uid: str, token: str) -> str:
         )
     else:
         web = f"{settings.TRAZA_PUBLIC_ORIGIN}/?{urlencode({kind: uid, 'token': token})}"
-    app = f"traza://open/?{urlencode({kind: uid, 'token': token})}"
+    app = f"Aulivana-FCDdesign://open/?{urlencode({kind: uid, 'token': token})}"
     return f"{web}\n{app}"
 
 
@@ -111,7 +111,7 @@ def _send_confirmation(user: User) -> None:
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = email_confirm_token.make_token(user)
     _deliver(
-        "Confirma tu correo en Traza",
+        "Confirma tu correo en Aulivana-FCDdesign",
         (
             "Para activar la cuenta confirma que este correo es tuyo.\n\n"
             f"{_open_links('confirmar', uid, token)}\n\n"
@@ -290,7 +290,7 @@ def request_password_reset(email: object, ip_address: str | None) -> None:
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
     _deliver(
-        "Restablecer contraseña de Traza",
+        "Restablecer contraseña de Aulivana-FCDdesign",
         f"uid={uid}\ntoken={token}\n{_open_links('restablecer', uid, token)}\n",
         user.email,
     )

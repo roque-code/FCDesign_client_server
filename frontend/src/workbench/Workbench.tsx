@@ -37,6 +37,7 @@ import {
   type LanguageBody,
 } from "../runtime"
 import { AccountIdentity } from "../shell/Identity"
+import { Logo } from "../shell/Logo"
 import { CommunitiesPanel } from "./Communities"
 import { TranslateDialog } from "./TranslateDialog"
 import { stdlibHelp } from "./stdlibHelp"
@@ -1020,7 +1021,7 @@ export function Workbench({
     <div className="shell">
       <header className="topbar topbar-editor">
         <div className="brand">
-          <h1>Traza</h1>
+          <h1><Logo /></h1>
           <AccountIdentity account={account} onAccount={onAccount} />
         </div>
         <div className="actions">

@@ -11,7 +11,7 @@ from local_host.serve import LocalServer
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Intérprete local de Traza")
+    parser = argparse.ArgumentParser(description="Intérprete local de Aulivana-FCDdesign")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--token", default="")

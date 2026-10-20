@@ -1,6 +1,6 @@
 # Arquitectura de negocio
 
-Fecha de referencia: 2026-10-19. Traza enseña programación estructurada. El canónico del lenguaje es el español y la cuenta puede ver la interfaz y las palabras reservadas en inglés. El estudiante escribe pseudocódigo, lo valida, lo ejecuta, lo depura, ve el diagrama y puede pedir el mismo algoritmo en otro lenguaje de programación. El docente agrupa cuentas ya registradas y sigue el avance del laboratorio. La ventana de escritorio ofrece lo mismo: el intérprete corre en la máquina y la cuenta sigue en el servidor.
+Fecha de referencia: 2026-10-19. Aulivana-FCDdesign enseña programación estructurada. El canónico del lenguaje es el español y la cuenta puede ver la interfaz y las palabras reservadas en inglés. El estudiante escribe pseudocódigo, lo valida, lo ejecuta, lo depura, ve el diagrama y puede pedir el mismo algoritmo en otro lenguaje de programación. El docente agrupa cuentas ya registradas y sigue el avance del laboratorio. La ventana de escritorio ofrece lo mismo: el intérprete corre en la máquina y la cuenta sigue en el servidor.
 
 ## Actores
 
@@ -17,7 +17,7 @@ Quedan fuera del negocio actual las actividades y las entregas del aula, la orie
 
 ```mermaid
 flowchart TB
-    subgraph oferta [Lo que Traza ofrece]
+    subgraph oferta [Lo que Aulivana-FCDdesign ofrece]
         cuenta[Cuenta por correo confirmado]
         editor[Banco de trabajo y traducción]
         lab[Laboratorio y puntos]

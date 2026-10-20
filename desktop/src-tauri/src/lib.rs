@@ -66,7 +66,7 @@ pub fn run() {
                 "main",
                 tauri::WebviewUrl::App("index.html".into()),
             )
-            .title("Traza")
+            .title("Aulivana-FCDdesign")
             .inner_size(1280.0, 800.0)
             .initialization_script(&script)
             .build()?;
@@ -91,7 +91,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![server_fetch, save::save_download])
         .build(tauri::generate_context!())
-        .expect("No se pudo abrir Traza")
+        .expect("No se pudo abrir Aulivana-FCDdesign")
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
                 if let Some(bridge) = app.try_state::<Bridge>() {

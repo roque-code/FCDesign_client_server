@@ -18,7 +18,7 @@ def _desktop_client(monkeypatch):
     original = APIClient.__init__
 
     def patched(self, enforce_csrf_checks=False, **defaults):
-        defaults.setdefault("HTTP_X_TRAZA_CLIENT", "desktop")
+        defaults.setdefault("HTTP_X_AULIVANA_FCDDESIGN_CLIENT", "desktop")
         original(self, enforce_csrf_checks=enforce_csrf_checks, **defaults)
 
     monkeypatch.setattr(APIClient, "__init__", patched)

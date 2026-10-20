@@ -2727,7 +2727,7 @@ class _Emitter:
 
 
 _HEADER = (
-    "Generado por Traza. Traduce el algoritmo; el intérprete sigue siendo quien lo ejecuta.",
+    "Generado por Aulivana-FCDdesign. Traduce el algoritmo; el intérprete sigue siendo quien lo ejecuta.",
     "Real se escribe como número de coma flotante. DIV y MOD truncan hacia cero.",
     "Si el índice del arreglo empieza en 1, el dato se guarda desde 0 y el acceso resta 1.",
 )

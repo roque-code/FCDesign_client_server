@@ -4,17 +4,17 @@ Fecha de referencia: 2026-10-19. Tres niveles. El cuarto, el código, está en e
 
 ## Nivel 1. Contexto
 
-Traza es el único sistema. Mailpit forma parte del entorno de desarrollo, no de un proveedor de correo. La cuenta elige español o inglés; el canónico del lenguaje sigue en español.
+Aulivana-FCDdesign es el único sistema. Mailpit forma parte del entorno de desarrollo, no de un proveedor de correo. La cuenta elige español o inglés; el canónico del lenguaje sigue en español.
 
 ```mermaid
 flowchart LR
     est[Estudiante]
     doc[Docente]
-    traza[Traza]
-    est -->|pseudocódigo, retos y consola| traza
-    doc -->|comunidades, rutas y avance| traza
-    traza -->|diagnóstico, diagrama, traducción, puntos y enlace de correo| est
-    traza -->|listas y avance| doc
+    producto[Aulivana-FCDdesign]
+    est -->|pseudocódigo, retos y consola| producto
+    doc -->|comunidades, rutas y avance| producto
+    producto -->|diagnóstico, diagrama, traducción, puntos y enlace de correo| est
+    producto -->|listas y avance| doc
 ```
 
 ## Nivel 2. Contenedores
@@ -23,7 +23,7 @@ flowchart LR
 flowchart TB
     est[Estudiante y docente]
     desk[Ventana Tauri y local_host]
-    subgraph traza [Traza en contenedores]
+    subgraph producto [Aulivana-FCDdesign en contenedores]
         ngx[Nginx]
         spa[Aplicación React]
         api[API Django]

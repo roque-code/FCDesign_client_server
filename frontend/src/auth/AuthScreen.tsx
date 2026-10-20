@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from "react"
 import { api, ApiError, type Account, type PendingConfirmation, type Role } from "../api"
 import { useT, translatedMessage } from "../i18n"
 import { launchSearch } from "../runtime"
+import { Logo } from "../shell/Logo"
 
 type Mode = "entrar" | "crear" | "recuperar" | "nueva"
 
@@ -83,7 +84,7 @@ export function AuthScreen({ onSuccess, notice = "" }: { onSuccess: (account: Ac
   return (
     <main className="auth">
       <section className="card">
-        <h1>Traza</h1>
+        <h1><Logo /></h1>
         <p className="note">{t("authNote")}</p>
         <div className="tabs" role="tablist">
           <button type="button" aria-selected={mode === "entrar"} onClick={() => setMode("entrar")}>

@@ -577,8 +577,8 @@ Django las crea y la aplicación casi no las consulta. No describen alumnos ni a
 
 | Tabla | Para qué existe |
 | --- | --- |
-| `accounts_user_groups` | Une `user_id` con `auth_group.id`. Traza no asigna grupos |
-| `accounts_user_user_permissions` | Permisos sueltos de una cuenta. Traza no los usa para el editor |
+| `accounts_user_groups` | Une `user_id` con `auth_group.id`. Aulivana-FCDdesign no asigna grupos |
+| `accounts_user_user_permissions` | Permisos sueltos de una cuenta. Aulivana-FCDdesign no los usa para el editor |
 | `auth_group`, `auth_group_permissions`, `auth_permission` | Permisos del administrador |
 | `django_content_type` | Registro interno de modelos |
 | `django_admin_log` | Historial de `/admin/` |

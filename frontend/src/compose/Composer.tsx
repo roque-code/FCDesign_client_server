@@ -5,6 +5,7 @@ import { allKeywordDisplays, spellText } from "../dialect"
 import { useLocale, useT, type MessageKey } from "../i18n"
 import { saveDownload } from "../saveFile"
 import { AccountIdentity } from "../shell/Identity"
+import { Logo } from "../shell/Logo"
 import { highlightSource } from "../editor/highlight"
 import { labelAnchor } from "../diagram/figures"
 import { ShapeGlyph, SwitchGlyph } from "../diagram/glyphs"
@@ -423,7 +424,7 @@ export function Composer({
     <div className={embedded ? "shell composer-shell composer-embedded" : "shell composer-shell"}>
       <header className="topbar topbar-editor">
         <div className="brand">
-          {embedded ? null : <h1>{t("composeTitle")}</h1>}
+          {embedded ? null : <h1><Logo mark />{t("composeTitle")}</h1>}
           {embedded || !account ? null : <AccountIdentity account={account} onAccount={onAccount} />}
           <label className="composer-name">
             {t("algorithm")}

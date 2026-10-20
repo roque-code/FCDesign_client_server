@@ -1,4 +1,4 @@
-"""Núcleo del pseudolenguaje Traza.
+"""Núcleo del pseudolenguaje Aulivana-FCDdesign.
 
 Este paquete no importa Django. La validación y la ejecución recorren un AST.
 """

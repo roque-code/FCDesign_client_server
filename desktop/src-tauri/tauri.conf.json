@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Traza",
+  "productName": "Aulivana-FCDdesign",
   "version": "0.2.0",
   "identifier": "app.traza.desktop",
   "build": {
@@ -36,8 +36,8 @@
   },
   "plugins": {
     "deep-link": {
-      "desktop": { "schemes": ["traza"] },
-      "mobile": [{ "scheme": ["traza"] }]
+      "desktop": { "schemes": ["Aulivana-FCDdesign"] },
+      "mobile": [{ "scheme": ["Aulivana-FCDdesign"] }]
     }
   }
 }

@@ -10,7 +10,7 @@ configs:
 settingGroups:
   app:
     base:
-      PRODUCT_NAME: Traza
+      PRODUCT_NAME: Aulivana-FCDdesign
       PRODUCT_BUNDLE_IDENTIFIER: app.traza.desktop
 targetTemplates:
   app:

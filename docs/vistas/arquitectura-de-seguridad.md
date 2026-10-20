@@ -39,7 +39,7 @@ flowchart TB
 | Runner sin red pública, sin capacidades y con tope de recursos | compose |
 | Cookies `Secure` y HSTS | solo `config.settings.production`, que hoy no arranca |
 | SMTP de desarrollo | Mailpit no entrega fuera de la máquina |
-| Anfitrión local | Token de arranque. El proxy rechaza una ruta que no empiece por `/api/` y marca `X-Traza-Client: desktop` |
+| Anfitrión local | Token de arranque. El proxy rechaza una ruta que no empiece por `/api/` y marca `X-Aulivana-FCDdesign-Client: desktop` |
 | Nivel de suscripción | La API de la aplicación exige la cabecera de la aplicación cuando el nivel no permite el navegador. La cuenta y `/api/v1/billing/` siguen abiertas |
 | Administrador | Rol `admin` solo por `create_admin`. No es `is_staff` y no sale en el formulario de alta |
 | Traducción | No ejecuta el texto generado ni lo guarda en la base. Responde 403 si el docente o el nivel la apagaron |

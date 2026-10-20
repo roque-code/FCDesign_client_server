@@ -321,7 +321,7 @@ def test_login_rate_limit_and_csrf(client):
 def test_una_sola_sesion_por_cuenta_y_se_cierra_por_inactividad(client, settings):
     created = register(client, email="unica@ejemplo.test", display_name="Unica")
     assert created.status_code == 201
-    browser = APIClient(enforce_csrf_checks=True, HTTP_X_TRAZA_CLIENT="")
+    browser = APIClient(enforce_csrf_checks=True, HTTP_X_AULIVANA_FCDDESIGN_CLIENT="")
     refresh_csrf(browser)
     denied = browser.post(
         "/api/v1/auth/login/",

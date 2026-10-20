@@ -20,7 +20,7 @@ def test_el_alta_no_acepta_administrador(client):
 
 def test_el_plan_gratis_limita_proyectos_y_el_navegador(settings):
     settings.TRAZA_SIGNUP_PLAN = "gratis"
-    browser = APIClient(enforce_csrf_checks=True, HTTP_X_TRAZA_CLIENT="")
+    browser = APIClient(enforce_csrf_checks=True, HTTP_X_AULIVANA_FCDDESIGN_CLIENT="")
     refresh_csrf(browser)
     created = register(browser, email="gratis@ejemplo.test", display_name="Gratis")
     assert created.status_code == 201, created.content
@@ -70,7 +70,7 @@ def test_un_nivel_vencido_vuelve_a_las_funciones_gratis(client, settings):
 def test_el_administrador_define_un_nivel_y_lo_asigna(client):
     call_command("create_admin", email="admin@ejemplo.test", password=PASSWORD, name="Ada")
     register(client, email="alumno-nivel@ejemplo.test", display_name="Luz")
-    admin = APIClient(enforce_csrf_checks=True, HTTP_X_TRAZA_CLIENT="")
+    admin = APIClient(enforce_csrf_checks=True, HTTP_X_AULIVANA_FCDDESIGN_CLIENT="")
     refresh_csrf(admin)
     entered = admin.post(
         "/api/v1/auth/login/",
@@ -155,11 +155,11 @@ def test_sin_comunidades_el_docente_sigue_viendo_sus_proyectos(client):
 def test_una_cuenta_puede_usar_el_navegador_aunque_el_nivel_no(settings):
     settings.TRAZA_SIGNUP_PLAN = "gratis"
     call_command("create_admin", email="admin-web@ejemplo.test", password=PASSWORD)
-    browser = APIClient(enforce_csrf_checks=True, HTTP_X_TRAZA_CLIENT="")
+    browser = APIClient(enforce_csrf_checks=True, HTTP_X_AULIVANA_FCDDESIGN_CLIENT="")
     refresh_csrf(browser)
     created = register(browser, email="web@ejemplo.test", display_name="Roque")
     assert created.json()["access"]["browser_app"] is False
-    admin = APIClient(enforce_csrf_checks=True, HTTP_X_TRAZA_CLIENT="")
+    admin = APIClient(enforce_csrf_checks=True, HTTP_X_AULIVANA_FCDDESIGN_CLIENT="")
     refresh_csrf(admin)
     assert (
         admin.post(

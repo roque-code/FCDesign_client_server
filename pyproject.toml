@@ -5,10 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "traza"
 version = "0.1.0"
-description = "Núcleo del pseudolenguaje educativo Traza"
+description = "Núcleo del pseudolenguaje educativo Aulivana-FCDdesign"
 readme = "README.md"
 requires-python = ">=3.12"
-authors = [{ name = "Traza" }]
+authors = [{ name = "Aulivana-FCDdesign" }]
 
 [project.optional-dependencies]
 server = [

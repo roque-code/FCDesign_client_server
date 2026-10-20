@@ -6,7 +6,7 @@ Este documento describe el sistema que corre hoy. La gramática está en [gramat
 
 ## 1. Producto
 
-**Traza** enseña programación estructurada. El canónico del lenguaje es el español. La cuenta puede ver la interfaz y las palabras reservadas en inglés. Quien entra escribe pseudocódigo, recibe diagnósticos con línea y columna, lo ejecuta en una consola, lo recorre paso a paso, ve el diagrama generado desde el árbol de sintaxis y puede pedir el mismo algoritmo en Python, JavaScript, TypeScript, Java, C, C++ o C#. Esa traducción no se ejecuta.
+**Aulivana-FCDdesign** enseña programación estructurada. El canónico del lenguaje es el español. La cuenta puede ver la interfaz y las palabras reservadas en inglés. Quien entra escribe pseudocódigo, recibe diagnósticos con línea y columna, lo ejecuta en una consola, lo recorre paso a paso, ve el diagrama generado desde el árbol de sintaxis y puede pedir el mismo algoritmo en Python, JavaScript, TypeScript, Java, C, C++ o C#. Esa traducción no se ejecuta.
 
 Hay tres pantallas, todas con la misma sesión:
 
@@ -174,7 +174,7 @@ La cuenta, los proyectos y el resto de `/api/v1/` siguen en Django. En un paquet
 
 Descargar un archivo en la aplicación abre el diálogo de guardar del sistema. En Windows y en Linux un enlace de descarga sobre un blob no deja el archivo. El comando es `save_download`, en `desktop/src-tauri/src/save.rs`, y admite hasta 25 MB. Cancelar el diálogo no guarda nada. Si no se puede escribir, la pantalla dice que no se pudo guardar el archivo. En el navegador la descarga sigue siendo la del propio navegador.
 
-El esquema `traza:` abre la ventana y entrega el enlace de confirmación o de restablecimiento. `TRAZA_UPDATE_URL`, si existe, apunta a un manifiesto con `version` y `url`. Un paquete más nuevo se descarga aparte. No se borra el directorio de datos de la persona.
+El esquema `Aulivana-FCDdesign:` abre la ventana y entrega el enlace de confirmación o de restablecimiento. `TRAZA_UPDATE_URL`, si existe, apunta a un manifiesto con `version` y `url`. Un paquete más nuevo se descarga aparte. No se borra el directorio de datos de la persona.
 
 El empaquetado está en `.github/workflows/desktop.yml` y se lanza a mano. Cubre Windows x64 y ARM, Mac M e Intel, y Linux x64 y ARM. `desktop/scripts/sign.sh` firma cuando hay certificado. En macOS esa firma evita que el sistema marque el paquete como dañado.
 
@@ -224,7 +224,7 @@ La semilla deja cuatro filas. El navegador nace apagado en las cuatro. Gratis de
 
 `GET /api/v1/auth/me/` ya devolvía la cuenta. Ahora incluye `plan`, `access` y `usage`. No hay otra petición para saber qué está permitido. Al volver el foco a la ventana se repite esa misma lectura, como ya se hacía para la traducción.
 
-Si el navegador efectivo es falso, una petición que no trae `X-Traza-Client: desktop` puede iniciar sesión y leer o cambiar la cuenta, y recibe 403 en el resto de `/api/v1/`. El valor efectivo es el del nivel, salvo que la suscripción de esa cuenta tenga `browser_allowed` en verdadero o falso. La aplicación de escritorio marca esa cabecera. En un paquete publicado la pone el proxy de `local_host`; en depuración la pone el cliente porque ya está dentro de la ventana. El motor local guarda el `access` de esa respuesta y no vuelve a preguntar al servidor al validar, traducir, ejecutar o depurar.
+Si el navegador efectivo es falso, una petición que no trae `X-Aulivana-FCDdesign-Client: desktop` puede iniciar sesión y leer o cambiar la cuenta, y recibe 403 en el resto de `/api/v1/`. El valor efectivo es el del nivel, salvo que la suscripción de esa cuenta tenga `browser_allowed` en verdadero o falso. La aplicación de escritorio marca esa cabecera. En un paquete publicado la pone el proxy de `local_host`; en depuración la pone el cliente porque ya está dentro de la ventana. El motor local guarda el `access` de esa respuesta y no vuelve a preguntar al servidor al validar, traducir, ejecutar o depurar.
 
 Traducir y pegar siguen pudiendo apagarse por comunidad. El nivel es el techo: si el plan los tiene apagados, la comunidad no los enciende.
 

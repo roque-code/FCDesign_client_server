@@ -6,6 +6,7 @@ language_core/block_adapter.py
 language_core/block_import.py
 language_core/debugger.py
 language_core/diagnostics.py
+language_core/dialect.py
 language_core/errors.py
 language_core/flowchart.py
 language_core/grammar.py
@@ -17,6 +18,7 @@ language_core/runtime.py
 language_core/semantic_analyzer.py
 language_core/stdlib.py
 language_core/tokens.py
+language_core/translate.py
 language_core/type_system.py
 traza.egg-info/PKG-INFO
 traza.egg-info/SOURCES.txt

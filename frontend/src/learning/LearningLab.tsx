@@ -3,6 +3,7 @@ import { useState } from "react"
 import { accessOf, type Account } from "../api"
 import { useT } from "../i18n"
 import { AccountIdentity } from "../shell/Identity"
+import { Logo } from "../shell/Logo"
 import { BankView } from "./BankView"
 import { ChallengePlay } from "./ChallengePlay"
 import { PathHome } from "./PathHome"
@@ -33,7 +34,7 @@ export function LearningLab({
     <div className="shell lab">
       <header className="topbar topbar-editor">
         <div className="brand">
-          <h1>{t("lab")}</h1>
+          <h1><Logo mark />{t("lab")}</h1>
           <AccountIdentity account={account} onAccount={onAccount} />
         </div>
         <div className="actions">
