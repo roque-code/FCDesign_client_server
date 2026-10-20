@@ -60,4 +60,6 @@ La imagen solo lleva Python, `language_core` y el paquete `runner`. El usuario n
 
 `.github/workflows/ci.yml` ejecuta Ruff, Black, mypy, las pruebas del núcleo, las del runner y las del servidor contra PostgreSQL, y el lint y las pruebas del cliente.
 
+En la aplicación, guardar un archivo abre el diálogo del sistema. Así la descarga funciona en Windows y en Linux, donde un enlace sobre un blob no deja el archivo. El navegador sigue usando su propia descarga.
+
 `.github/workflows/desktop.yml` no corre en cada envío. Se lanza a mano y empaqueta la ventana Tauri para Windows, macOS y Linux. El intérprete va congelado con PyInstaller como `traza-host`. En macOS, si el almacén de secretos tiene certificado, `desktop/scripts/sign.sh` firma el paquete. Sin notarización de Apple, `desktop/scripts/macos_bundle.sh` firma en el momento y deja `Abrir Traza.command`: copia la aplicación fuera de la imagen y quita la marca que hace responder -47 al abrirla.

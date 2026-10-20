@@ -162,7 +162,7 @@ El cliente no ejecuta el pseudocódigo del editor. Validar, ejecutar y depurar p
 
 Armar diagrama es distinto: el modelo de figuras vive en el navegador (`frontend/src/compose/model.ts`) y el texto se calcula ahí. Al abrirlo en el editor, el fuente pasa a ser un algoritmo y a partir de ese momento manda el núcleo.
 
-**Actualizar**, en el banco de trabajo y en el laboratorio, vuelve a pedir los datos de la cuenta. Sirve cuando la misma cuenta está abierta en otra ventana. En el editor suelta el borrador que aún no se guardó y cierra el canal de la ejecución en curso.
+**Actualizar**, en el banco de trabajo y en el laboratorio, vuelve a pedir los datos de la cuenta. En el editor suelta el borrador que aún no se guardó y cierra el canal de la ejecución en curso. La misma cuenta no puede estar abierta en otro equipo: el segundo ingreso responde `session_open`.
 
 ## 7.1 Aplicación de escritorio
 
@@ -171,6 +171,8 @@ Armar diagrama es distinto: el modelo de figuras vive en el navegador (`frontend
 Validar, traducir, el diagrama, ejecutar, depurar y las pasadas del laboratorio van a ese proceso. Usan el mismo `language_core` que el runner. No pasan por Redis ni por Gunicorn.
 
 La cuenta, los proyectos y el resto de `/api/v1/` siguen en Django. En un paquete publicado, `__TRAZA_DESKTOP_PROXY__` es verdadero y el comando `server_fetch` reenvía solo rutas que empiezan por `/api/` a `POST /local/v1/proxy`. El origen de esa API es `TRAZA_API_ORIGIN`. Si no está definida, el lanzador usa `http://18.118.112.206:18080`. En depuración el proxy queda apagado y Vite, en el puerto `5174`, habla con la API como el navegador.
+
+Descargar un archivo en la aplicación abre el diálogo de guardar del sistema. En Windows y en Linux un enlace de descarga sobre un blob no deja el archivo. El comando es `save_download`, en `desktop/src-tauri/src/save.rs`, y admite hasta 25 MB. Cancelar el diálogo no guarda nada. Si no se puede escribir, la pantalla dice que no se pudo guardar el archivo. En el navegador la descarga sigue siendo la del propio navegador.
 
 El esquema `traza:` abre la ventana y entrega el enlace de confirmación o de restablecimiento. `TRAZA_UPDATE_URL`, si existe, apunta a un manifiesto con `version` y `url`. Un paquete más nuevo se descarga aparte. No se borra el directorio de datos de la persona.
 
@@ -370,6 +372,7 @@ Cuenta:
 ```text
 POST /api/v1/auth/register/
 POST /api/v1/auth/confirm-email/
+GET  /api/v1/auth/confirm-email/open/?confirmar&token
 POST /api/v1/auth/confirm-email/resend/
 POST /api/v1/auth/login/
 POST /api/v1/auth/logout/
@@ -454,7 +457,7 @@ La ventana tiene proyectos a la izquierda, el editor y la consola en el centro, 
 - **Actualizar** vuelve a cargar proyectos, algoritmos y comunidades desde el servidor.
 - **Funciones** lista la biblioteca.
 - **Operadores** abre asignación, aritmética, comparación, lógica y paréntesis, con el orden de ligadura. No cambia el fuente.
-- **Manuales** abre el manual del lenguaje y el del alumno dentro de la aplicación, y descarga el PDF. El docente ve además el manual del docente. Los archivos salen de `docs/` y el cliente los publica en `/manuals/`.
+- **Manuales** abre el PDF del lenguaje y el del alumno dentro de la aplicación. El docente ve además el suyo. **Ver** lo muestra en la ventana. **Descargar PDF** lo guarda. Los archivos salen de `docs/` y el cliente los publica en `/manuals/`.
 - **Configuración** reúne idioma, cuerpo, tema, punto y coma y base de índices. El idioma es de la cuenta. El punto y coma y la base de índices, del algoritmo abierto.
 - Cada proyecto y cada algoritmo se renombra, se descarga como `{nombre}.txt` y el algoritmo se puede eliminar.
 - El tabulador indenta. La barra bajo el código muestra el guardado y la línea del cursor.

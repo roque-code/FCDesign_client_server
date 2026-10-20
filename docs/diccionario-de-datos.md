@@ -108,6 +108,7 @@ La cuenta. El identificador para entrar es `email`, no hay columna `username`. L
 | `date_joined` | `timestamptz` | NO | Alta de la fila |
 | `email` | `varchar(254)` | NO | Único. Correo normalizado, es el usuario |
 | `email_confirmed` | `boolean` | NO | En los contenedores nace en falso hasta abrir el enlace. Las cuentas anteriores y las de la máquina nacen en verdadero |
+| `session_key` | `varchar(40)` | NO | Clave de la única sesión abierta. Vacío si no hay sesión. La migración es `accounts.0006` |
 
 ### `accounts_profile`
 

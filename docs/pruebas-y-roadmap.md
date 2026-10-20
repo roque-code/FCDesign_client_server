@@ -68,7 +68,7 @@ Algoritmos completos que deben pasar como fixtures, en la fase que los haga ejec
 - Ejecutar persiste salida y error, y no persiste cada línea del depurador.
 - El autoguardado no multiplica versiones; ejecutar con fuente nuevo sí abre versión.
 - Restaurar una versión no borra las posteriores.
-- Límite de peticiones en el inicio de sesión y en `execute`.
+- El tercer ingreso fallido del mismo correo responde 429 y bloquea ese correo 15 minutos. Una segunda sesión responde 409. Tras 30 minutos sin uso la API responde 401 y cierra la sesión. `execute` sigue con su límite de peticiones.
 - El modo en proceso no está disponible con la configuración de producción. Esta prueba importa los ajustes y espera un error de arranque.
 
 ## 4. Interfaz crítica del MVP
@@ -132,7 +132,7 @@ Hecha. `flowchart.py`, API, React Flow, posiciones en el cliente, sincronizació
 - Renombrar proyecto y algoritmo. Descargar el fuente y eliminar un algoritmo.
 - Tabulador para indentar. Selección visible en una sola línea.
 - Menú **Configuración** y menú **Funciones**. El idioma de la cuenta cambia los textos y la grafía de las palabras reservadas, y no reescribe el fuente guardado.
-- **Traducir** muestra el algoritmo en los siete lenguajes sin ejecutarlo. **Actualizar** vuelve a cargar la cuenta cuando está abierta en otra ventana.
+- **Traducir** muestra el algoritmo en los siete lenguajes sin ejecutarlo. **Actualizar** vuelve a cargar la cuenta y suelta el borrador local.
 - La consola hace eco del dato aceptado y se desplaza hasta el final.
 - `Caracter` es un solo símbolo. La palabra del editor es `Caracter`.
 

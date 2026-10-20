@@ -51,7 +51,8 @@ flowchart TB
 | Depurar | Paso, entrar, salir, continuar, pausa, detener, reiniciar y puntos de interrupción |
 | Diagrama | Figuras desde el AST, descarga SVG, PNG y PDF, e impresión |
 | Laboratorio | Retos de clasificar, ordenar, construir y predecir, con el mismo intérprete. El docente descarga un tipo en CSV |
-| Ayuda | Operadores muestra símbolos y ligadura. Manuales abre el documento en la aplicación y descarga el PDF |
+| Ayuda | Operadores muestra símbolos y ligadura. Manuales abre el PDF en la aplicación y lo descarga |
+| Sesión | Una por cuenta. Tres fallos bloquean el correo 15 minutos. 30 minutos sin uso cierran la sesión |
 | Comunidades | Lista de alumnos y docentes ya registrados, tope de 30 comunidades y 200 personas. Traducción y pegado nacen habilitados y se pueden apagar |
 | Cuenta | Nombre, foto JPG o PNG y contraseña. El tipo de cuenta no cambia |
 | Nivel | Menús, topes de proyectos y códigos, y si el navegador abre la aplicación |

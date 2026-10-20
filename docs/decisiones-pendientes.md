@@ -135,11 +135,11 @@ Es un símbolo Unicode, no una cadena. El editor muestra la palabra `Caracter`, 
 
 ### Confirmación de correo
 
-En los contenedores el alta no abre sesión. Django envía un enlace por SMTP a Mailpit y `email_confirmed` pasa a verdadero al abrirlo. En la máquina, sin `TRAZA_EMAIL_CONFIRMATION`, el correo va a la consola y la cuenta entra al momento. Las cuentas anteriores a la columna quedan confirmadas. El detalle está en [arquitectura.md](arquitectura.md).
+En los contenedores el alta no abre sesión. Django envía un enlace por SMTP a Mailpit y `email_confirmed` pasa a verdadero al abrirlo, también si el enlace se abre en otro equipo. Si ese navegador ya tiene otra sesión, no la sustituye. En la máquina, sin `TRAZA_EMAIL_CONFIRMATION`, el correo va a la consola y la cuenta entra al momento. Las cuentas anteriores a la columna quedan confirmadas. Una cuenta solo tiene una sesión: otro equipo recibe que ya está abierta, y 30 minutos sin uso la cierran. Tres ingresos fallidos del mismo correo lo bloquean 15 minutos. El detalle está en [arquitectura.md](arquitectura.md).
 
 ### Banco de trabajo
 
-Proyectos y diagrama se ocultan. El ancho de los tres paneles se arrastra. Se renombra, se descarga y se elimina un algoritmo. El tabulador indenta. **Configuración**, **Funciones**, **Traducir** y **Actualizar** están en la barra superior. **Actualizar** vuelve a pedir los datos cuando la misma cuenta está abierta en otra ventana y suelta el borrador local que aún no se guardó.
+Proyectos y diagrama se ocultan. El ancho de los tres paneles se arrastra. Se renombra, se descarga y se elimina un algoritmo. El tabulador indenta. **Configuración**, **Funciones**, **Traducir** y **Actualizar** están en la barra superior. **Actualizar** vuelve a pedir los datos y suelta el borrador local que aún no se guardó. Otra máquina no puede tener la misma cuenta abierta.
 
 ### Idioma de la cuenta
 

@@ -41,6 +41,7 @@ No se usa el usuario por defecto de Django. Cambiarlo después de la primera mig
 
 - `email`: único, es el `USERNAME_FIELD`;
 - `email_confirmed`: verdadero en las cuentas ya existentes y en el alta sin buzón; en los contenedores queda en falso hasta abrir el enlace;
+- `session_key`: clave de la única sesión abierta. Vacío si la cuenta no está en uso. La migración es `accounts.0006`;
 - `username`: no se usa para entrar; puede quedar nulo;
 - contraseña: solo el hasher de Django.
 

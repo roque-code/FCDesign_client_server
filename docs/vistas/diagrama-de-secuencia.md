@@ -20,7 +20,7 @@ sequenceDiagram
     Web-->>Persona: Entra, o conserva la sesión que ya había
 ```
 
-Si entra antes de confirmar, `POST /api/v1/auth/login/` responde `email_unconfirmed` y no abre sesión.
+Si entra antes de confirmar, `POST /api/v1/auth/login/` responde `email_unconfirmed` y no abre sesión. El tercer fallo del mismo correo responde `login_locked` durante 15 minutos. Si la cuenta ya tiene sesión en otro equipo, el ingreso responde `session_open`. A los 30 minutos sin uso, la siguiente petición responde `session_idle` y cierra esa sesión.
 
 ## Ejecutar un algoritmo
 

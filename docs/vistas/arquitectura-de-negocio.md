@@ -35,7 +35,7 @@ flowchart TB
 
 ## Reglas de negocio
 
-- El identificador es el correo. En los contenedores la sesión no empieza hasta abrir el enlace.
+- El identificador es el correo. En los contenedores la sesión no empieza hasta abrir el enlace. Hay una sola sesión por cuenta. Tres fallos bloquean el correo 15 minutos y 30 minutos sin uso cierran la sesión.
 - Cada cuenta nueva recibe los ejemplos 1 a 13.
 - El perfil es estudiante o docente. Si no se elige, queda estudiante. Se fija al crear la cuenta.
 - El administrador no se elige en el alta. Se crea con `manage.py create_admin`.

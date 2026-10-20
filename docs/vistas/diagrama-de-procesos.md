@@ -14,7 +14,7 @@ flowchart TD
     crea --> buzon[La persona abre Mailpit]
     reenvia --> buzon
     buzon --> enlace{El enlace sigue vigente?}
-    enlace -->|sí| activa[Marca el correo y abre la sesión]
+    enlace -->|sí| activa[Marca el correo. Abre la sesión si ese navegador no tiene otra]
     enlace -->|ya confirmado| entrar[Pide entrar con la contraseña]
     activa --> ejemplos[Quedan los ejemplos 1 a 13]
     ejemplos --> fin([Puede usar el editor])
@@ -41,7 +41,7 @@ flowchart TD
     consola --> figura[Diagrama sincronizado con la línea]
 ```
 
-El editor muestra las palabras reservadas en el idioma de la cuenta. El texto que se guarda conserva la grafía que ya tenía. Traducir muestra otro lenguaje y deja el pseudocódigo como está. Si el docente apagó la traducción, no hay código. **Actualizar** vuelve a leer el servidor cuando la misma cuenta está abierta en otra ventana. **Repaso** abre el fuente del alumno sin guardarlo. Si el nivel no permite el navegador, después de entrar solo queda la cuenta. Pegar apagado deja escribir.
+El editor muestra las palabras reservadas en el idioma de la cuenta. El texto que se guarda conserva la grafía que ya tenía. Traducir muestra otro lenguaje y deja el pseudocódigo como está. Si el docente apagó la traducción, no hay código. **Actualizar** vuelve a leer el servidor y suelta el borrador local. La misma cuenta no entra en otro equipo mientras la sesión siga en uso. **Repaso** abre el fuente del alumno sin guardarlo. Si el nivel no permite el navegador, después de entrar solo queda la cuenta. Pegar apagado deja escribir.
 
 ## Laboratorio
 
