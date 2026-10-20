@@ -11,6 +11,5 @@ htmlcov/
 server/staticfiles/
 frontend/node_modules/
 frontend/dist/
-docs/
 *.md
 !README.md
