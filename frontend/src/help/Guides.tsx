@@ -2,6 +2,8 @@ import { useEffect, useState } from "react"
 
 import type { AccountRole } from "../api"
 import { useLocale, useT, type MessageKey } from "../i18n"
+import { inInstalledApp } from "../runtime"
+import { saveRemote } from "../saveFile"
 
 type Manual = {
   href: string
@@ -163,7 +165,12 @@ export function GuideButtons({ role }: { role: AccountRole }) {
                     >
                       {t("viewManual")}
                     </button>
-                    <a className="manual-download" href={`${manual.href}?download=1`} download={manual.file}>
+                    <a
+                      className="manual-download"
+                      href={`${manual.href}?download=1`}
+                      download={manual.file}
+                      onClick={(event) => downloadManual(event, manual)}
+                    >
                       {t("downloadManual")}
                     </a>
                   </span>
@@ -176,6 +183,12 @@ export function GuideButtons({ role }: { role: AccountRole }) {
       {viewing ? <ManualView manual={viewing} onClose={() => setViewing(null)} /> : null}
     </>
   )
+}
+
+function downloadManual(event: { preventDefault(): void }, manual: Manual) {
+  if (!inInstalledApp()) return
+  event.preventDefault()
+  void saveRemote(manual.file, manual.href)
 }
 
 function isPdf(bytes: Uint8Array): boolean {
@@ -228,7 +241,12 @@ function ManualView({ manual, onClose }: { manual: Manual; onClose: () => void }
         <header>
           <h2>{t(manual.label)}</h2>
           <span>
-            <a className="manual-download" href={`${manual.href}?download=1`} download={manual.file}>
+            <a
+              className="manual-download"
+              href={`${manual.href}?download=1`}
+              download={manual.file}
+              onClick={(event) => downloadManual(event, manual)}
+            >
               {t("downloadManual")}
             </a>
             <button type="button" onClick={onClose}>{t("close")}</button>

@@ -1,7 +1,11 @@
 //! Guarda un archivo con el diálogo del sistema.
 //!
-//! WebView2 (Windows) y WebKitGTK (Linux) no completan un `<a download>` de un
-//! blob: el clic no falla y el archivo no aparece. El diálogo nativo sí lo escribe.
+//! WebView2 (Windows), WebKitGTK (Linux) y WKWebView (macOS) no completan un
+//! `<a download>`: en Mac la navegación se cancela si no hay un manejador, y en
+//! Windows y Linux el blob no llega a disco. El diálogo nativo sí lo escribe.
+//!
+//! El diálogo tiene que arrancar en el hilo principal y esta función no puede
+//! bloquearlo: si lo hace, el bucle de eventos no pinta el diálogo.
 
 use base64::Engine;
 use tauri::AppHandle;
@@ -11,7 +15,11 @@ const SAVE_ERROR: &str = "No se pudo guardar el archivo.";
 const MAX_BYTES: usize = 25 * 1024 * 1024;
 
 #[tauri::command]
-pub fn save_download(app: AppHandle, filename: String, data_base64: String) -> Result<bool, String> {
+pub async fn save_download(
+    app: AppHandle,
+    filename: String,
+    data_base64: String,
+) -> Result<bool, String> {
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(data_base64.trim())
         .map_err(|_| SAVE_ERROR.to_string())?;
@@ -19,6 +27,12 @@ pub fn save_download(app: AppHandle, filename: String, data_base64: String) -> R
         return Err(SAVE_ERROR.to_string());
     }
     let name = safe_name(&filename);
+    tauri::async_runtime::spawn_blocking(move || write_chosen(app, name, bytes))
+        .await
+        .map_err(|_| SAVE_ERROR.to_string())?
+}
+
+fn write_chosen(app: AppHandle, name: String, bytes: Vec<u8>) -> Result<bool, String> {
     let mut dialog = app.dialog().file().set_file_name(&name);
     if let Some(ext) = extension(&name) {
         let label: &str = &ext;

@@ -16,15 +16,14 @@ function report(message: string) {
 
 function browserDownload(filename: string, blob: Blob) {
   // application/pdf hace que Chrome abra el visor y deje el archivo como
-  // "Sin confirmar *.crdownload" en macOS, Windows y Linux. Un tipo genérico
-  // obliga a guardarlo, y el blob tiene que seguir vivo hasta que el gestor
-  // termine de copiarlo.
-  const file = blob.type === "application/octet-stream" ? blob : new Blob([blob], { type: "application/octet-stream" })
+  // "Sin confirmar *.crdownload". Un tipo genérico obliga a guardarlo.
+  // rel="noopener" cancela esa descarga en Chrome, Safari y Firefox.
+  // El blob tiene que seguir vivo hasta que el gestor termine de copiarlo.
+  const file = new File([blob], filename, { type: "application/octet-stream" })
   const url = URL.createObjectURL(file)
   const link = document.createElement("a")
   link.href = url
   link.download = filename
-  link.rel = "noopener"
   document.body.append(link)
   link.click()
   window.setTimeout(() => {
@@ -52,7 +51,7 @@ export async function saveDownload(filename: string, body: Blob | string): Promi
   }
   try {
     const bytes = new Uint8Array(await blob.arrayBuffer())
-    const saved = await invoke.invoke("save_download", { filename, data_base64: encodeBase64(bytes) })
+    const saved = await invoke.invoke("save_download", { filename, dataBase64: encodeBase64(bytes) })
     if (saved !== true && saved !== false) report(SAVE_ERROR)
   } catch (caught) {
     const message = typeof caught === "string" && caught ? caught : SAVE_ERROR
