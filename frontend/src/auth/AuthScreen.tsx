@@ -7,8 +7,22 @@ import { Logo } from "../shell/Logo"
 
 type Mode = "entrar" | "crear" | "recuperar" | "nueva"
 
+const PENDING_KEY = "traza-pending-confirmation"
+
 function isPending(value: Account | PendingConfirmation): value is PendingConfirmation {
   return "pending_confirmation" in value && value.pending_confirmation
+}
+
+function readPending(): { email: string; message: string } | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_KEY)
+    if (!raw) return null
+    const data = JSON.parse(raw) as { email?: string; message?: string }
+    if (!data.email || !data.message) return null
+    return { email: data.email, message: data.message }
+  } catch {
+    return null
+  }
 }
 
 function readLaunch(): URLSearchParams {
@@ -29,14 +43,15 @@ export function AuthScreen({
   const launch = readLaunch()
   const resetUid = launch.get("restablecer")
   const resetToken = launch.get("token")
+  const storedPending = readPending()
   const [mode, setMode] = useState<Mode>(resetUid && resetToken ? "nueva" : "entrar")
-  const [email, setEmail] = useState("")
+  const [email, setEmail] = useState(storedPending?.email ?? "")
   const [password, setPassword] = useState("")
   const [displayName, setDisplayName] = useState("")
   const [role, setRole] = useState<Role>("student")
-  const [message, setMessage] = useState(notice)
+  const [message, setMessage] = useState(storedPending?.message || notice)
   const [error, setError] = useState("")
-  const [pendingEmail, setPendingEmail] = useState("")
+  const [pendingEmail, setPendingEmail] = useState(storedPending?.email ?? "")
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -70,23 +85,31 @@ export function AuthScreen({
         setMessage(t("passwordUpdated"))
         return
       }
-      if (mode === "entrar") onSuccess(await api.login({ email, password }))
-      if (mode === "crear") {
+      if (mode === "entrar") {
+        const account = await api.login({ email, password })
+        sessionStorage.removeItem(PENDING_KEY)
+        onSuccess(account)
+      } else if (mode === "crear") {
         const created = await api.register({ email, password, display_name: displayName, role })
         if (isPending(created)) {
+          sessionStorage.setItem(PENDING_KEY, JSON.stringify({ email, message: created.message }))
           setPendingEmail(email)
           setMessage(created.message)
           return
         }
+        sessionStorage.removeItem(PENDING_KEY)
         onSuccess(created)
-      }
-      if (mode === "recuperar") {
+      } else if (mode === "recuperar") {
         const result = await api.reset(email)
         setMessage(result.message)
       }
     } catch (caught) {
       if (caught instanceof ApiError && caught.code === "email_unconfirmed") {
+        const text = translatedMessage(caught.message)
+        sessionStorage.setItem(PENDING_KEY, JSON.stringify({ email, message: text }))
         setPendingEmail(email)
+        setMessage(text)
+        return
       }
       const detail = caught instanceof Error ? caught.message : ""
       setError(caught instanceof ApiError ? translatedMessage(caught.message) : detail || t("requestError"))
@@ -101,6 +124,17 @@ export function AuthScreen({
         <h1><Logo /></h1>
         {locked ? (
           message ? <p className="note" role="status">{message}</p> : null
+        ) : pendingEmail ? (
+        <>
+        <p className="note" role="status">{message}</p>
+        <p className="note">{pendingEmail}</p>
+        <button type="button" onClick={() => void resend()}>
+          {t("resend")}
+        </button>
+        <button className="primary" type="button" onClick={() => { setPendingEmail(""); setMode("entrar") }}>
+          {t("signIn")}
+        </button>
+        </>
         ) : (
         <>
         <p className="note">{t("authNote")}</p>
