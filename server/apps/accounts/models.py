@@ -59,3 +59,14 @@ class Profile(models.Model):
 
     def __str__(self) -> str:
         return self.display_name
+
+
+class SignupPolicy(models.Model):
+    """Una sola fila. El administrador elige qué altas aparecen."""
+
+    student = models.BooleanField("alta de alumno", default=True)
+    teacher = models.BooleanField("alta de docente", default=True)
+
+    class Meta:
+        verbose_name = "altas"
+        verbose_name_plural = "altas"

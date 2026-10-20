@@ -9,6 +9,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.models import Profile
 from apps.accounts.services import (
     confirm_email,
     confirm_password_reset,
@@ -18,7 +19,9 @@ from apps.accounts.services import (
     register_user,
     request_password_reset,
     resend_confirmation,
+    signup_payload,
     update_profile,
+    update_signup_policy,
     user_payload,
 )
 from apps.accounts.guard import begin_session
@@ -35,6 +38,20 @@ class CsrfView(APIView):
 
     def get(self, request: Request) -> Response:
         return Response({"ok": True})
+
+
+class SignupPolicyView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [AllowAny]
+
+    def get(self, request: Request) -> Response:
+        return Response(signup_payload())
+
+    def patch(self, request: Request) -> Response:
+        user = current_user(request)
+        if user.profile.role != Profile.ADMIN:
+            raise DomainError("Solo un administrador puede definir las altas.", status_code=403)
+        return Response(signup_payload(update_signup_policy(object_body(request.data))))
 
 
 class RegisterView(APIView):

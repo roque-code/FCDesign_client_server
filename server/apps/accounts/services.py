@@ -16,7 +16,7 @@ from django.db import transaction
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
-from apps.accounts.models import Profile, User
+from apps.accounts.models import Profile, SignupPolicy, User
 from apps.audit.services import record
 from apps.editor.models import EditorPreference
 from apps.projects.examples import seed_examples
@@ -65,6 +65,45 @@ def clean_role(value: object) -> str:
     if value in (Profile.STUDENT, Profile.TEACHER):
         return value
     raise DomainError("El perfil debe ser docente o estudiante.")
+
+
+def signup_policy() -> SignupPolicy:
+    row, _created = SignupPolicy.objects.get_or_create(pk=1)
+    return row
+
+
+def signup_payload(policy: SignupPolicy | None = None) -> dict[str, bool]:
+    row = signup_policy() if policy is None else policy
+    return {"student": row.student, "teacher": row.teacher}
+
+
+@transaction.atomic
+def update_signup_policy(data: dict) -> SignupPolicy:
+    signup_policy()
+    row = SignupPolicy.objects.select_for_update().get(pk=1)
+    changed = False
+    for key in ("student", "teacher"):
+        if key not in data:
+            continue
+        value = data[key]
+        if not isinstance(value, bool):
+            raise DomainError("Indica si ese tipo de cuenta se puede crear.")
+        setattr(row, key, value)
+        changed = True
+    if changed:
+        row.save()
+    return row
+
+
+def ensure_signup_open(role: str) -> None:
+    policy = signup_policy()
+    if role == Profile.STUDENT and policy.student:
+        return
+    if role == Profile.TEACHER and policy.teacher:
+        return
+    if role == Profile.TEACHER:
+        raise DomainError("Ahora no se pueden crear cuentas de docente.")
+    raise DomainError("Ahora no se pueden crear cuentas de alumno.")
 
 
 class EmailConfirmTokenGenerator(PasswordResetTokenGenerator):
@@ -177,6 +216,7 @@ def register_user(
     visible = clean_label(display_name, field="El nombre", limit=80, required=False)
     school = clean_label(institution, field="La institución", limit=120, required=False)
     chosen = Profile.STUDENT if role is None or role == "" else clean_role(role)
+    ensure_signup_open(chosen)
     existing = User.objects.filter(email=cleaned).first()
     if existing is not None:
         if existing.email_confirmed or not settings.EMAIL_CONFIRMATION_REQUIRED:

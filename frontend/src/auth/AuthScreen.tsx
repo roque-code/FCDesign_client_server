@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react"
 
-import { api, ApiError, type Account, type PendingConfirmation, type Role } from "../api"
+import { api, ApiError, type Account, type PendingConfirmation, type Role, type SignupPolicy } from "../api"
 import { useT, translatedMessage } from "../i18n"
 import { launchSearch } from "../runtime"
 import { Logo } from "../shell/Logo"
@@ -49,6 +49,7 @@ export function AuthScreen({
   const [password, setPassword] = useState("")
   const [displayName, setDisplayName] = useState("")
   const [role, setRole] = useState<Role>("student")
+  const [signup, setSignup] = useState<SignupPolicy | null>(null)
   const [message, setMessage] = useState(storedPending?.message || notice)
   const [error, setError] = useState("")
   const [pendingEmail, setPendingEmail] = useState(storedPending?.email ?? "")
@@ -57,6 +58,30 @@ export function AuthScreen({
   useEffect(() => {
     if (notice) setMessage(notice)
   }, [notice])
+
+  useEffect(() => {
+    let cancel = false
+    void api.signup().then(
+      (policy) => {
+        if (!cancel) setSignup(policy)
+      },
+      () => {
+        if (!cancel) setSignup({ student: true, teacher: true })
+      },
+    )
+    return () => {
+      cancel = true
+    }
+  }, [])
+
+  const openRoles = (["student", "teacher"] as const).filter((item) => signup?.[item])
+
+  useEffect(() => {
+    if (!signup) return
+    const open = (["student", "teacher"] as const).filter((item) => signup[item])
+    if (open.length === 0 && mode === "crear") setMode("entrar")
+    if (open.length === 1 && role !== open[0]) setRole(open[0])
+  }, [signup, mode, role])
 
   async function resend() {
     setError("")
@@ -90,7 +115,12 @@ export function AuthScreen({
         sessionStorage.removeItem(PENDING_KEY)
         onSuccess(account)
       } else if (mode === "crear") {
-        const created = await api.register({ email, password, display_name: displayName, role })
+        const chosen = openRoles.length === 1 ? openRoles[0] : role
+        if (!openRoles.includes(chosen)) {
+          setError(t(chosen === "teacher" ? "signupTeacherClosed" : "signupStudentClosed"))
+          return
+        }
+        const created = await api.register({ email, password, display_name: displayName, role: chosen })
         if (isPending(created)) {
           sessionStorage.setItem(PENDING_KEY, JSON.stringify({ email, message: created.message }))
           setPendingEmail(email)
@@ -142,9 +172,11 @@ export function AuthScreen({
           <button type="button" aria-selected={mode === "entrar"} onClick={() => setMode("entrar")}>
             {t("signIn")}
           </button>
-          <button type="button" aria-selected={mode === "crear"} onClick={() => setMode("crear")}>
-            {t("createAccount")}
-          </button>
+          {openRoles.length > 0 && (
+            <button type="button" aria-selected={mode === "crear"} onClick={() => setMode("crear")}>
+              {t("createAccount")}
+            </button>
+          )}
           <button type="button" aria-selected={mode === "recuperar"} onClick={() => setMode("recuperar")}>
             {t("recover")}
           </button>
@@ -156,13 +188,19 @@ export function AuthScreen({
                 {t("visibleName")}
                 <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
               </label>
-              <label>
-                {t("profile")}
-                <select aria-label={t("profile")} value={role} onChange={(event) => setRole(event.target.value as Role)}>
-                  <option value="student">{t("student")}</option>
-                  <option value="teacher">{t("teacher")}</option>
-                </select>
-              </label>
+              {openRoles.length === 1 && (
+                <p className="note">{t(openRoles[0] === "teacher" ? "signupTeacherOnly" : "signupStudentOnly")}</p>
+              )}
+              {openRoles.length > 1 && (
+                <label>
+                  {t("profile")}
+                  <select aria-label={t("profile")} value={role} onChange={(event) => setRole(event.target.value as Role)}>
+                    {openRoles.map((item) => (
+                      <option key={item} value={item}>{t(item)}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </>
           )}
           {mode !== "nueva" && (

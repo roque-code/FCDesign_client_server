@@ -191,6 +191,46 @@ def test_una_cuenta_puede_usar_el_navegador_aunque_el_nivel_no(settings):
     assert browser.get("/api/v1/projects/").status_code == 200
 
 
+def test_el_administrador_elige_que_cuentas_se_pueden_crear(client):
+    opened = client.get("/api/v1/auth/signup/")
+    assert opened.status_code == 200
+    assert opened.json() == {"student": True, "teacher": True}
+
+    call_command("create_admin", email="admin-altas@ejemplo.test", password=PASSWORD, name="Ada")
+    admin = APIClient(enforce_csrf_checks=True)
+    refresh_csrf(admin)
+    entered = admin.post(
+        "/api/v1/auth/login/",
+        {"email": "admin-altas@ejemplo.test", "password": PASSWORD},
+        format="json",
+    )
+    assert entered.status_code == 200, entered.content
+    refresh_csrf(admin)
+
+    refused = client.patch("/api/v1/auth/signup/", {"teacher": False}, format="json")
+    assert refused.status_code == 403
+    assert refused.json()["error"]["code"] == "not_authenticated"
+
+    closed = admin.patch("/api/v1/auth/signup/", {"teacher": False}, format="json")
+    assert closed.status_code == 200, closed.content
+    assert closed.json() == {"student": True, "teacher": False}
+    teacher = register(client, email="alta-docente@ejemplo.test", role="teacher")
+    assert teacher.status_code == 400
+    assert "docente" in teacher.json()["error"]["message"]
+    student = register(client, email="alta-alumno@ejemplo.test", role="student")
+    assert student.status_code == 201, student.content
+
+    both = admin.patch(
+        "/api/v1/auth/signup/",
+        {"student": False, "teacher": False},
+        format="json",
+    )
+    assert both.status_code == 200
+    blocked = register(client, email="alta-cerrada@ejemplo.test")
+    assert blocked.status_code == 400
+    assert "alumno" in blocked.json()["error"]["message"]
+
+
 def test_la_cuenta_incluye_access_si_no_hay_niveles(client):
     created = register(client, email="sin-nivel@ejemplo.test")
     assert created.status_code == 201

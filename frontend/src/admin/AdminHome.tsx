@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 
-import { ApiError, api, type Account, type BillingPlan, type PlanFeature, type Role, type Subscriber } from "../api"
+import { ApiError, api, type Account, type BillingPlan, type PlanFeature, type Role, type SignupPolicy, type Subscriber } from "../api"
 import { useT } from "../i18n"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
@@ -40,13 +40,15 @@ export function AdminHome({
   const [page, setPage] = useState(1)
   const [pages, setPages] = useState(1)
   const [count, setCount] = useState(0)
+  const [signup, setSignup] = useState<SignupPolicy | null>(null)
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
 
   async function load() {
-    const [features, listed] = await Promise.all([api.planCatalog(), api.plans()])
+    const [features, listed, gates] = await Promise.all([api.planCatalog(), api.plans(), api.signup()])
     setCatalog(features.results)
     setPlans(listed.results)
+    setSignup(gates)
   }
 
   async function loadPeople(nextPage: number, nextQuery = query) {
@@ -161,6 +163,19 @@ export function AdminHome({
     }
   }
 
+  async function setSignupFlag(key: keyof SignupPolicy, value: boolean) {
+    setSignup((current) => (current ? { ...current, [key]: value } : current))
+    setError("")
+    try {
+      const saved = await api.updateSignup({ [key]: value })
+      setSignup(saved)
+      setNotice(t("signupSaved"))
+    } catch (caught) {
+      setSignup(await api.signup().catch(() => null))
+      setError(caught instanceof ApiError ? caught.message : t("requestError"))
+    }
+  }
+
   async function allowBrowser(person: Subscriber, allowed: boolean) {
     setError("")
     try {
@@ -190,6 +205,30 @@ export function AdminHome({
       <main className="admin-home">
         {error ? <p className="error">{error}</p> : null}
         {notice ? <p className="note">{notice}</p> : null}
+        <section>
+          <h2>{t("signupTitle")}</h2>
+          <p className="note">{t("signupHint")}</p>
+          {signup ? (
+            <div className="signup-gates">
+              <label className="check-row">
+                <input
+                  type="checkbox"
+                  checked={signup.student}
+                  onChange={(event) => void setSignupFlag("student", event.target.checked)}
+                />
+                {t("signupStudent")}
+              </label>
+              <label className="check-row">
+                <input
+                  type="checkbox"
+                  checked={signup.teacher}
+                  onChange={(event) => void setSignupFlag("teacher", event.target.checked)}
+                />
+                {t("signupTeacher")}
+              </label>
+            </div>
+          ) : null}
+        </section>
         <section>
           <header className="admin-head">
             <h2>{t("levels")}</h2>

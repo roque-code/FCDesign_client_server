@@ -1,6 +1,11 @@
 import { localMissingMessage } from "./i18n"
 
 export type Role = "student" | "teacher"
+
+export type SignupPolicy = {
+  student: boolean
+  teacher: boolean
+}
 export type AccountRole = Role | "admin"
 
 export type AccountPlan = {
@@ -775,6 +780,9 @@ export const api = {
   me: () => request<Account>("/api/v1/auth/me/"),
   presence: () =>
     request<Account>("/api/v1/auth/me/", { headers: { "X-Traza-Presence": "1" } }),
+  signup: () => request<SignupPolicy>("/api/v1/auth/signup/"),
+  updateSignup: (body: Partial<SignupPolicy>) =>
+    request<SignupPolicy>("/api/v1/auth/signup/", { method: "PATCH", body: JSON.stringify(body) }),
   register: (body: { email: string; password: string; display_name?: string; role?: Role }) =>
     request<Account | PendingConfirmation>("/api/v1/auth/register/", {
       method: "POST",

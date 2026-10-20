@@ -751,6 +751,16 @@ const es = {
   algorithmPlanLimit: "Tu nivel no permite más algoritmos.",
   adminAccount: "Esta cuenta administra los niveles.",
   adminsDefinePlans: "Solo un administrador puede definir los niveles.",
+  signupTitle: "Crear cuenta",
+  signupHint: "Elige qué tipos de cuenta aparecen al registrarse. Si desmarcas uno, esa opción deja de mostrarse y el servidor rechaza el alta.",
+  signupStudent: "Se puede crear cuenta de alumno",
+  signupTeacher: "Se puede crear cuenta de docente",
+  signupSaved: "Las altas quedaron actualizadas.",
+  signupStudentOnly: "Esta cuenta será de alumno.",
+  signupTeacherOnly: "Esta cuenta será de docente.",
+  signupStudentClosed: "Ahora no se pueden crear cuentas de alumno.",
+  signupTeacherClosed: "Ahora no se pueden crear cuentas de docente.",
+  signupAdminsOnly: "Solo un administrador puede definir las altas.",
 }
 
 const en: { [Key in keyof typeof es]: string } = {
@@ -1502,6 +1512,16 @@ const en: { [Key in keyof typeof es]: string } = {
   algorithmPlanLimit: "Your plan does not allow more programs.",
   adminAccount: "This account manages the plans.",
   adminsDefinePlans: "Only an administrator can define the plans.",
+  signupTitle: "Create account",
+  signupHint: "Choose which account types appear at signup. If you turn one off, that option is hidden and the server rejects it.",
+  signupStudent: "Student accounts can be created",
+  signupTeacher: "Teacher accounts can be created",
+  signupSaved: "Signup options were updated.",
+  signupStudentOnly: "This account will be a student.",
+  signupTeacherOnly: "This account will be a teacher.",
+  signupStudentClosed: "Student accounts cannot be created right now.",
+  signupTeacherClosed: "Teacher accounts cannot be created right now.",
+  signupAdminsOnly: "Only an administrator can define signup.",
 }
 
 const catalogs = { es, en }
@@ -1527,6 +1547,9 @@ const SERVER_TEXT: Record<string, MessageKey> = {
   "Tu nivel no permite más algoritmos.": "algorithmPlanLimit",
   "Esta cuenta administra los niveles.": "adminAccount",
   "Solo un administrador puede definir los niveles.": "adminsDefinePlans",
+  "Ahora no se pueden crear cuentas de alumno.": "signupStudentClosed",
+  "Ahora no se pueden crear cuentas de docente.": "signupTeacherClosed",
+  "Solo un administrador puede definir las altas.": "signupAdminsOnly",
   "Indica si la traducción queda habilitada.": "translationFlagRequired",
   "La traducción se ajusta para un alumno.": "translationStudentsOnly",
   "Solo un docente puede gestionar comunidades.": "teachersManage",

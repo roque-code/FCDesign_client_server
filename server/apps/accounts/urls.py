@@ -11,10 +11,12 @@ from apps.accounts.views import (
     PasswordResetConfirmView,
     PasswordResetView,
     RegisterView,
+    SignupPolicyView,
 )
 
 urlpatterns = [
     path("csrf/", CsrfView.as_view(), name="csrf"),
+    path("signup/", SignupPolicyView.as_view(), name="signup"),
     path("register/", RegisterView.as_view(), name="register"),
     path("confirm-email/", EmailConfirmView.as_view(), name="confirm-email"),
     path("confirm-email/open/", EmailConfirmOpenView.as_view(), name="confirm-email-open"),
