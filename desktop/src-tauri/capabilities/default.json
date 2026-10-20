@@ -7,6 +7,7 @@
     "core:default",
     "shell:default",
     "deep-link:default",
-    "allow-server-fetch"
+    "allow-server-fetch",
+    "allow-save-download"
   ]
 }

@@ -13,6 +13,7 @@ import { ApiError, api, type LabPractice, type LabPreview, type LabRun } from ".
 import { applyConsoleOutput } from "../console/output"
 import { editorKeywords, spellText } from "../dialect"
 import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
+import { saveDownload } from "../saveFile"
 import { highlightSource } from "../editor/highlight"
 import {
   inInstalledApp,
@@ -47,14 +48,8 @@ function messageOf(error: unknown, fallback: string): string {
 
 function downloadSource(name: string, source: string) {
   const body = source.endsWith("\n") ? source : `${source}\n`
-  const blob = new Blob([body], { type: "text/plain;charset=utf-8" })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement("a")
   const base = name.replace(/[\\/:*?"<>|]+/g, " ").trim() || "practica"
-  link.href = url
-  link.download = `${base}.txt`
-  link.click()
-  URL.revokeObjectURL(url)
+  void saveDownload(`${base}.txt`, new Blob([body], { type: "text/plain;charset=utf-8" }))
 }
 
 function LabSplit({

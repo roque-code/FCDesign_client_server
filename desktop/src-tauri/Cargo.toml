@@ -22,4 +22,6 @@ tauri-plugin-deep-link = "2"
 # 0.21.2 está retirado del registro.
 rust-ini = "=0.21.1"
 tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
 ureq = { version = "2", features = ["json"] }
+base64 = "0.22"

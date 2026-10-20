@@ -48,6 +48,7 @@ const es = {
   teacherManual: "Manual del docente",
   viewManual: "Ver",
   downloadManual: "Descargar PDF",
+  downloadFailed: "No se pudo guardar el archivo.",
   manualLoading: "Cargando el manual…",
   manualError: "No se pudo abrir el manual.",
   language: "Idioma",
@@ -798,6 +799,7 @@ const en: { [Key in keyof typeof es]: string } = {
   teacherManual: "Teacher manual",
   viewManual: "View",
   downloadManual: "Download PDF",
+  downloadFailed: "The file could not be saved.",
   manualLoading: "Loading the manual…",
   manualError: "The manual could not be opened.",
   language: "Language",
@@ -1513,7 +1515,7 @@ export function translate(locale: Locale, key: MessageKey, vars?: Record<string,
 }
 
 const SERVER_TEXT: Record<string, MessageKey> = {
-  "El correo quedó confirmado. Esa cuenta ya puede entrar desde cualquier equipo.": "emailConfirmedAnywhere",
+  "No se pudo guardar el archivo.": "downloadFailed",
   "El correo ya está confirmado. Entra con tu contraseña.": "emailConfirmedAnywhere",
   "Ya hay una sesión abierta en otro equipo. Ciérrala ahí o espera 30 minutos sin usarla.": "sessionOpen",
   "Demasiados intentos. Espera 15 minutos para volver a entrar.": "loginLocked",

@@ -277,7 +277,7 @@ label { display: grid; gap: 0.25rem; font-size: 0.92rem; }
 
 .manual-row span, .manual-dialog header span { display: flex; gap: 0.4rem; align-items: center; }
 
-a.manual-download {
+a.manual-download, button.manual-download {
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--line);
@@ -285,12 +285,13 @@ a.manual-download {
   padding: 0.28rem 0.55rem;
   color: var(--ink);
   background: var(--sheet);
+  font: inherit;
   font-size: 0.82rem;
   font-weight: 650;
   text-decoration: none;
 }
 
-a.manual-download:hover { background: var(--hover); }
+a.manual-download:hover, button.manual-download:hover { background: var(--hover); }
 
 .manual-backdrop {
   position: fixed;

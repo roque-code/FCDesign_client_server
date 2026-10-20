@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react"
 import type { FlowGraph } from "../api"
 import { spellText } from "../dialect"
 import { useLocale, useT } from "../i18n"
+import { saveDownload } from "../saveFile"
 import { focusNodeId } from "./focus"
 import { labelAnchor } from "./figures"
 import { ShapeGlyph, SwitchGlyph } from "./glyphs"
@@ -87,12 +88,7 @@ function fileBase(name: string): string {
 }
 
 function download(filename: string, blob: Blob) {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement("a")
-  link.href = url
-  link.download = filename
-  link.click()
-  URL.revokeObjectURL(url)
+  void saveDownload(filename, blob)
 }
 
 async function raster(svg: string, width: number, height: number): Promise<HTMLCanvasElement> {

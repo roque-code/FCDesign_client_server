@@ -1,3 +1,4 @@
+mod save;
 mod update;
 
 use std::io::{BufRead, BufReader};
@@ -55,6 +56,7 @@ fn server_fetch(
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
             let bridge = start_host().map_err(std::io::Error::other)?;
@@ -87,7 +89,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![server_fetch])
+        .invoke_handler(tauri::generate_handler![server_fetch, save::save_download])
         .build(tauri::generate_context!())
         .expect("No se pudo abrir Traza")
         .run(|app, event| {

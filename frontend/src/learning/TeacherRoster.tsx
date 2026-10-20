@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import { ApiError, api, type LabMemberProgress, type LabMemberWork, type LabRosterRoute } from "../api"
 import { spellText } from "../dialect"
 import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
+import { saveDownload } from "../saveFile"
 import { TeacherBoard } from "./TeacherBoard"
 import { formatClock, formatWhen } from "./trace"
 
@@ -168,12 +169,7 @@ export function TeacherRoster() {
     try {
       const csv = await api.labProgressCsv(route.id, locale)
       const body = csv.charCodeAt(0) === 0xfeff ? csv : `\ufeff${csv}`
-      const url = URL.createObjectURL(new Blob([body], { type: "text/csv;charset=utf-8" }))
-      const link = document.createElement("a")
-      link.href = url
-      link.download = progressFilename(route.name)
-      link.click()
-      URL.revokeObjectURL(url)
+      await saveDownload(progressFilename(route.name), new Blob([body], { type: "text/csv;charset=utf-8" }))
     } catch (caught) {
       setError(messageOf(caught, t("studentProgressError")))
     } finally {

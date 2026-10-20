@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 
 import type { AccountRole } from "../api"
 import { useLocale, useT, type MessageKey } from "../i18n"
+import { saveRemote } from "../saveFile"
 
 type Manual = {
   href: string
@@ -163,9 +164,9 @@ export function GuideButtons({ role }: { role: AccountRole }) {
                     >
                       {t("viewManual")}
                     </button>
-                    <a className="manual-download" href={manual.href} download={manual.file}>
+                    <button type="button" className="manual-download" onClick={() => void saveRemote(manual.file, manual.href)}>
                       {t("downloadManual")}
-                    </a>
+                    </button>
                   </span>
                 </li>
               ))}
@@ -201,9 +202,9 @@ function ManualView({ manual, onClose }: { manual: Manual; onClose: () => void }
         <header>
           <h2>{t(manual.label)}</h2>
           <span>
-            <a className="manual-download" href={manual.href} download={manual.file}>
+            <button type="button" className="manual-download" onClick={() => void saveRemote(manual.file, manual.href)}>
               {t("downloadManual")}
-            </a>
+            </button>
             <button type="button" onClick={onClose}>{t("close")}</button>
           </span>
         </header>

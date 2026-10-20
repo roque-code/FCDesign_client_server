@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEven
 import { api, type Account, type Algorithm, type Project } from "../api"
 import { allKeywordDisplays, spellText } from "../dialect"
 import { useLocale, useT, type MessageKey } from "../i18n"
+import { saveDownload } from "../saveFile"
 import { AccountIdentity } from "../shell/Identity"
 import { highlightSource } from "../editor/highlight"
 import { labelAnchor } from "../diagram/figures"
@@ -412,13 +413,10 @@ export function Composer({
   }
 
   function downloadSource() {
-    const blob = new Blob([source], { type: "text/plain;charset=utf-8" })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = `${algorithmName(program.name)}.txt`
-    link.click()
-    URL.revokeObjectURL(url)
+    void saveDownload(
+      `${algorithmName(program.name)}.txt`,
+      new Blob([source], { type: "text/plain;charset=utf-8" }),
+    )
   }
 
   return (

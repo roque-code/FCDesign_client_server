@@ -21,6 +21,7 @@ import { CodeEditor } from "../editor/CodeEditor"
 import { editorKeywords } from "../dialect"
 import { GuideButtons } from "../help/Guides"
 import { translatedMessage, useLocale, useT, type Locale } from "../i18n"
+import { saveDownload } from "../saveFile"
 import {
   inInstalledApp,
   localControl,
@@ -670,14 +671,8 @@ export function Workbench({
   function downloadAlgorithm(algorithm: Algorithm) {
     const text = algorithm.id === algorithmId ? source : algorithm.source
     const body = text.endsWith("\n") ? text : `${text}\n`
-    const blob = new Blob([body], { type: "text/plain;charset=utf-8" })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
     const base = algorithm.name.replace(/[\\/:*?"<>|]+/g, " ").trim() || "algoritmo"
-    link.href = url
-    link.download = `${base}.txt`
-    link.click()
-    URL.revokeObjectURL(url)
+    void saveDownload(`${base}.txt`, new Blob([body], { type: "text/plain;charset=utf-8" }))
   }
 
   function clearOpenAlgorithm() {

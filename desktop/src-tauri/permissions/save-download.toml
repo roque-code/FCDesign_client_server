@@ -1,0 +1,9 @@
+[[permission]]
+identifier = "allow-save-download"
+description = "La ventana guarda un archivo con el diálogo del sistema."
+commands.allow = ["save_download"]
+
+[[permission]]
+identifier = "deny-save-download"
+description = "Impide que la ventana guarde archivos con el diálogo del sistema."
+commands.deny = ["save_download"]

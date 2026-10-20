@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { ApiError, api, type CsvChallengeFormat, type LabBank, type LabBankChallenge, type LabBankShelf, type LabConcept } from "../api"
 import { spellText } from "../dialect"
 import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
+import { saveDownload } from "../saveFile"
 import { ChallengeForm } from "./ChallengeForm"
 import { formatLimit } from "./trace"
 import { TOOL_GROUPS } from "./toolbox"
@@ -40,12 +41,7 @@ const BLOCK_LABEL = new Map(
 )
 
 function saveCsv(csv: string, filename: string) {
-  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }))
-  const link = document.createElement("a")
-  link.href = url
-  link.download = filename
-  link.click()
-  URL.revokeObjectURL(url)
+  void saveDownload(filename, new Blob([csv], { type: "text/csv;charset=utf-8" }))
 }
 
 function messageOf(error: unknown, fallback: string): string {

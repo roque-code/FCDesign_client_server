@@ -39,7 +39,15 @@ export function App() {
       setScreen("editor")
     }
     window.addEventListener("traza-session-end", onEnd)
-    return () => window.removeEventListener("traza-session-end", onEnd)
+    function onNotice(event: Event) {
+      const detail = (event as CustomEvent<string>).detail
+      if (typeof detail === "string" && detail) setNotice(translatedMessage(detail))
+    }
+    window.addEventListener("traza-notice", onNotice)
+    return () => {
+      window.removeEventListener("traza-session-end", onEnd)
+      window.removeEventListener("traza-notice", onNotice)
+    }
   }, [])
 
   useEffect(() => {

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type MouseEvent } from "react"
 
 import type { Diagnostic, Translation } from "../api"
 import { useT } from "../i18n"
+import { saveDownload } from "../saveFile"
 
 export function TranslateDialog({
   translations,
@@ -51,14 +52,7 @@ export function TranslateDialog({
 
   function download() {
     if (!current?.code) return
-    const blob = new Blob([current.code], { type: "text/plain;charset=utf-8" })
-    const link = document.createElement("a")
-    link.href = URL.createObjectURL(blob)
-    link.download = `${filename}.${current.extension}`
-    document.body.append(link)
-    link.click()
-    link.remove()
-    window.setTimeout(() => URL.revokeObjectURL(link.href), 1000)
+    void saveDownload(`${filename}.${current.extension}`, new Blob([current.code], { type: "text/plain;charset=utf-8" }))
   }
 
   async function copy() {
