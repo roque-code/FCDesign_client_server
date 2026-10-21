@@ -3,6 +3,17 @@
   min-height: 0;
 }
 
+.composer-preview .topbar,
+.composer-preview .composer-side,
+.composer-preview .composer-code,
+.composer-preview .splitter {
+  display: none;
+}
+
+.composer-preview .composer {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .composer-name {
   display: flex;
   align-items: center;

@@ -7,6 +7,7 @@ import { Composer } from "../compose/Composer"
 import { CodeEditor } from "../editor/CodeEditor"
 import { inInstalledApp, localImport } from "../runtime"
 import { BlockWorkspace } from "./BlockWorkspace"
+import { SolutionCard } from "./SolutionCard"
 import { formatClock, formatWhen, stagesFor, type StageName } from "./trace"
 
 const ACTIVITY: Record<string, MessageKey> = {
@@ -101,6 +102,7 @@ export function ChallengePlay({
       (result) => {
         if (cancelled) return
         setSession(result)
+        if (result.attempt.cases?.length) setCases(result.attempt.cases)
         const items = result.challenge.task.items ?? []
         if (result.challenge.activity_type === "order") setOrder(items.map((item) => item.id))
       },
@@ -239,7 +241,7 @@ export function ChallengePlay({
 
   async function prove() {
     if (buildMode === "bloques") {
-      await run(() => api.checkAttempt(attempt.id, workspace ?? {}))
+      await run(() => api.checkAttempt(attempt.id, workspace ?? {}, buildMode))
       return
     }
     const source = buildMode === "codigo" ? code : diagramSource
@@ -252,7 +254,7 @@ export function ChallengePlay({
         setNote(t("notYetMatch"))
         return
       }
-      apply(await api.checkAttempt(attempt.id, imported.workspace))
+      apply(await api.checkAttempt(attempt.id, imported.workspace, buildMode))
     } catch (caught) {
       setError(messageOf(caught, t("challengeContinueError")))
     } finally {
@@ -331,26 +333,29 @@ export function ChallengePlay({
               </article>
             ) : null}
             {finished ? (
-              <article className="result-card">
-                <p className="enunciado-kicker">{t("resultWord")}</p>
-                <h2>{t("challengeDone")}</h2>
-                {attempt.score != null ? <p className="result-score">{attempt.score}</p> : null}
-                {session.points != null && session.rank != null ? (
-                  <p>
-                    {t("scoreLine", { points: session.challenge.points, total: session.points, rank: session.rank })}
-                  </p>
-                ) : null}
-                {attempt.elapsed_seconds != null ? (
-                  <p>{t("answeredIn", { time: formatClock(attempt.elapsed_seconds) })}</p>
-                ) : null}
-                {attempt.finished_at ? <p>{formatWhen(attempt.finished_at, locale)}</p> : null}
-                <p>{attempt.summary || t("alreadyClosed")}</p>
-                {attempt.prediction ? <p>{t("answerIs", { answer: attempt.prediction.answer })}</p> : null}
-                {attempt.reflection ? <blockquote>{attempt.reflection}</blockquote> : null}
-                <button type="button" className="primary" onClick={onDone}>
-                  {t("backToRoute")}
-                </button>
-              </article>
+              <div className="result-layout">
+                <article className="result-card">
+                  <p className="enunciado-kicker">{t("resultWord")}</p>
+                  <h2>{t("challengeDone")}</h2>
+                  {attempt.score != null ? <p className="result-score">{attempt.score}</p> : null}
+                  {session.points != null && session.rank != null ? (
+                    <p>
+                      {t("scoreLine", { points: session.challenge.points, total: session.points, rank: session.rank })}
+                    </p>
+                  ) : null}
+                  {attempt.elapsed_seconds != null ? (
+                    <p>{t("answeredIn", { time: formatClock(attempt.elapsed_seconds) })}</p>
+                  ) : null}
+                  {attempt.finished_at ? <p>{formatWhen(attempt.finished_at, locale)}</p> : null}
+                  <p>{attempt.summary || t("alreadyClosed")}</p>
+                  {attempt.prediction ? <p>{t("answerIs", { answer: attempt.prediction.answer })}</p> : null}
+                  {attempt.reflection ? <blockquote>{attempt.reflection}</blockquote> : null}
+                  <button type="button" className="primary" onClick={onDone}>
+                    {t("backToRoute")}
+                  </button>
+                </article>
+                {attempt.solution ? <SolutionCard solution={attempt.solution} title={challenge.title} /> : null}
+              </div>
             ) : null}
             {!finished && !timedOut && current === "comprender" ? (
               <>
@@ -555,15 +560,26 @@ export function ChallengePlay({
                 }}
               >
                 <h2>{t("explain")}</h2>
-                {output ? <pre className="lab-output">{output}</pre> : null}
-                {cases ? (
-                  <ul className="case-list">
-                    {cases.map((item) => (
-                      <li key={item.name}>
-                        {item.passed ? t("passed") : t("mismatch")} · {item.name}
-                      </li>
-                    ))}
-                  </ul>
+                {output && !(cases && cases.length > 0) ? <pre className="lab-output">{output}</pre> : null}
+                {cases && cases.length > 0 ? (
+                  <>
+                    <p className={cases.every((item) => item.passed) ? "note" : "error"}>
+                      {cases.every((item) => item.passed)
+                        ? t("casesAllMatch")
+                        : t("casesNeedAll", {
+                            done: cases.filter((item) => item.passed).length,
+                            total: cases.length,
+                          })}
+                    </p>
+                    <ul className="case-list">
+                      {cases.map((item) => (
+                        <li key={item.name}>
+                          {item.passed ? t("passed") : t("mismatch")} · {item.name}
+                          <pre className="lab-output">{item.output}</pre>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
                 ) : null}
                 <label>
                   {t("whatHappened")}

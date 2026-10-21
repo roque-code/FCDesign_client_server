@@ -14,6 +14,7 @@ export function BlockWorkspace({
   allowed = null,
   restore = null,
   onLoadError = null,
+  readOnly = false,
 }: {
   onCount: (count: number) => void
   onState: (state: object) => void
@@ -21,6 +22,7 @@ export function BlockWorkspace({
   allowed?: readonly string[] | null
   restore?: { key: number; state: object } | null
   onLoadError?: ((message: string) => void) | null
+  readOnly?: boolean
 }) {
   const locale = useLocale()
   const host = useRef<HTMLDivElement>(null)
@@ -51,15 +53,16 @@ export function BlockWorkspace({
     Blockly.setLocale((locale === "en" ? blocklyEn : blocklyEs) as unknown as { [key: string]: string })
     defineTrazaBlocks(locale)
     const workspace = Blockly.inject(node, {
-      toolbox: labToolbox(allowedKey ? allowedKey.split(",") : null, (key) => translate(locale, key)),
+      readOnly,
+      toolbox: readOnly ? undefined : labToolbox(allowedKey ? allowedKey.split(",") : null, (key) => translate(locale, key)),
       renderer: "zelos",
       horizontalLayout: compact,
       toolboxPosition: compact ? "end" : "start",
       media: "/blockly-media/",
-      trashcan: true,
+      trashcan: !readOnly,
       sounds: false,
       zoom: { controls: true, wheel: true, startScale: compact ? 0.8 : 1 },
-      move: { scrollbars: true, drag: true, wheel: false },
+      move: { scrollbars: true, drag: !readOnly, wheel: false },
       grid: { spacing: 24, length: 1, colour: "#e4e7ee", snap: true },
     })
     const saved = snapshotRef.current
@@ -89,7 +92,7 @@ export function BlockWorkspace({
       workspace.dispose()
       node.replaceChildren()
     }
-  }, [allowedKey, compact, locale])
+  }, [allowedKey, compact, locale, readOnly])
 
   useEffect(() => {
     const workspace = workspaceRef.current

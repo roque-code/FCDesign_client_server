@@ -317,6 +317,7 @@ export type LabMemberWork = {
     prediction: { answer: string; is_correct: boolean } | null
     answer: { label: string; value: string }[]
     source: string
+    solution?: LabSolution | null
     cases: { name: string; passed: boolean; output: string }[]
   } | null
 }
@@ -482,6 +483,12 @@ export type LabChallenge = {
   }
 }
 
+export type LabSolution = {
+  tool: "codigo" | "diagrama" | "bloques"
+  source: string
+  blocks?: object
+}
+
 export type LabAttempt = {
   id: string
   status: string
@@ -493,10 +500,12 @@ export type LabAttempt = {
   solution_next: boolean
   prediction: { answer: string; is_correct: boolean } | null
   reflection: string | null
+  solution?: LabSolution | null
   time_limit_seconds: number | null
   seconds_left: number | null
   elapsed_seconds: number | null
   finished_at: string | null
+  cases?: LabCase[]
 }
 
 export type LabAttemptRecord = {
@@ -1044,10 +1053,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({}),
     }),
-  checkAttempt: (attemptId: string, workspace: object) =>
+  checkAttempt: (attemptId: string, workspace: object, tool?: string) =>
     request<LabSession>(attemptCheckPath(attemptId), {
       method: "POST",
-      body: JSON.stringify({ workspace }),
+      body: JSON.stringify({ workspace, tool }),
     }),
   runAttempt: (attemptId: string) =>
     request<LabSession>(`/api/v1/learning/attempts/${attemptId}/run/`, {

@@ -203,6 +203,9 @@ def test_el_docente_lee_la_respuesta_y_el_codigo():
     assert body["attempt"]["score"] == 90
     assert body["attempt"]["answer"] == [{"label": "Respuesta", "value": "15"}]
     assert body["attempt"]["source"].startswith("Algoritmo Laboratorio")
+    assert body["attempt"]["solution"]["tool"] == "codigo"
+    assert body["attempt"]["solution"]["source"].startswith("Algoritmo Laboratorio")
+    assert "blocks" not in body["attempt"]["solution"]
     assert body["attempt"]["reflection"] == "Expliqué el resultado del reto."
     leaked = work.content.decode()
     assert "workspace" not in leaked

@@ -246,7 +246,11 @@ def check_attempt(user, attempt_id, data: dict[str, Any]) -> dict[str, object]:
     cases = _grade_cases(adapted.program, adapted.source, attempt.challenge)
     passed = _every_case_passed(cases) and not missing
     outputs = [str(item["output"]) for item in cases]
-    _remember(attempt, "comprobar", {"passed": passed, "outputs": outputs})
+    graded: dict[str, object] = {"passed": passed, "outputs": outputs}
+    tool = _chosen_tool(data)
+    if tool is not None:
+        graded["tool"] = tool
+    _remember(attempt, "comprobar", graded)
     diagnostics = _named(concept, adapted.diagnostics)
     if missing:
         diagnostics.append(
@@ -640,7 +644,7 @@ def _state(attempt: ChallengeAttempt) -> dict[str, object]:
         reflection = attempt.reflection.body
     except Reflection.DoesNotExist:
         reflection = None
-    return {
+    state: dict[str, object] = {
         "id": str(attempt.id),
         "status": attempt.status,
         "score": attempt.score,
@@ -660,6 +664,75 @@ def _state(attempt: ChallengeAttempt) -> dict[str, object]:
         "elapsed_seconds": attempt.elapsed_seconds,
         "finished_at": None if attempt.finished_at is None else attempt.finished_at.isoformat(),
     }
+    solution = _solution(attempt)
+    if solution is not None:
+        state["solution"] = solution
+    checked = _checked_cases(attempt)
+    if checked:
+        state["cases"] = checked
+    return state
+
+
+def _checked_cases(attempt: ChallengeAttempt) -> list[dict[str, object]]:
+    """Los casos de la última comprobación, con la salida que produjo el programa."""
+    if attempt.challenge.activity_type != Challenge.BUILD:
+        return []
+    saved = _latest(attempt, "comprobar")
+    if not isinstance(saved, dict):
+        return []
+    answer = saved.get("answer")
+    if not isinstance(answer, dict):
+        return []
+    outputs = answer.get("outputs")
+    if not isinstance(outputs, list):
+        return []
+    rows: list[dict[str, object]] = []
+    for index, case in enumerate(attempt.challenge.test_cases.order_by("position")):
+        output = outputs[index] if index < len(outputs) and isinstance(outputs[index], str) else ""
+        rows.append(
+            {
+                "name": case.name,
+                "kind": case.kind,
+                "passed": output == case.expected_output,
+                "output": output,
+            }
+        )
+    return rows
+
+
+def _chosen_tool(data: dict[str, Any]) -> str | None:
+    tool = data.get("tool")
+    if isinstance(tool, str) and tool in ("codigo", "diagrama", "bloques"):
+        return tool
+    return None
+
+
+def _solution(attempt: ChallengeAttempt, *, only_completed: bool = True) -> dict[str, object] | None:
+    """La forma en que el alumno construyó la respuesta, para mostrarla junto a la nota."""
+    if only_completed and attempt.status != ChallengeAttempt.COMPLETED:
+        return None
+    if attempt.challenge.activity_type != Challenge.BUILD:
+        return None
+    snap = (
+        attempt.snapshots.filter(schema_version=1)
+        .exclude(pseudocode="")
+        .order_by("-created_at")
+        .first()
+    )
+    if snap is None or not isinstance(snap.blockly_json, dict):
+        return None
+    tool = "codigo"
+    saved = _latest(attempt, "comprobar")
+    if isinstance(saved, dict):
+        answer = saved.get("answer")
+        if isinstance(answer, dict):
+            chosen = _chosen_tool(answer)
+            if chosen is not None:
+                tool = chosen
+    payload: dict[str, object] = {"tool": tool, "source": snap.pseudocode}
+    if tool == "bloques":
+        payload["blocks"] = snap.blockly_json
+    return payload
 
 
 def _history(user, challenge: Challenge) -> list[dict[str, object]]:

@@ -9,7 +9,7 @@ from apps.accounts.models import Profile
 from apps.accounts.services import standing_of
 from apps.classroom.models import Membership
 from apps.learning.models import Challenge, ChallengeAttempt, ConceptMastery, PathEntry, Reflection
-from apps.learning.progress import _public_challenge, _sequence, path_payload, visible_paths
+from apps.learning.progress import _public_challenge, _sequence, _solution, path_payload, visible_paths
 from config.errors import DomainError
 
 NOT_FOUND = "not_found"
@@ -282,7 +282,7 @@ def _attempt_work(challenge: Challenge, attempt: ChallengeAttempt) -> dict[str, 
         .values_list("pseudocode", flat=True)
         .first()
     )
-    return {
+    payload: dict[str, object] = {
         "status": attempt.status,
         "score": attempt.score,
         "summary": attempt.summary,
@@ -298,6 +298,10 @@ def _attempt_work(challenge: Challenge, attempt: ChallengeAttempt) -> dict[str, 
         "source": code or "",
         "cases": _case_rows(challenge, comprobar),
     }
+    solution = _solution(attempt, only_completed=False)
+    if solution is not None:
+        payload["solution"] = solution
+    return payload
 
 
 def _saved_stages(attempt: ChallengeAttempt) -> tuple[object, object]:

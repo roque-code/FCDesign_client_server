@@ -4,6 +4,7 @@ import { ApiError, api, type LabMemberProgress, type LabMemberWork, type LabRost
 import { spellText } from "../dialect"
 import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
 import { saveDownload } from "../saveFile"
+import { SolutionCard } from "./SolutionCard"
 import { TeacherBoard } from "./TeacherBoard"
 import { formatClock, formatWhen } from "./trace"
 
@@ -58,19 +59,25 @@ function StudentWork({
         </div>
       </article>
       {finished && attempt ? (
-        <article className="result-card">
-          <p className="enunciado-kicker">{t("resultWord")}</p>
-          <h2>{t("challengeDone")}</h2>
-          {attempt.score != null ? <p className="result-score">{attempt.score}</p> : null}
-          <p>
-            {t("teacherScore", { points: challenge.points, total: points, rank })}
-          </p>
-          {attempt.elapsed_seconds != null ? <p>{t("answeredIn", { time: formatClock(attempt.elapsed_seconds) })}</p> : null}
-          {attempt.finished_at ? <p>{formatWhen(attempt.finished_at, locale)}</p> : null}
-          <p>{attempt.summary || t("alreadyClosed")}</p>
-          {attempt.prediction ? <p>{t("answerIs", { answer: attempt.prediction.answer })}</p> : null}
-          {attempt.reflection ? <blockquote>{attempt.reflection}</blockquote> : null}
-        </article>
+        <div className="result-layout">
+          <article className="result-card">
+            <p className="enunciado-kicker">{t("resultWord")}</p>
+            <h2>{t("challengeDone")}</h2>
+            {attempt.score != null ? <p className="result-score">{attempt.score}</p> : null}
+            <p>
+              {t("teacherScore", { points: challenge.points, total: points, rank })}
+            </p>
+            {attempt.elapsed_seconds != null ? <p>{t("answeredIn", { time: formatClock(attempt.elapsed_seconds) })}</p> : null}
+            {attempt.finished_at ? <p>{formatWhen(attempt.finished_at, locale)}</p> : null}
+            <p>{attempt.summary || t("alreadyClosed")}</p>
+            {attempt.prediction ? <p>{t("answerIs", { answer: attempt.prediction.answer })}</p> : null}
+            {attempt.reflection ? <blockquote>{attempt.reflection}</blockquote> : null}
+          </article>
+          {attempt.solution ? <SolutionCard solution={attempt.solution} title={challenge.title} kicker="studentBuild" /> : null}
+        </div>
+      ) : null}
+      {!finished && attempt?.solution ? (
+        <SolutionCard solution={attempt.solution} title={challenge.title} kicker="studentBuild" />
       ) : null}
       {timedOut && attempt ? (
         <article className="result-card">
@@ -101,7 +108,7 @@ function StudentWork({
           <pre className="lab-code">{spellText(locale, readSource)}</pre>
         </section>
       ) : null}
-      {attempt && attempt.source ? (
+      {attempt && attempt.source && !attempt.solution ? (
         <section className="review-block">
           <h2>{t("studentCode")}</h2>
           <pre className="lab-code">{spellText(locale, attempt.source)}</pre>

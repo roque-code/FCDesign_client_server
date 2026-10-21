@@ -326,3 +326,62 @@ def test_el_primer_caso_no_alcanza_si_faltan_los_demas(client):
     )
     assert forced.status_code == 409, forced.content
     assert "todos los casos" in forced.json()["error"]["message"]
+
+
+def test_al_terminar_queda_la_forma_en_que_respondio(client):
+    register(client, email="forma-alumno@ejemplo.test", display_name="Alumno Forma")
+    listed = client.get("/api/v1/learning/paths/").json()["results"]
+    route = next(item for item in listed if item["name"] == CONTEST_ROUTE_NAME)
+    challenge = route["challenges"][0]
+    opened = client.post(
+        f"/api/v1/learning/challenges/{challenge['id']}/attempts/",
+        {"path_id": route["id"]},
+        format="json",
+    )
+    assert opened.status_code == 200, opened.content
+    attempt_id = opened.json()["attempt"]["id"]
+    assert "solution" not in opened.json()["attempt"]
+    for stage, answer in (
+        ("comprender", {"ack": True}),
+        ("razonar", {"text": "+"}),
+    ):
+        saved = client.post(
+            f"/api/v1/learning/attempts/{attempt_id}/stage/",
+            {"stage": stage, "answer": answer},
+            format="json",
+        )
+        assert saved.status_code == 200, saved.content
+    source = "\n".join(
+        [
+            "Algoritmo Suma",
+            "    Definir a, b Como Entero;",
+            "    Leer a;",
+            "    Leer b;",
+            "    Escribir a + b;",
+            "FinAlgoritmo",
+            "",
+        ]
+    )
+    imported = workspace_from_source(source)
+    assert imported.workspace is not None
+    checked = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/check/",
+        {"workspace": imported.workspace, "tool": "diagrama"},
+        format="json",
+    )
+    assert checked.status_code == 200, checked.content
+    assert checked.json()["passed"] is True
+    assert checked.json()["attempt"]["next_stage"] == "explicar"
+    graded = checked.json()["attempt"]["cases"]
+    assert [item["passed"] for item in graded] == [True, True, True]
+    assert graded[0]["output"].endswith("8\n")
+    closed = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/close/",
+        {"reflection": "Se leen los dos enteros y se escribe su suma."},
+        format="json",
+    )
+    assert closed.status_code == 200, closed.content
+    solution = closed.json()["attempt"]["solution"]
+    assert solution["tool"] == "diagrama"
+    assert "a + b" in solution["source"]
+    assert "blocks" not in solution

@@ -176,6 +176,7 @@ export function Composer({
   isolated = false,
   allowedBlocks = null,
   onSource,
+  preview = false,
 }: {
   account?: Account | null
   onAccount?: (account: Account) => void
@@ -187,6 +188,7 @@ export function Composer({
   isolated?: boolean
   allowedBlocks?: readonly string[] | null
   onSource?: (source: string) => void
+  preview?: boolean
 }) {
   const t = useT()
   const locale = useLocale()
@@ -297,7 +299,7 @@ export function Composer({
   }, [incoming])
 
   useEffect(() => {
-    if (!active) return
+    if (!active || preview) return
     const onKey = (event: KeyboardEvent) => {
       if (sendOpen) return
       if (event.key !== "Delete" && event.key !== "Backspace") return
@@ -310,7 +312,7 @@ export function Composer({
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [active, selected, sendOpen])
+  }, [active, preview, selected, sendOpen])
 
   function place(path: SlotPath, data: string) {
     if (data.startsWith("piece:")) {
@@ -421,7 +423,7 @@ export function Composer({
   }
 
   return (
-    <div className={embedded ? "shell composer-shell composer-embedded" : "shell composer-shell"}>
+    <div className={["shell composer-shell", embedded ? "composer-embedded" : "", preview ? "composer-preview" : ""].filter(Boolean).join(" ")}>
       <header className="topbar topbar-editor">
         <div className="brand">
           {embedded ? null : <h1><Logo mark />{t("composeTitle")}</h1>}
@@ -634,7 +636,7 @@ export function Composer({
                       node.draggable ? "" : "is-fixed",
                     ].filter(Boolean).join(" ")}
                     style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
-                    draggable={node.draggable}
+                    draggable={!preview && node.draggable}
                     onClick={(event) => {
                       event.stopPropagation()
                       if (node.draggable || program.routines.some((item) => item.id === node.id)) setSelected(node.id)
@@ -673,7 +675,7 @@ export function Composer({
                     )}
                   </div>
                 ))}
-                {scene.slots.map((slot) => (
+                {preview ? null : scene.slots.map((slot) => (
                   <button
                     key={slot.key}
                     type="button"
