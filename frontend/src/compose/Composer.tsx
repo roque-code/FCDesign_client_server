@@ -484,7 +484,31 @@ export function Composer({
         style={{ "--side-width": `${sideWidth}px`, "--code-width": `${codeWidth}px`, "--code-height": `${codeHeight}px` } as CSSProperties}
       >
         <aside className="composer-side">
-          <div className="composer-block">
+          <Inspector
+            step={current}
+            routine={routine}
+            onChange={(recipe) => {
+              if (!current) return
+              setProgram((value) => updateStep(value, current.id, recipe))
+            }}
+            onChangeRoutine={(recipe) => {
+              if (!routine) return
+              setProgram((value) => updateRoutine(value, routine.id, recipe))
+            }}
+            onAddCase={() => current && setProgram((value) => addCase(value, current.id))}
+            onRemoveCase={() => current && setProgram((value) => removeCase(value, current.id))}
+            onRemove={() => {
+              if (routine) {
+                setProgram((value) => removeRoutine(value, routine.id))
+                setSelected(null)
+                return
+              }
+              if (!current) return
+              setProgram((value) => removeStep(value, current.id))
+              setSelected(null)
+            }}
+          />
+          <div className="composer-block composer-palette">
             <h2>{t("figures")}</h2>
             <p className="note">{t("figuresNote")}</p>
             <div className="palette">
@@ -526,30 +550,6 @@ export function Composer({
               })}
             </div>
           </div>
-          <Inspector
-            step={current}
-            routine={routine}
-            onChange={(recipe) => {
-              if (!current) return
-              setProgram((value) => updateStep(value, current.id, recipe))
-            }}
-            onChangeRoutine={(recipe) => {
-              if (!routine) return
-              setProgram((value) => updateRoutine(value, routine.id, recipe))
-            }}
-            onAddCase={() => current && setProgram((value) => addCase(value, current.id))}
-            onRemoveCase={() => current && setProgram((value) => removeCase(value, current.id))}
-            onRemove={() => {
-              if (routine) {
-                setProgram((value) => removeRoutine(value, routine.id))
-                setSelected(null)
-                return
-              }
-              if (!current) return
-              setProgram((value) => removeStep(value, current.id))
-              setSelected(null)
-            }}
-          />
         </aside>
         <button
           type="button"
