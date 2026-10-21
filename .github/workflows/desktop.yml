@@ -115,6 +115,10 @@ jobs:
               tail -n 20 "$RUNNER_TEMP/appimage.log"
             fi
           else
+            if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "x86_64" ]; then
+              # Este corredor no resuelve index.crates.io. El índice git sale de GitHub.
+              export CARGO_REGISTRIES_CRATES_IO_PROTOCOL=git
+            fi
             npx tauri build --config '{"bundle":{"externalBin":["binaries/traza-host"]}}'
             if [ "$(uname -s)" = "Darwin" ]; then
               sh scripts/macos_bundle.sh
