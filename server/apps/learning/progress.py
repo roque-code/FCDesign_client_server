@@ -243,18 +243,9 @@ def check_attempt(user, attempt_id, data: dict[str, Any]) -> dict[str, object]:
         _remember(attempt, "comprobar", {"passed": False})
         return _bundle(attempt, passed=False, diagnostics=_named(concept, adapted.diagnostics))
     missing = _missing_blocks(workspace, _required(attempt.challenge))
-    cases = []
-    passed = True
-    outputs: list[str] = []
-    for case in attempt.challenge.test_cases.order_by("position"):
-        result = _execute(adapted.program, adapted.source, list(case.inputs))
-        ok = result.status == "completed" and result.output == case.expected_output
-        if not ok:
-            passed = False
-        outputs.append(result.output)
-        cases.append({"name": case.name, "kind": case.kind, "passed": ok, "output": result.output})
-    if missing:
-        passed = False
+    cases = _grade_cases(adapted.program, adapted.source, attempt.challenge)
+    passed = _every_case_passed(cases) and not missing
+    outputs = [str(item["output"]) for item in cases]
     _remember(attempt, "comprobar", {"passed": passed, "outputs": outputs})
     diagnostics = _named(concept, adapted.diagnostics)
     if missing:
@@ -302,6 +293,12 @@ def close_attempt(user, attempt_id, reflection: object) -> dict[str, object]:
     attempt = _open_attempt(user, attempt_id)
     if _next(attempt) != "explicar":
         raise DomainError("Todavía no está resuelto.", code="conflict", status_code=409)
+    if attempt.challenge.activity_type == Challenge.BUILD and not _build_matches_every_case(attempt):
+        raise DomainError(
+            "Todavía no coinciden todos los casos.",
+            code="conflict",
+            status_code=409,
+        )
     if not isinstance(reflection, str) or len(reflection.strip()) < 12:
         raise DomainError("Explica el resultado con un poco más de detalle.")
     parts = _score_parts(attempt, reflection.strip())
@@ -837,6 +834,38 @@ def _named(concept: str, diagnostics) -> list[dict[str, object]]:
             body["message"] = f"{concept}: {body['message']}"
         named.append(body)
     return named
+
+
+def _grade_cases(program, source: str, challenge: Challenge) -> list[dict[str, object]]:
+    """Corre cada caso definido. Uno que coincide no absuelve a los demás."""
+    rows: list[dict[str, object]] = []
+    for case in challenge.test_cases.order_by("position"):
+        result = _execute(program, source, list(case.inputs))
+        ok = result.status == "completed" and result.output == case.expected_output
+        rows.append(
+            {"name": case.name, "kind": case.kind, "passed": ok, "output": result.output}
+        )
+    return rows
+
+
+def _every_case_passed(cases: list[dict[str, object]]) -> bool:
+    return len(cases) > 0 and all(item.get("passed") is True for item in cases)
+
+
+def _build_matches_every_case(attempt: ChallengeAttempt) -> bool:
+    snap = attempt.snapshots.filter(schema_version=1).order_by("-created_at").first()
+    if snap is None or not isinstance(snap.blockly_json, dict):
+        return False
+    workspace = snap.blockly_json
+    if _foreign_blocks(workspace, list(attempt.challenge.allowed_blocks)):
+        return False
+    if _missing_blocks(workspace, _required(attempt.challenge)):
+        return False
+    adapted = adapt_workspace(workspace)
+    errors = [item for item in adapted.diagnostics if item.severity == "error"]
+    if adapted.program is None or errors:
+        return False
+    return _every_case_passed(_grade_cases(adapted.program, adapted.source, attempt.challenge))
 
 
 def _execute(program, source: str, inputs: list[str]):

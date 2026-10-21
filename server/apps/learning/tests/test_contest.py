@@ -9,8 +9,9 @@ from apps.learning.contest_data import (
     build_contest,
 )
 from apps.learning.csv_import import template_csv
-from apps.learning.models import Challenge, PathEntry
+from apps.learning.models import Challenge, PathEntry, WorkspaceSnapshot
 from apps.tests.helpers import register
+from language_core.block_import import workspace_from_source
 
 pytestmark = pytest.mark.django_db
 
@@ -255,3 +256,73 @@ def test_un_docente_descarga_los_retos_de_un_tipo_y_otro_los_carga():
     assert programs.status_code == 200, programs.content
     assert programs.json()["count"] == 50
     assert programs.json()["filename"] == "retos-construir-concurso.csv"
+
+
+def test_el_primer_caso_no_alcanza_si_faltan_los_demas(client):
+    register(client, email="casos-alumno@ejemplo.test", display_name="Alumno Casos")
+    listed = client.get("/api/v1/learning/paths/").json()["results"]
+    route = next(item for item in listed if item["name"] == CONTEST_ROUTE_NAME)
+    challenge = route["challenges"][0]
+    assert challenge["title"] == "01 · Suma de dos enteros"
+    opened = client.post(
+        f"/api/v1/learning/challenges/{challenge['id']}/attempts/",
+        {"path_id": route["id"]},
+        format="json",
+    )
+    assert opened.status_code == 200, opened.content
+    attempt_id = opened.json()["attempt"]["id"]
+    understood = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/stage/",
+        {"stage": "comprender", "answer": {"ack": True}},
+        format="json",
+    )
+    assert understood.status_code == 200, understood.content
+    reasoned = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/stage/",
+        {"stage": "razonar", "answer": {"text": "+"}},
+        format="json",
+    )
+    assert reasoned.status_code == 200, reasoned.content
+    source = "\n".join(
+        [
+            "Algoritmo Suma",
+            "    Definir a, b Como Entero;",
+            "    Leer a;",
+            "    Leer b;",
+            "    Escribir 8;",
+            "FinAlgoritmo",
+            "",
+        ]
+    )
+    imported = workspace_from_source(source)
+    assert imported.workspace is not None
+    checked = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/check/",
+        {"workspace": imported.workspace},
+        format="json",
+    )
+    assert checked.status_code == 200, checked.content
+    body = checked.json()
+    assert body["passed"] is False
+    assert [item["passed"] for item in body["cases"]] == [True, False, False]
+    assert body["attempt"]["next_stage"] == "comprobar"
+    closed = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/close/",
+        {"reflection": "Ya entiendo cómo funciona este reto."},
+        format="json",
+    )
+    assert closed.status_code == 409
+    snap = WorkspaceSnapshot.objects.filter(attempt_id=attempt_id, schema_version=2).order_by("-created_at").first()
+    stored = dict(snap.blockly_json)
+    answer = dict(stored["answer"])
+    answer["passed"] = True
+    stored["answer"] = answer
+    snap.blockly_json = stored
+    snap.save(update_fields=["blockly_json"])
+    forced = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/close/",
+        {"reflection": "Ya entiendo cómo funciona este reto."},
+        format="json",
+    )
+    assert forced.status_code == 409, forced.content
+    assert "todos los casos" in forced.json()["error"]["message"]

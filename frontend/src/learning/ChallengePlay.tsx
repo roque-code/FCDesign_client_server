@@ -150,14 +150,25 @@ export function ChallengePlay({
   }, [left, attemptId, attemptStatus, session])
 
   function apply(result: LabSession) {
-    setSession(result)
+    const rows = result.cases ?? []
+    const incomplete = result.passed === false || rows.some((item) => !item.passed)
+    const settled =
+      incomplete && result.attempt.next_stage === "explicar"
+        ? { ...result, passed: false, attempt: { ...result.attempt, next_stage: "comprobar" } }
+        : result
+    const done = rows.filter((item) => item.passed).length
+    setSession(settled)
     setError("")
-    setNote(result.correct === false ? t("notYetMatch") : "")
-    if (result.cases) setCases(result.cases)
-    if (result.diagnostics) setDiagnostics(result.diagnostics)
-    if (typeof result.output === "string") setOutput(result.output)
-    if (typeof result.points === "number" && typeof result.rank === "number") {
-      onStanding?.({ points: result.points, rank: result.rank })
+    if (rows.length > 0) {
+      setNote(incomplete ? t("casesNeedAll", { done, total: rows.length }) : t("casesAllMatch"))
+    } else {
+      setNote(settled.correct === false || settled.passed === false ? t("notYetMatch") : "")
+    }
+    if (settled.cases) setCases(settled.cases)
+    if (settled.diagnostics) setDiagnostics(settled.diagnostics)
+    if (typeof settled.output === "string") setOutput(settled.output)
+    if (typeof settled.points === "number" && typeof settled.rank === "number") {
+      onStanding?.({ points: settled.points, rank: settled.rank })
     }
   }
 
@@ -488,6 +499,7 @@ export function ChallengePlay({
                 >
                   {t("prove")}
                 </button>
+                {note && cases ? <p className={cases.some((item) => !item.passed) ? "error" : "note"}>{note}</p> : null}
                 {cases ? (
                   <ul className="case-list">
                     {cases.map((item) => (
