@@ -143,6 +143,7 @@ export function TeacherPaths() {
   const [draftDescription, setDraftDescription] = useState("")
   const [published, setPublished] = useState(false)
   const [pick, setPick] = useState("")
+  const [kind, setKind] = useState("")
   const [communities, setCommunities] = useState<CommunitySummary[]>([])
   const [communityPeople, setCommunityPeople] = useState<Record<string, Person[]>>({})
   const [communityIds, setCommunityIds] = useState<string[]>([])
@@ -431,38 +432,58 @@ export function TeacherPaths() {
               <h2>{t("challenges")}</h2>
               <p>{t("scheduleNote")}</p>
               {current.challenges.length === 0 ? <p className="roster-empty">{t("pathHasNone")}</p> : null}
-              <label>
-                {t("fromCatalog")}
-                <select value={pick} onChange={(event) => setPick(event.target.value)}>
-                    <option value="">{t("pickChallenge")}</option>
-                    <optgroup label={t("yourChallenges")}>
-                      {catalog
-                        .filter((item) => item.owned)
-                        .map((item) => (
-                          <option
-                            key={item.id}
-                            value={item.id}
-                            disabled={current.challenges.some((row) => row.id === item.id)}
-                          >
-                            {item.title} · {ACTIVITY[item.activity_type] ? t(ACTIVITY[item.activity_type]) : item.activity_type} · {t("pointsCount", { count: item.points })}
-                          </option>
-                        ))}
-                    </optgroup>
-                    <optgroup label={t("catalog")}>
-                      {catalog
-                        .filter((item) => !item.owned)
-                        .map((item) => (
-                          <option
-                            key={item.id}
-                            value={item.id}
-                            disabled={current.challenges.some((row) => row.id === item.id)}
-                          >
-                            {item.title} · {ACTIVITY[item.activity_type] ? t(ACTIVITY[item.activity_type]) : item.activity_type} · {t("pointsCount", { count: item.points })}
-                          </option>
-                        ))}
-                    </optgroup>
+              <div className="path-pick">
+                <label>
+                  {t("kindWord")}
+                  <select
+                    value={kind}
+                    onChange={(event) => {
+                      const next = event.target.value
+                      setKind(next)
+                      if (pick && catalog.find((item) => item.id === pick)?.activity_type !== next && next) {
+                        setPick("")
+                      }
+                    }}
+                  >
+                    <option value="">{t("all")}</option>
+                    {Object.entries(ACTIVITY).map(([id, label]) => (
+                      <option key={id} value={id}>
+                        {t(label)}
+                      </option>
+                    ))}
                   </select>
-              </label>
+                </label>
+                <label>
+                  {t("fromCatalog")}
+                  <select value={pick} onChange={(event) => setPick(event.target.value)}>
+                    <option value="">{t("pickChallenge")}</option>
+                    {(
+                      [
+                        { label: t("yourChallenges"), owned: true },
+                        { label: t("catalog"), owned: false },
+                      ] as const
+                    ).map(({ label, owned }) => {
+                      const rows = catalog.filter(
+                        (item) => Boolean(item.owned) === owned && (!kind || item.activity_type === kind),
+                      )
+                      if (rows.length === 0) return null
+                      return (
+                        <optgroup key={label} label={label}>
+                          {rows.map((item) => (
+                            <option
+                              key={item.id}
+                              value={item.id}
+                              disabled={current.challenges.some((row) => row.id === item.id)}
+                            >
+                              {item.title} · {ACTIVITY[item.activity_type] ? t(ACTIVITY[item.activity_type]) : item.activity_type} · {t("pointsCount", { count: item.points })}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )
+                    })}
+                  </select>
+                </label>
+              </div>
               <div className="practice-actions">
                 <button type="button" onClick={addChallenge} disabled={busy || !pick}>
                   {t("add")}

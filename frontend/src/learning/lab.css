@@ -1578,6 +1578,18 @@
   box-shadow: 0 1px 0 rgba(16, 24, 40, 0.04);
 }
 
+.path-pick {
+  display: grid;
+  grid-template-columns: minmax(9rem, 14rem) minmax(0, 1fr);
+  gap: 0.55rem;
+}
+
+@media (max-width: 720px) {
+  .path-pick {
+    grid-template-columns: 1fr;
+  }
+}
+
 .path-panel > h2 {
   margin: 0;
   font-size: 1.05rem;
