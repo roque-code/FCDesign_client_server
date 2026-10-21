@@ -61,10 +61,12 @@ Algoritmos completos que deben pasar como fixtures, en la fase que los haga ejec
 - Validar no crea una ejecución.
 - Traducir no crea una ejecución y, con un fuente válido, devuelve los siete lenguajes. Si el docente o el nivel la apagaron, responde 403.
 - El alta no crea un administrador. `create_admin` sí. El nivel gratis limita proyectos y códigos. Sin la cabecera de la aplicación, el navegador recibe 403 fuera de la cuenta.
+- El administrador puede apagar el alta de alumno o de docente. El formulario oculta esa opción y el servidor la rechaza.
 - Pegar se apaga por comunidad o por alumno. El docente sigue pudiendo pegar si su nivel lo incluye.
 - Un docente lee y ejecuta el algoritmo de su alumno sin crear una versión. Otra persona recibe 404.
 - El CSV de una ruta trae una fila por alumno y la nota. El docente descarga los retos de un tipo; un alumno recibe 403. La carga admite hasta 250 filas y 1 MB y, si una fila falla, no guarda ninguna.
 - La ruta Práctica de concurso publica 50 retos. El primero está abierto y el segundo, cerrado.
+- Un reto de construir no se cierra si falta un caso. Al cerrarlo, el alumno ve su respuesta. El docente la ve aunque el intento siga abierto.
 - Ejecutar persiste salida y error, y no persiste cada línea del depurador.
 - El autoguardado no multiplica versiones; ejecutar con fuente nuevo sí abre versión.
 - Restaurar una versión no borra las posteriores.

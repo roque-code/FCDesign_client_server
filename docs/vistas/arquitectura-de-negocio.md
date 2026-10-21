@@ -1,6 +1,6 @@
 # Arquitectura de negocio
 
-Fecha de referencia: 2026-10-19. Aulivana-FCDdesign enseña programación estructurada. El canónico del lenguaje es el español y la cuenta puede ver la interfaz y las palabras reservadas en inglés. El estudiante escribe pseudocódigo, lo valida, lo ejecuta, lo depura, ve el diagrama y puede pedir el mismo algoritmo en otro lenguaje de programación. El docente agrupa cuentas ya registradas y sigue el avance del laboratorio. La ventana de escritorio ofrece lo mismo: el intérprete corre en la máquina y la cuenta sigue en el servidor.
+Fecha de referencia: 2026-10-21. Aulivana-FCDdesign enseña programación estructurada. El canónico del lenguaje es el español y la cuenta puede ver la interfaz y las palabras reservadas en inglés. El estudiante escribe pseudocódigo, lo valida, lo ejecuta, lo depura, ve el diagrama y puede pedir el mismo algoritmo en otro lenguaje de programación. El docente agrupa cuentas ya registradas y sigue el avance del laboratorio. La ventana de escritorio ofrece lo mismo: el intérprete corre en la máquina y la cuenta sigue en el servidor.
 
 ## Actores
 
@@ -37,7 +37,7 @@ flowchart TB
 
 - El identificador es el correo. En los contenedores la sesión no empieza hasta abrir el enlace. Hay una sola sesión por cuenta. Tres fallos bloquean el correo 15 minutos y 30 minutos sin uso cierran la sesión.
 - Cada cuenta nueva recibe los ejemplos 1 a 13.
-- El perfil es estudiante o docente. Si no se elige, queda estudiante. Se fija al crear la cuenta.
+- El perfil es estudiante o docente. Si no se elige, queda estudiante. Se fija al crear la cuenta. El administrador puede cerrar uno de los dos altas.
 - El administrador no se elige en el alta. Se crea con `manage.py create_admin`.
 - Cada alumno o docente entra en el nivel gratis de su tipo. El nivel dice qué menús hay, cuántos proyectos y códigos se pueden crear, el precio y si el navegador abre la aplicación.
 - Si el nivel no permite el navegador, ahí solo queda la cuenta: tipo, foto, contraseña y tiempo para pagar. Las funciones se usan en la aplicación de escritorio.

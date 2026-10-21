@@ -1,6 +1,6 @@
 # Arquitectura lógica
 
-Fecha de referencia: 2026-10-19. Las capas no se saltan: el navegador no llama al runner, y el runner no llama a PostgreSQL. La ventana de escritorio llama a `local_host`, que sí importa el núcleo y tampoco abre PostgreSQL.
+Fecha de referencia: 2026-10-21. Las capas no se saltan: el navegador no llama al runner, y el runner no llama a PostgreSQL. La ventana de escritorio llama a `local_host`, que sí importa el núcleo y tampoco abre PostgreSQL.
 
 ```mermaid
 flowchart TB

@@ -1,6 +1,6 @@
 # Diagrama de procesos
 
-Fecha de referencia: 2026-10-19. Son los procesos de negocio que el sistema sostiene, de punta a punta.
+Fecha de referencia: 2026-10-21. Son los procesos de negocio que el sistema sostiene, de punta a punta.
 
 ## Alta
 

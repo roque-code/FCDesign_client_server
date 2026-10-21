@@ -1,6 +1,6 @@
 # Diagrama C4
 
-Fecha de referencia: 2026-10-19. Tres niveles. El cuarto, el código, está en el repositorio y no se dibuja aquí.
+Fecha de referencia: 2026-10-21. Tres niveles. El cuarto, el código, está en el repositorio y no se dibuja aquí.
 
 ## Nivel 1. Contexto
 

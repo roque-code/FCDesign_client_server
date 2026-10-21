@@ -1,6 +1,6 @@
 # Modelo de datos
 
-Estado: migrado. Fecha de referencia: 2026-10-19. La traducción del algoritmo y la ventana de escritorio no agregan tablas. La migración `billing.0001` agrega `Plan` y `Subscription`, siembra gratis y premium para alumno y para docente, y asigna el gratis a las cuentas que ya existían. La migración `classroom.0002` añade `translation_enabled` a la comunidad y a la membresía. `classroom.0003` añade `paste_enabled` con la misma forma. `accounts.0005` guarda la foto del perfil. La migración `learning.0016` siembra el banco y la ruta Práctica de concurso, cincuenta retos. El diccionario para consultar, con tipo y longitud de cada campo, está en [diccionario-de-datos.md](diccionario-de-datos.md). El mapa de procesos está en [arquitectura.md](arquitectura.md). Las comunidades de docentes están en `classroom`. Las actividades y las entregas del aula no. El laboratorio tiene tablas propias en `learning`, con el catálogo de conceptos, la ruta Fundamentos de treinta y cuatro retos, el banco y las rutas que arma un docente. `accounts.User.email_confirmed` llegó en la migración `0004_user_email_confirmed`.
+Estado: migrado. Fecha de referencia: 2026-10-21. `accounts.0007` agrega `SignupPolicy`, una fila con las altas de alumno y de docente. La traducción del algoritmo y la ventana de escritorio no agregan tablas. La migración `billing.0001` agrega `Plan` y `Subscription`, siembra gratis y premium para alumno y para docente, y asigna el gratis a las cuentas que ya existían. La migración `classroom.0002` añade `translation_enabled` a la comunidad y a la membresía. `classroom.0003` añade `paste_enabled` con la misma forma. `accounts.0005` guarda la foto del perfil. La migración `learning.0016` siembra el banco y la ruta Práctica de concurso, cincuenta retos. El diccionario para consultar, con tipo y longitud de cada campo, está en [diccionario-de-datos.md](diccionario-de-datos.md). El mapa de procesos está en [arquitectura.md](arquitectura.md). Las comunidades de docentes están en `classroom`. Las actividades y las entregas del aula no. El laboratorio tiene tablas propias en `learning`, con el catálogo de conceptos, la ruta Fundamentos de treinta y cuatro retos, el banco y las rutas que arma un docente. `accounts.User.email_confirmed` llegó en la migración `0004_user_email_confirmed`.
 
 Motor: PostgreSQL. Claves públicas: UUID versión 4. Claves internas de alto volumen: entero de 64 bits. Las marcas de tiempo son `timestamptz`.
 
@@ -211,6 +211,8 @@ El error de ejecución no necesita otra tabla. Un evento `kind=error` guarda có
 ## 6. Perfil y comunidades
 
 `accounts.Profile.role` es `student`, `teacher` o `admin`. Si no se elige al crear la cuenta, queda `student`. `PATCH /api/v1/auth/me/` cambia el nombre, la foto y la contraseña, y rechaza un cambio de tipo. `admin` solo lo crea `manage.py create_admin`.
+
+`accounts.SignupPolicy` es una fila, la `accounts.0007`. `student` y `teacher` nacen en verdadero. El administrador los apaga desde su pantalla. Un tipo apagado no aparece en Crear cuenta y el alta lo rechaza.
 
 Una comunidad pertenece a un docente. Solo él la crea, la lista y la borra. El nombre es único entre las suyas. Hay un tope de 30 comunidades y de 200 personas por comunidad.
 

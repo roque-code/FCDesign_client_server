@@ -1,6 +1,6 @@
 # Arquitectura física
 
-Fecha de referencia: 2026-10-19. El compose de desarrollo corre en la máquina, dentro de Docker. `config.settings.production` no está activo. La ventana de escritorio es otro nodo: el intérprete queda en esa máquina y la API sale hacia `TRAZA_API_ORIGIN`.
+Fecha de referencia: 2026-10-21. El compose de desarrollo corre en la máquina, dentro de Docker. `config.settings.production` no está activo. La ventana de escritorio es otro nodo: el intérprete queda en esa máquina y la API sale hacia `TRAZA_API_ORIGIN`.
 
 ```mermaid
 flowchart TB

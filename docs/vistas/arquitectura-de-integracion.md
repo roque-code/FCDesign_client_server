@@ -1,6 +1,6 @@
 # Arquitectura de integración
 
-Fecha de referencia: 2026-10-19. No hay un bus de empresa ni un proveedor de correo externo. Las integraciones son los contratos entre las piezas del propio sistema, y el proxy de la ventana de escritorio hacia la API.
+Fecha de referencia: 2026-10-21. No hay un bus de empresa ni un proveedor de correo externo. Las integraciones son los contratos entre las piezas del propio sistema, y el proxy de la ventana de escritorio hacia la API.
 
 ```mermaid
 flowchart LR
@@ -45,6 +45,6 @@ flowchart LR
 
 El error de la API tiene siempre `error.code`, `error.message` y `error.details`. Un objeto privado de otra persona responde 404. El idioma de la cuenta no es un servicio: el navegador cambia la pantalla y la grafía visible, y el núcleo acepta las dos grafías al lexicar. Traducir a Python u otro lenguaje es otro contrato y no reescribe el fuente.
 
-En la máquina, sin compose, desaparecen Redis, runner y Mailpit. Django llama a `language_core` y escribe el correo en la consola.
+En la máquina, sin compose, desaparecen Redis, runner y Mailpit. Django llama a `language_core` y escribe el correo en la consola. `compose.servidor.yaml` conserva Redis y el runner, quita Mailpit y envía la confirmación por Gmail. `GET /api/v1/auth/signup/` dice si el alta de alumno y la de docente están abiertas.
 
 Volver al [índice](indice.md).

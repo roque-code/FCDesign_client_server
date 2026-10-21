@@ -1,6 +1,6 @@
 # Diccionario de datos
 
-Fecha de referencia: 2026-10-19. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. Los niveles viven en `billing_plan` y `billing_subscription`. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
+Fecha de referencia: 2026-10-21. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. Los niveles viven en `billing_plan` y `billing_subscription`. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
 
 La base se llama `traza` y, con los contenedores levantados, escucha en `127.0.0.1:5434`. El usuario de desarrollo es `traza`. No es la base del contenedor anterior `traza-pg` del puerto `5433`.
 
@@ -109,6 +109,16 @@ La cuenta. El identificador para entrar es `email`, no hay columna `username`. L
 | `email` | `varchar(254)` | NO | Único. Correo normalizado, es el usuario |
 | `email_confirmed` | `boolean` | NO | En los contenedores nace en falso hasta abrir el enlace. Las cuentas anteriores y las de la máquina nacen en verdadero |
 | `session_key` | `varchar(40)` | NO | Clave de la única sesión abierta. Vacío si no hay sesión. La migración es `accounts.0006` |
+
+### `accounts_signuppolicy`
+
+Una sola fila. El administrador decide qué tipos se pueden crear. La migración es `accounts.0007`.
+
+| Campo | Tipo | Nulo | Descripción |
+| --- | --- | --- | --- |
+| `id` | `bigint` | NO | Clave. La fila de trabajo es la `1` |
+| `student` | `boolean` | NO | Verdadero: el alta de alumno está abierta |
+| `teacher` | `boolean` | NO | Verdadero: el alta de docente está abierta |
 
 ### `accounts_profile`
 

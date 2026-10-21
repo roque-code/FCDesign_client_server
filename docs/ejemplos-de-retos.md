@@ -76,7 +76,7 @@ Escribir saludo
 
 ## Construir
 
-El alumno responde una pregunta corta y después arma el programa con bloques. La salida del programa tiene que coincidir con la salida esperada, carácter por carácter. Cada `Escribir` termina en un salto de línea. Si la salida que escribes no termina en salto de línea, el sistema agrega uno.
+El alumno responde una pregunta corta y después arma el programa con bloques, con el diagrama o con código. La salida del programa tiene que coincidir con la salida esperada, carácter por carácter, en todos los casos. Si falta uno, el reto no se cierra. Cada `Escribir` termina en un salto de línea. Si la salida que escribes no termina en salto de línea, el sistema agrega uno. Al terminar, el alumno ve cómo lo armó. El docente ve esa respuesta aunque el intento siga abierto.
 
 La pregunta admite 240 caracteres. Hace falta al menos una respuesta aceptada y caben hasta doce. En esas respuestas no importan las mayúsculas ni los espacios. Las entradas son opcionales: una por cada `Leer`, en el orden en que el programa las pide, hasta doce. Si el programa no lee datos, deja las entradas vacías.
 

@@ -135,7 +135,7 @@ Es un símbolo Unicode, no una cadena. El editor muestra la palabra `Caracter`, 
 
 ### Confirmación de correo
 
-En los contenedores el alta no abre sesión. Django envía un enlace por SMTP a Mailpit y `email_confirmed` pasa a verdadero al abrirlo, también si el enlace se abre en otro equipo. Si ese navegador ya tiene otra sesión, no la sustituye. En la máquina, sin `TRAZA_EMAIL_CONFIRMATION`, el correo va a la consola y la cuenta entra al momento. Las cuentas anteriores a la columna quedan confirmadas. Una cuenta solo tiene una sesión: otro equipo recibe que ya está abierta, y 30 minutos sin uso la cierran. Tres ingresos fallidos del mismo correo lo bloquean 15 minutos. El detalle está en [arquitectura.md](arquitectura.md).
+En los contenedores de desarrollo el alta no abre sesión. Django envía un enlace por SMTP a Mailpit y `email_confirmed` pasa a verdadero al abrirlo, también si el enlace se abre en otro equipo. `compose.servidor.yaml` envía ese mismo enlace por Gmail y no levanta Mailpit. El administrador puede ocultar el alta de alumno o de docente. Si ese navegador ya tiene otra sesión, no la sustituye. En la máquina, sin `TRAZA_EMAIL_CONFIRMATION`, el correo va a la consola y la cuenta entra al momento. Las cuentas anteriores a la columna quedan confirmadas. Una cuenta solo tiene una sesión: otro equipo recibe que ya está abierta, y 30 minutos sin uso la cierran. Tres ingresos fallidos del mismo correo lo bloquean 15 minutos. El detalle está en [arquitectura.md](arquitectura.md).
 
 ### Banco de trabajo
 

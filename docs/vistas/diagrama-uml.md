@@ -1,6 +1,6 @@
 # Diagrama UML
 
-Fecha de referencia: 2026-10-19. El diagrama de clases resume las entidades persistidas. No lista columnas de auditoría ni de infraestructura. Los atributos son los que distinguen el modelo. La traducción no se persiste: no hay clase para el código generado. La ventana de escritorio tampoco agrega tablas.
+Fecha de referencia: 2026-10-21. El diagrama de clases resume las entidades persistidas. No lista columnas de auditoría ni de infraestructura. Los atributos son los que distinguen el modelo. La traducción no se persiste: no hay clase para el código generado. La ventana de escritorio tampoco agrega tablas.
 
 ```mermaid
 classDiagram

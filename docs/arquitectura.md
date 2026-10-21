@@ -1,6 +1,6 @@
 # Arquitectura
 
-Estado: el editor, el laboratorio, el correo de confirmación, el idioma español o inglés, la traducción a otros lenguajes, la aplicación de escritorio, los niveles de suscripción y el bloqueo de pegar están en el código de desarrollo. Fecha de referencia: 2026-10-19. `DEBUG` sigue en verdadero. `config.settings.production` no lo carga el compose.
+Estado: el editor, el laboratorio, el correo de confirmación, el idioma español o inglés, la traducción a otros lenguajes, la aplicación de escritorio, los niveles de suscripción, el bloqueo de pegar y las altas que define el administrador están en el código de desarrollo. Fecha de referencia: 2026-10-21. `DEBUG` sigue en verdadero. `config.settings.production` no lo carga el compose.
 
 Este documento describe el sistema que corre hoy. La gramática está en [gramatica.md](gramatica.md), el árbol en [ast.md](ast.md), las tablas en [modelo-de-datos.md](modelo-de-datos.md) y el aislamiento del intérprete en [ejecucion.md](ejecucion.md).
 
@@ -212,6 +212,10 @@ El enlace del correo es `GET /api/v1/auth/confirm-email/open/` en `TRAZA_PUBLIC_
 
 Las cuentas creadas antes de esta columna, y las de la máquina sin la variable, quedan confirmadas. El restablecimiento de contraseña usa el mismo SMTP. En las pruebas el buzón es el de memoria y la confirmación está apagada, así el alta de la suite sigue entrando al momento.
 
+`compose.servidor.yaml` es el mismo arreglo sin Mailpit. Django envía la confirmación por SMTP a Gmail. Las claves salen del `.env` de la carpeta. Sigue en `config.settings.development`: con HTTP, `production` marcaría las cookies `Secure` y el navegador no guardaría la sesión.
+
+`accounts.SignupPolicy` es una sola fila. El administrador elige si el alta muestra alumno, docente o los dos. `GET /api/v1/auth/signup/` es público. `PATCH` es solo del administrador. Si un tipo está apagado, el formulario no lo ofrece y `POST /api/v1/auth/register/` lo rechaza. Los dos nacen encendidos.
+
 `config.settings.production` exige `EMAIL_HOST` además de `TRAZA_RUNNER=redis` y `REDIS_URL`. Mailpit no es ese servidor: solo guarda el correo de esta máquina.
 
 `PATCH /api/v1/auth/me/` cambia el nombre visible, la foto y la contraseña. La foto es JPG o PNG, de 32 bytes a 120 KB, y se guarda en `accounts.Profile`. El tipo de cuenta no se cambia ahí. Para cambiar la contraseña hace falta la actual; la sesión sigue abierta.
@@ -313,6 +317,10 @@ El runner no abre SMTP ni PostgreSQL. El detalle del contenedor está en [ejecuc
 El camino del editor es texto → AST. El del laboratorio es bloques → AST → texto, validación, diagrama y ejecución. El adaptador está en `language_core/block_adapter.py`. La impresora, en `pseudocode.py`. Abrir un `.txt` en la práctica libre usa `block_import.py` y el parser del editor.
 
 La ruta de sistema Fundamentos publica treinta y cuatro retos: clasificar, ordenar, construir y predecir, con `Si`, `Mientras`, `Segun`, `Para`, `Repetir`, arreglos y funciones. La ruta Práctica de concurso publica cincuenta problemas de creación de código, con varios casos de entrada y salida para calificarlos. Un docente ve el avance de las cuentas de sus comunidades, arma rutas propias, toma retos del banco y los asigna a una comunidad o a un alumno. También puede cargar retos desde un CSV y descargar los de un tipo. En el catálogo el archivo se llama `retos-clasificar.csv` (o `ordenar`, `construir`, `predecir`) e incluye el banco del sistema y los retos propios. En el concurso, `retos-construir-concurso.csv` trae los cincuenta problemas de creación. Un alumno no descarga ese archivo. La carga admite hasta 250 retos y 1 MB, entra solo al banco del docente y, si una fila falla, no se guarda ninguna. El formato está en [ejemplos-de-retos.md](ejemplos-de-retos.md). La práctica libre se guarda en `learning.Practice` y no aparece entre los algoritmos del banco de trabajo.
+
+Un reto de construir no se cierra hasta que la salida coincide con todos sus casos. Si falta uno, la respuesta es que todavía no coinciden todos los casos. Al terminar, el alumno ve su respuesta: el pseudocódigo y, si armó con bloques o con el diagrama, esa misma forma. El docente ve esa respuesta en el avance aunque el intento siga abierto.
+
+En Armar diagrama, el panel de la figura queda arriba de la caja de figuras. Ahí se escriben los valores, los destinos de `Leer` y el tiempo de `Esperar`, y no quedan debajo del diagrama.
 
 Los puntos del reto se suman una vez, al terminarlo, en `Profile.points`. El puesto es cuántos perfiles tienen más puntos, más uno. La identidad de la barra muestra los dos números.
 

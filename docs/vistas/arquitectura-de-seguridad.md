@@ -1,6 +1,6 @@
 # Arquitectura de seguridad
 
-Fecha de referencia: 2026-10-19. El perímetro de desarrollo tiene tres zonas. La ventana de escritorio añade el anfitrión local, que solo acepta el token de arranque y solo proxifica `/api/`. La de producción, cuando exista, sustituye Mailpit por un SMTP real y pone TLS delante de Nginx.
+Fecha de referencia: 2026-10-21. El perímetro de desarrollo tiene tres zonas. La ventana de escritorio añade el anfitrión local, que solo acepta el token de arranque y solo proxifica `/api/`. La de producción, cuando exista, sustituye Mailpit por un SMTP real y pone TLS delante de Nginx.
 
 ```mermaid
 flowchart TB

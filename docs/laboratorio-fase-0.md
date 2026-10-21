@@ -1,6 +1,6 @@
 # Laboratorio visual — fase 0
 
-Estado: fase 8 hecha, y después llegaron el banco, la autoría de rutas, los puntos, el idioma de la cuenta, la traducción del algoritmo y la ventana de escritorio. Fecha de referencia: 2026-10-19. Los menús del laboratorio dependen del nivel de la cuenta. La ruta Fundamentos publica treinta y cuatro retos. La ruta Práctica de concurso publica cincuenta problemas de creación de código. Un docente carga y descarga retos por CSV, ve el tablero de avance, descarga las notas y abre el trabajo de un reto. Un docente lee el avance de las cuentas de sus comunidades, arma rutas y las asigna. La práctica libre y el reto se usan con teclado y, en pantalla chica, con pestañas. El intento no es una fila de `Execution`. El banco de trabajo sigue en su pantalla. El mapa del sistema está en [arquitectura.md](arquitectura.md).
+Estado: fase 8 hecha, y después llegaron el banco, la autoría de rutas, los puntos, el idioma de la cuenta, la traducción del algoritmo y la ventana de escritorio. Fecha de referencia: 2026-10-21. Los menús del laboratorio dependen del nivel de la cuenta. La ruta Fundamentos publica treinta y cuatro retos. La ruta Práctica de concurso publica cincuenta problemas de creación de código. Un docente carga y descarga retos por CSV, ve el tablero de avance, descarga las notas y abre el trabajo de un reto. Un docente lee el avance de las cuentas de sus comunidades, arma rutas y las asigna. La práctica libre y el reto se usan con teclado y, en pantalla chica, con pestañas. El intento no es una fila de `Execution`. El banco de trabajo sigue en su pantalla. El mapa del sistema está en [arquitectura.md](arquitectura.md).
 
 Las secciones 1 a 11 conservan el diseño con el que se autorizó el módulo. Varias frases de ese tramo describen el hueco que había antes de construirlo. Lo que está en el código empieza en la sección 12.
 
@@ -348,7 +348,7 @@ frontend/src/learning/PracticeLab.tsx
 frontend/src/learning/trace.ts
 ```
 
-`GET /api/v1/learning/path/` lista los diez con estado bloqueado, disponible o hecho. Abrir un reto crea el intento, o devuelve el que ya existe. Las etapas son comprender, razonar, construir, comprobar y explicar. El mentor entrega las pistas en orden: la primera no es la solución y la de nivel 5 empieza por «Esta es la solución explicada». La respuesta pública no incluye la solución, el programa inicial ni la salida esperada. Un error de construcción nombra el concepto. Cerrar el intento guarda la puntuación, el resumen y la reflexión. No escribe `Execution`.
+`GET /api/v1/learning/path/` lista los diez con estado bloqueado, disponible o hecho. Abrir un reto crea el intento, o devuelve el que ya existe. Las etapas son comprender, razonar, construir, comprobar y explicar. El mentor entrega las pistas en orden: la primera no es la solución y la de nivel 5 empieza por «Esta es la solución explicada». La respuesta pública no incluye la solución, el programa inicial ni la salida esperada. Un error de construcción nombra el concepto. Cerrar el intento guarda la puntuación, el resumen y la reflexión. No escribe `Execution`. En un reto de construir, cerrar exige que coincidan todos los casos. Al terminar, la respuesta pública incluye cómo lo armó el alumno. El docente ve esa respuesta aunque el intento siga abierto.
 
 La práctica libre conserva el paso a paso de la fase 4.
 

@@ -43,6 +43,7 @@ Los volúmenes `traza-db` y `traza-redis` conservan los datos. `docker compose d
 - `GET http://127.0.0.1:18080/api/health/` devuelve `{"status":"ok",...}`.
 - `GET http://127.0.0.1:18080/api/schema/` publica el esquema OpenAPI de la API.
 - Un alta en la pantalla crea la cuenta en la base del compose, no en la de `traza-pg`, y deja el mensaje de confirmación en Mailpit.
+- `compose.servidor.yaml` no levanta Mailpit. El mismo Django envía la confirmación por SMTP a Gmail, con las claves del `.env`, y sigue en `config.settings.development`.
 
 Para volcar el esquema a un archivo, con el entorno del servidor y la base accesible:
 

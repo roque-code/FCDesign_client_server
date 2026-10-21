@@ -1,6 +1,6 @@
 # Diagrama de secuencia
 
-Fecha de referencia: 2026-10-19. Dos secuencias del compose de desarrollo, más la traducción. En la máquina, Django ocupa el lugar del runner y el correo sale por la consola. En la ventana de escritorio, `local_host` ocupa el lugar del runner y la traducción no abre canal.
+Fecha de referencia: 2026-10-21. Dos secuencias del compose de desarrollo, más la traducción. En la máquina, Django ocupa el lugar del runner y el correo sale por la consola. En la ventana de escritorio, `local_host` ocupa el lugar del runner y la traducción no abre canal.
 
 ## Confirmar el correo
 

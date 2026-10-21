@@ -1,6 +1,6 @@
 # Arquitectura funcional
 
-Fecha de referencia: 2026-10-19. Las funciones están agrupadas por lo que la persona hace, no por el archivo que las implementa.
+Fecha de referencia: 2026-10-21. Las funciones están agrupadas por lo que la persona hace, no por el archivo que las implementa.
 
 ```mermaid
 flowchart TB
@@ -50,7 +50,7 @@ flowchart TB
 | Ejecutar | Consola con `Escribir` y con cada `Leer` aceptado |
 | Depurar | Paso, entrar, salir, continuar, pausa, detener, reiniciar y puntos de interrupción |
 | Diagrama | Figuras desde el AST, descarga SVG, PNG y PDF, e impresión |
-| Laboratorio | Retos de clasificar, ordenar, construir y predecir, con el mismo intérprete. El docente descarga un tipo en CSV |
+| Laboratorio | Retos de clasificar, ordenar, construir y predecir. Construir exige coincidir en todos los casos. Al terminar se ve la respuesta. El docente la ve aunque el intento siga abierto |
 | Ayuda | Operadores muestra símbolos y ligadura. Manuales abre el PDF en la aplicación y lo descarga |
 | Sesión | Una por cuenta. Tres fallos bloquean el correo 15 minutos. 30 minutos sin uso cierran la sesión |
 | Comunidades | Lista de alumnos y docentes ya registrados, tope de 30 comunidades y 200 personas. Traducción y pegado nacen habilitados y se pueden apagar |
