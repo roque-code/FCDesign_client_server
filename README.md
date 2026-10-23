@@ -29,6 +29,7 @@ El mapa del sistema que corre hoy está en [arquitectura](docs/arquitectura.md).
 | [Instalación](docs/instalacion.md) | Contenedores de desarrollo y comprobaciones |
 | [Desarrollo](docs/desarrollo.md) | Máquina local, ejecutor en proceso y bus Redis |
 | [Despliegue](docs/despliegue.md) | Lo que falta cuando haya un servidor. No está activo |
+| [Servidor en AWS](docs/instalacion-aws.md) | Instancia cfdesign, grupo de seguridad y arranque con `compose.servidor.yaml`. El Word está en [Instalacion-servidor-AWS.docx](docs/Instalacion-servidor-AWS.docx) |
 | [Arquitectura](docs/arquitectura.md) | Contenedores, correo, tres pantallas, API y fronteras |
 | [Vistas](docs/vistas/indice.md) | Negocio, datos, física, C4, UML, secuencia y el Word |
 | [Gramática](docs/gramatica.md) | EBNF, léxico, grafías en inglés, operadores, perfiles y traducción |
@@ -42,6 +43,7 @@ El mapa del sistema que corre hoy está en [arquitectura](docs/arquitectura.md).
 | [Pruebas y roadmap](docs/pruebas-y-roadmap.md) | Cobertura, iteraciones y criterios del MVP |
 | [Decisiones](docs/decisiones-pendientes.md) | Decisiones del lenguaje y del editor, ya en el código |
 | [Laboratorio](docs/laboratorio-fase-0.md) | Aprendizaje visual. La ruta incluye Si, Mientras, Segun, Para, Repetir, arreglos y funciones. La práctica libre se guarda, se abre, se descarga, se borra y arma bloques desde un archivo |
+| [Canal de YouTube](docs/canal-youtube.md) | Secuencia, guiones y planos del canal de la plataforma. El Word está en [Canal-de-YouTube.docx](docs/Canal-de-YouTube.docx) |
 | [ADR](docs/adr/) | Decisiones de arquitectura |
 
 ## Uso del núcleo
