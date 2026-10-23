@@ -141,6 +141,8 @@ FinAlgoritmo
 
 `n` empieza en 4 y luego suma 1, así que se escribe 5. La respuesta `5` y la respuesta ` 5 ` cuentan como la misma.
 
+Al colocar un reto en una ruta, el docente elige el tipo. La lista se parte en Tus retos y Del catálogo, y solo muestra ese tipo. Todos deja los dos grupos completos.
+
 ## Archivo CSV
 
 En **Laboratorio**, **Banco**, **Formato CSV** se ve el formato y se descarga una plantilla. **Descargar CSV** guarda los retos del tipo elegido en el estante abierto, para que otro docente los suba. Con el tipo en Todos, la pantalla pide elegir Clasificar, Ordenar, Construir o Predecir. El catálogo produce `retos-clasificar.csv`, `retos-ordenar.csv`, `retos-construir.csv` o `retos-predecir.csv`, con el banco del sistema y los retos de quien descarga. El concurso produce `retos-construir-concurso.csv`, con los cincuenta problemas de creación. Un alumno no puede descargar. **Subir CSV** agrega los retos al banco del docente, no al concurso. Un archivo admite hasta 250 retos y 1 MB. Si una fila falla, no se guarda ninguna.

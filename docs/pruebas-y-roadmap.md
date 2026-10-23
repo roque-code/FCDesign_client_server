@@ -133,6 +133,7 @@ Hecha. `flowchart.py`, API, React Flow, posiciones en el cliente, sincronizació
 - Barra de estado con el guardado y la línea del cursor.
 - Renombrar proyecto y algoritmo. Descargar el fuente y eliminar un algoritmo.
 - Tabulador para indentar. Selección visible en una sola línea.
+- Al escribir una instrucción, el editor ofrece su estructura. Tab recorre los huecos. La prueba está en `frontend/src/editor/snippets.test.ts`.
 - Menú **Configuración** y menú **Funciones**. El idioma de la cuenta cambia los textos y la grafía de las palabras reservadas, y no reescribe el fuente guardado.
 - **Traducir** muestra el algoritmo en los siete lenguajes sin ejecutarlo. **Actualizar** vuelve a cargar la cuenta y suelta el borrador local.
 - La consola hace eco del dato aceptado y se desplaza hasta el final.

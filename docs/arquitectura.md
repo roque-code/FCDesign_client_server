@@ -1,6 +1,6 @@
 # Arquitectura
 
-Estado: el editor, el laboratorio, el correo de confirmación, el idioma español o inglés, la traducción a otros lenguajes, la aplicación de escritorio, los niveles de suscripción, el bloqueo de pegar y las altas que define el administrador están en el código de desarrollo. Fecha de referencia: 2026-10-21. `DEBUG` sigue en verdadero. `config.settings.production` no lo carga el compose.
+Estado: el editor, el laboratorio, el correo de confirmación, el idioma español o inglés, la traducción a otros lenguajes, la aplicación de escritorio, los niveles de suscripción, el bloqueo de pegar y las altas que define el administrador están en el código de desarrollo. Fecha de referencia: 2026-10-22. `DEBUG` sigue en verdadero. `config.settings.production` no lo carga el compose.
 
 Este documento describe el sistema que corre hoy. La gramática está en [gramatica.md](gramatica.md), el árbol en [ast.md](ast.md), las tablas en [modelo-de-datos.md](modelo-de-datos.md) y el aislamiento del intérprete en [ejecucion.md](ejecucion.md).
 
@@ -158,7 +158,9 @@ El parser y el intérprete no son aplicaciones Django. [ADR 0002](adr/0002-nucle
 
 `App` pide la cookie CSRF y después `GET /api/v1/auth/me/`. Sin sesión muestra `AuthScreen`. Con sesión elige banco de trabajo, laboratorio o armar diagrama. Las tres pantallas comparten la cuenta. Volver al editor conserva el algoritmo que estaba abierto.
 
-El cliente no ejecuta el pseudocódigo del editor. Validar, ejecutar y depurar pasan por el servidor, para que el resaltado no contradiga al intérprete. La lista de palabras sale de `GET /api/v1/language/keywords/`, generada por `grammar.py`. `frontend/src/dialect.ts` muestra la grafía del idioma de la cuenta y sigue ofreciendo la otra en el completado. Los textos de pantalla viven en `frontend/src/i18n.tsx`.
+El cliente no ejecuta el pseudocódigo del editor. Validar, ejecutar y depurar pasan por el servidor, para que el resaltado no contradiga al intérprete. La lista de palabras sale de `GET /api/v1/language/keywords/`, generada por `grammar.py`. `frontend/src/dialect.ts` muestra la grafía del idioma de la cuenta. Los textos de pantalla viven en `frontend/src/i18n.tsx`.
+
+Al escribir, el editor ofrece la instrucción. Enter o Tab aceptan la fila elegida e insertan la estructura, con la palabra reservada ya escrita y el hueco marcado: nombre, expresión, condición o cuerpo. Tab salta al hueco siguiente y Mayús+Tab al anterior. Si el punto y coma es opcional, la plantilla no lo pone. La grafía del otro idioma también abre la misma plantilla, a partir de la segunda letra. Las funciones de la biblioteca y el resto de palabras se ofrecen al lado, sin plantilla. En solo lectura, el repaso de un alumno, no hay lista. El código está en `frontend/src/editor/snippets.ts`.
 
 Armar diagrama es distinto: el modelo de figuras vive en el navegador (`frontend/src/compose/model.ts`) y el texto se calcula ahí. Al abrirlo en el editor, el fuente pasa a ser un algoritmo y a partir de ese momento manda el núcleo.
 
@@ -321,6 +323,10 @@ La ruta de sistema Fundamentos publica treinta y cuatro retos: clasificar, orden
 Un reto de construir no se cierra hasta que la salida coincide con todos sus casos. Si falta uno, la respuesta es que todavía no coinciden todos los casos. Al terminar, el alumno ve su respuesta: el pseudocódigo y, si armó con bloques o con el diagrama, esa misma forma. El docente ve esa respuesta en el avance aunque el intento siga abierto.
 
 En Armar diagrama, el panel de la figura queda arriba de la caja de figuras. Ahí se escriben los valores, los destinos de `Leer` y el tiempo de `Esperar`, y no quedan debajo del diagrama.
+
+Al agregar un reto a una ruta, el docente filtra por tipo: Clasificar, Ordenar, Construir o Predecir. La lista que queda se parte en Tus retos y Del catálogo. Todos muestra los dos grupos sin ese corte.
+
+Al agregar un reto a una ruta, el docente filtra por tipo: Clasificar, Ordenar, Construir o Predecir. La lista que queda se parte en Tus retos y Del catálogo. Todos muestra los dos grupos sin ese corte.
 
 Los puntos del reto se suman una vez, al terminarlo, en `Profile.points`. El puesto es cuántos perfiles tienen más puntos, más uno. La identidad de la barra muestra los dos números.
 

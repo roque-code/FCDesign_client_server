@@ -57,7 +57,7 @@ DIV        MOD
 
 `Hasta` se usa en `Para` y en `Repetir`. El contexto lo resuelve el parser, no el lexer: el lexer emite un identificador de palabra clave y el parser exige la secuencia.
 
-El completado del editor muestra la forma del idioma de la cuenta y sigue listando la otra. En español llevan tilde `Función`, `FinFunción`, `Según` y `Lógico`. `Caracter` y `FinSegun` se muestran sin tilde. Escribirlas con o sin tilde las reconoce igual.
+El completado del editor muestra la forma del idioma de la cuenta y sigue listando la otra. Al escribir el comienzo de una instrucción, ofrece su estructura: la palabra reservada queda escrita y el hueco, marcado. Enter o Tab aceptan la fila. Tab pasa al hueco siguiente. La grafía del otro idioma abre la misma estructura a partir de la segunda letra. Si el punto y coma es opcional, la plantilla no lo agrega. En español llevan tilde `Función`, `FinFunción`, `Según` y `Lógico`. `Caracter` y `FinSegun` se muestran sin tilde. Escribirlas con o sin tilde las reconoce igual.
 
 La grafía inglesa no es un alias del perfil: el lexer la acepta siempre, en estricto y en flexible. La tabla vive en `language_core/dialect.py` y se repite en `frontend/src/dialect.ts`. Un perfil puede añadir otros sinónimos (`Procedimiento` por `SubProceso`, `Entera` por `Entero`) mediante `keyword_aliases`, sin duplicar reglas.
 

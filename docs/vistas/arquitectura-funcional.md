@@ -1,6 +1,6 @@
 # Arquitectura funcional
 
-Fecha de referencia: 2026-10-21. Las funciones están agrupadas por lo que la persona hace, no por el archivo que las implementa.
+Fecha de referencia: 2026-10-22. Las funciones están agrupadas por lo que la persona hace, no por el archivo que las implementa.
 
 ```mermaid
 flowchart TB
@@ -44,6 +44,7 @@ flowchart TB
 | --- | --- |
 | Crear cuenta | Cuenta pendiente y mensaje en el buzón, o sesión inmediata en la máquina sin buzón |
 | Confirmar correo | Sesión abierta y ejemplos disponibles |
+| Completar | Al escribir, el editor inserta la estructura de la instrucción. Tab recorre los huecos. En solo lectura no hay lista |
 | Validar | Diagnósticos con línea, columna y sugerencia. No crea una ejecución |
 | Traducir | El mismo árbol, emitido en Python, JavaScript, TypeScript, Java, C, C++ y C#. No crea una ejecución |
 | Actualizar | Vuelve a pedir proyectos, algoritmos, comunidades o el laboratorio. En el editor suelta el borrador local |
