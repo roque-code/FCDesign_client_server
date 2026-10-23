@@ -1,4 +1,4 @@
-"""Niveles, navegador cerrado y administrador creado por comando."""
+"""Niveles, navegador de la cuenta y administrador creado por comando."""
 
 from datetime import timedelta
 
@@ -18,7 +18,7 @@ def test_el_alta_no_acepta_administrador(client):
     assert refused.status_code == 400
 
 
-def test_el_plan_gratis_limita_proyectos_y_el_navegador(settings):
+def test_el_plan_gratis_limita_proyectos_y_abre_el_navegador(settings):
     settings.TRAZA_SIGNUP_PLAN = "gratis"
     browser = APIClient(enforce_csrf_checks=True, HTTP_X_AULIVANA_FCDDESIGN_CLIENT="")
     refresh_csrf(browser)
@@ -26,17 +26,22 @@ def test_el_plan_gratis_limita_proyectos_y_el_navegador(settings):
     assert created.status_code == 201, created.content
     body = created.json()
     assert body["plan"]["code"] == "gratis"
-    assert body["access"]["browser_app"] is False
+    assert body["access"]["browser_app"] is True
     assert body["access"]["features"]["execute"] is True
     assert body["access"]["features"]["translate"] is False
     assert browser.get("/api/v1/auth/me/").status_code == 200
-    blocked = browser.get("/api/v1/projects/")
-    assert blocked.status_code == 403
-    assert blocked.json()["error"]["code"] == "browser_forbidden"
+    opened = browser.get("/api/v1/projects/")
+    assert opened.status_code == 200
+    assert browser.post("/api/v1/auth/logout/").status_code == 204
 
     desktop = APIClient(enforce_csrf_checks=True)
     refresh_csrf(desktop)
-    assert desktop.login(username="gratis@ejemplo.test", password=PASSWORD)
+    entered = desktop.post(
+        "/api/v1/auth/login/",
+        {"email": "gratis@ejemplo.test", "password": PASSWORD},
+        format="json",
+    )
+    assert entered.status_code == 200, entered.content
     refresh_csrf(desktop)
     first = desktop.post("/api/v1/projects/", {"name": "Uno"}, format="json")
     second = desktop.post("/api/v1/projects/", {"name": "Dos"}, format="json")
@@ -158,7 +163,7 @@ def test_una_cuenta_puede_usar_el_navegador_aunque_el_nivel_no(settings):
     browser = APIClient(enforce_csrf_checks=True, HTTP_X_AULIVANA_FCDDESIGN_CLIENT="")
     refresh_csrf(browser)
     created = register(browser, email="web@ejemplo.test", display_name="Roque")
-    assert created.json()["access"]["browser_app"] is False
+    assert created.json()["access"]["browser_app"] is True
     admin = APIClient(enforce_csrf_checks=True, HTTP_X_AULIVANA_FCDDESIGN_CLIENT="")
     refresh_csrf(admin)
     assert (
@@ -177,7 +182,18 @@ def test_una_cuenta_puede_usar_el_navegador_aunque_el_nivel_no(settings):
     assert body["pages"] == body["count"]
     assert len(body["results"]) == 1
     person = admin.get("/api/v1/billing/users/?q=web@ejemplo.test").json()["results"][0]
-    assert person["browser_allowed"] is None
+    assert person["browser_allowed"] is True
+    assert browser.get("/api/v1/projects/").status_code == 200
+    closed = admin.patch(
+        f"/api/v1/billing/users/{person['id']}/",
+        {"browser_allowed": None},
+        format="json",
+    )
+    assert closed.status_code == 200, closed.content
+    assert closed.json()["browser_allowed"] is None
+    refused = browser.get("/api/v1/projects/")
+    assert refused.status_code == 403
+    assert refused.json()["error"]["code"] == "browser_forbidden"
     opened = admin.patch(
         f"/api/v1/billing/users/{person['id']}/",
         {"browser_allowed": True},

@@ -155,7 +155,7 @@ def assign_default_subscription(user: User) -> Subscription | None:
     until = timezone.now() + timedelta(days=plan.period_days) if plan.period_days else None
     subscription, _created = Subscription.objects.get_or_create(
         user=user,
-        defaults={"plan": plan, "paid_until": until},
+        defaults={"plan": plan, "paid_until": until, "browser_allowed": True},
     )
     return subscription
 
