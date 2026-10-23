@@ -79,6 +79,11 @@ export function canonicalKeyword(folded: string): string {
   return ALIAS[folded] ?? folded
 }
 
+export function keywordText(locale: Dialect, canonical: string): string {
+  const table = locale === "en" ? ENGLISH : SPANISH
+  return table[canonical] ?? canonical
+}
+
 export function keywordDisplays(locale: Dialect): string[] {
   const table = locale === "en" ? ENGLISH : SPANISH
   return ROWS.map(([canonical]) => table[canonical])

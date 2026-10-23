@@ -1082,6 +1082,14 @@ button.fold {
 .cm-breakpoint { color: var(--danger); font-size: 0.75rem; }
 .cm-breakpoint-spacer { visibility: hidden; font-size: 0.75rem; }
 .cm-debug-line { background: rgba(196, 85, 74, 0.22); }
+.editor-host .cm-snippetField {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: 3px;
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.cm-snippetFieldPosition { border-left: 2px solid var(--accent); }
+.cm-tooltip.cm-tooltip-autocomplete > ul { max-height: 18rem; min-width: 16rem; }
+.cm-tooltip.cm-tooltip-autocomplete .cm-completionLabel { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; }
 
 .debug-grid { display: grid; gap: 0.35rem; }
 .debug-grid h3 { margin: 0.2rem 0 0; font-size: 0.95rem; }

@@ -1519,6 +1519,7 @@ export function Workbench({
             onCursor={setActiveLine}
             readOnly={reviewing}
             pasteBlocked={pasteBlocked && !reviewing}
+            semicolons={requireSemicolons}
           />
           <div className="status-bar">
             <span>{saveLabel}</span>

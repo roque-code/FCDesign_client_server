@@ -1,4 +1,4 @@
-import { acceptCompletion, autocompletion, closeCompletion, completeFromList } from "@codemirror/autocomplete"
+import { acceptCompletion, autocompletion, completeFromList, completionStatus, hasNextSnippetField, hasPrevSnippetField, nextSnippetField, prevSnippetField } from "@codemirror/autocomplete"
 import { indentWithTab, insertNewlineAndIndent } from "@codemirror/commands"
 import { HighlightStyle, indentUnit, StreamLanguage, syntaxHighlighting, type StringStream } from "@codemirror/language"
 import { tags } from "@lezer/highlight"
@@ -7,10 +7,11 @@ import { Decoration, EditorView, gutter, GutterMarker, keymap, type DecorationSe
 import { basicSetup } from "codemirror"
 import { useEffect, useRef } from "react"
 
-import { commitSource, mapCaret, presentSource } from "../dialect"
+import { canonicalKeyword, commitSource, mapCaret, presentSource, type Dialect } from "../dialect"
 import { useLocale } from "../i18n"
-import { keywordSet } from "../words"
+import { canonicalize, keywordSet } from "../words"
 import { consumeToken, type HighlightMode } from "./highlight"
+import { instructionCanonicals, instructionSource } from "./snippets"
 
 type TokenState = { mode: HighlightMode }
 
@@ -123,17 +124,36 @@ function blockClipboard(blocked: boolean): Extension[] {
   ]
 }
 
+function wordSource(keywords: string[], stdlib: string[], locale: Dialect) {
+  const words = locale === "en" ? "Words" : "Palabras"
+  const functions = locale === "en" ? "Functions" : "Funciones"
+  return completeFromList([
+    ...keywords
+      .filter((label) => !instructionCanonicals.has(canonicalKeyword(canonicalize(label))))
+      .map((label) => ({ label, type: "keyword", section: words })),
+    ...stdlib.map((label) => ({ label, type: "function", section: functions })),
+  ])
+}
+
 const tabIndent = Prec.highest(
   keymap.of([
     {
       key: "Tab",
-      run: (view) => acceptCompletion(view) || Boolean(indentWithTab.run?.(view)),
-      shift: (view) => Boolean(indentWithTab.shift?.(view)),
+      run: (view) => {
+        if (acceptCompletion(view)) return true
+        if (hasNextSnippetField(view.state)) return nextSnippetField(view)
+        return Boolean(indentWithTab.run?.(view))
+      },
+      shift: (view) => {
+        if (hasPrevSnippetField(view.state)) return prevSnippetField(view)
+        if (hasNextSnippetField(view.state)) return true
+        return Boolean(indentWithTab.shift?.(view))
+      },
     },
     {
       key: "Enter",
       run: (view) => {
-        closeCompletion(view)
+        if (completionStatus(view.state) === "active" && acceptCompletion(view)) return true
         return insertNewlineAndIndent(view)
       },
     },
@@ -155,6 +175,7 @@ type Props = {
   onCursor: (line: number) => void
   readOnly?: boolean
   pasteBlocked?: boolean
+  semicolons?: boolean
 }
 
 export function CodeEditor({
@@ -172,8 +193,11 @@ export function CodeEditor({
   onCursor,
   readOnly = false,
   pasteBlocked = false,
+  semicolons = true,
 }: Props) {
   const locale = useLocale()
+  const keywordKey = keywords.join("\n")
+  const stdlibKey = stdlib.join("\n")
   const host = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const applying = useRef(false)
@@ -254,11 +278,11 @@ export function CodeEditor({
         basicSetup,
         syntaxHighlighting(trazaHighlight),
         trazaLanguage(reserved),
-        autocompletion({
+        ...(readOnly ? [] : [autocompletion({
           activateOnTyping: true,
-          selectOnOpen: false,
-          override: [completeFromList([...keywords, ...stdlib].map((label) => ({ label, type: "keyword" })))],
-        }),
+          selectOnOpen: true,
+          override: [instructionSource(locale, semicolons), wordSource(keywords, stdlib, locale)],
+        })]),
         indentUnit.of(" ".repeat(indentSize)),
         themeExtension,
         debugExtensions,
@@ -278,7 +302,7 @@ export function CodeEditor({
         }),
       ]),
     })
-  }, [keywords, stdlib, fontSize, indentSize, theme, readOnly, pasteBlocked])
+  }, [keywordKey, stdlibKey, fontSize, indentSize, theme, readOnly, pasteBlocked, locale, semicolons])
 
   useEffect(() => {
     const view = viewRef.current
