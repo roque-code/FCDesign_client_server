@@ -2,6 +2,7 @@ import { Component, StrictMode, type ErrorInfo, type ReactNode } from "react"
 import { createRoot } from "react-dom/client"
 
 import { App } from "./App"
+import { readStoredLocale, translate } from "./i18n"
 import { Logo } from "./shell/Logo"
 import "./styles.css"
 
@@ -19,15 +20,20 @@ class RootError extends Component<{ children: ReactNode }, { error: Error | null
   render() {
     if (!this.state.error) return this.props.children
     return (
-      <main className="auth">
-        <section className="card">
-          <h1><Logo /></h1>
-          <p>{this.state.error.message}</p>
-          <button type="button" onClick={() => window.location.reload()}>
-            Reintentar
-          </button>
-        </section>
-      </main>
+      <div className="app-frame">
+        <main className="auth">
+          <section className="card">
+            <h1><Logo /></h1>
+            <p>{this.state.error.message}</p>
+            <button type="button" onClick={() => window.location.reload()}>
+              Reintentar
+            </button>
+          </section>
+        </main>
+        <footer className="app-legal">
+          {translate(readStoredLocale(), "rights", { year: new Date().getFullYear() })}
+        </footer>
+      </div>
     )
   }
 }

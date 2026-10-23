@@ -766,6 +766,7 @@ const es = {
   signupStudentClosed: "Ahora no se pueden crear cuentas de alumno.",
   signupTeacherClosed: "Ahora no se pueden crear cuentas de docente.",
   signupAdminsOnly: "Solo un administrador puede definir las altas.",
+  rights: "© {year} R&J Integra Soluciones Tecnológicas. Todos los derechos reservados.",
 }
 
 const en: { [Key in keyof typeof es]: string } = {
@@ -1532,6 +1533,7 @@ const en: { [Key in keyof typeof es]: string } = {
   signupStudentClosed: "Student accounts cannot be created right now.",
   signupTeacherClosed: "Teacher accounts cannot be created right now.",
   signupAdminsOnly: "Only an administrator can define signup.",
+  rights: "© {year} R&J Integra Soluciones Tecnológicas. All rights reserved.",
 }
 
 const catalogs = { es, en }

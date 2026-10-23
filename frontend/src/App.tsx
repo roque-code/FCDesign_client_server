@@ -8,6 +8,7 @@ import { LocaleProvider, readStoredLocale, storeLocale, translate, translatedMes
 import { LearningLab } from "./learning/LearningLab"
 import { inInstalledApp, installedLocal, launchSearch, rememberAccess } from "./runtime"
 import { AccountOnly } from "./shell/AccountOnly"
+import { LegalFooter } from "./shell/LegalFooter"
 import { Logo } from "./shell/Logo"
 import { Workbench } from "./workbench/Workbench"
 
@@ -206,12 +207,17 @@ function openCompose(payload: { name?: string; source?: string; semicolons: bool
   )
   return (
     <LocaleProvider locale={locale}>
-      {account && notice ? (
-        <p className="confirm-banner" role="status">
-          {notice}
-        </p>
-      ) : null}
-      {shell}
+      <div className="app-frame">
+        <div className="app-main">
+          {account && notice ? (
+            <p className="confirm-banner" role="status">
+              {notice}
+            </p>
+          ) : null}
+          {shell}
+        </div>
+        <LegalFooter />
+      </div>
     </LocaleProvider>
   )
 }

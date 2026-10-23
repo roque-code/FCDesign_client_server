@@ -55,6 +55,11 @@ body,
   height: 100%;
 }
 
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
 body {
   margin: 0;
   overflow: hidden;
@@ -119,8 +124,47 @@ input:focus, select:focus { border-color: var(--accent); }
 
 h1, h2 { font-weight: 650; letter-spacing: -0.02em; }
 
+.app-frame {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-main > .confirm-banner { flex: 0 0 auto; }
+
+.app-main > .auth,
+.app-frame > .auth,
+.app-main > .screen-slot,
+.app-main > .shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+}
+
+.app-legal {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.32rem 0.85rem;
+  border-top: 1px solid var(--line);
+  background: var(--sheet);
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
 .auth {
-  min-height: 100vh;
+  min-height: 0;
+  height: 100%;
   display: grid;
   place-items: center;
   padding: 2rem 1rem;
@@ -225,11 +269,17 @@ label { display: grid; gap: 0.25rem; font-size: 0.92rem; }
 
 .note { color: var(--muted); margin: 0; }
 
-.screen-slot { height: 100%; min-height: 0; }
+.screen-slot {
+  height: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 .screen-slot[hidden] { display: none !important; }
 
 .shell {
-  height: 100%;
+  height: auto;
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -1278,7 +1328,7 @@ button.fold {
 
 @media (max-width: 720px) {
   .zone-switch { display: flex; }
-  .shell { height: 100%; overflow: hidden; }
+  .shell { height: auto; overflow: hidden; }
   .workspace, .workspace.projects-hidden {
     grid-template-columns: minmax(0, 1fr);
     overflow: hidden;
