@@ -28,6 +28,7 @@ FEATURES: tuple[Feature, ...] = (
     Feature("compose", "Armar diagrama", BOTH),
     Feature("validate", "Validar", BOTH),
     Feature("translate", "Traducir", BOTH),
+    Feature("languages", "Lenguajes", BOTH),
     Feature("execute", "Ejecutar", BOTH),
     Feature("debug", "Depurar", BOTH),
     Feature("download", "Descargar código", BOTH),

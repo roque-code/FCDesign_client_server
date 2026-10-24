@@ -152,6 +152,28 @@ export function rememberAccess(access: { features: Record<string, boolean> }): P
   return localJson("/local/v1/access", { access })
 }
 
+export type ForeignRun = {
+  status: "ok" | "error" | "missing"
+  via: "system" | "cached" | "missing"
+  exit_code: number | null
+  stdout: string
+  stderr: string
+  message: string
+}
+
+export type ForeignStatus = {
+  platform: string
+  languages: { language: string; label: string; ready: boolean; via: "system" | "cached" | "missing" }[]
+}
+
+export function localForeignStatus(): Promise<ForeignStatus> {
+  return localJson("/local/v1/foreign/status", {})
+}
+
+export function localForeignRun(language: string, source: string, stdin: string): Promise<ForeignRun> {
+  return localJson("/local/v1/foreign/run", { language, source, stdin })
+}
+
 function localUrl(local: LocalEndpoint, path: string): string {
   const url = new URL(`${local.origin}${path}`)
   url.searchParams.set("token", local.token)

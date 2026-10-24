@@ -259,6 +259,27 @@ class Host:
             )
         return _lab_view(live)
 
+    def foreign_status(self) -> dict[str, object]:
+        self._need("languages")
+        from local_host.foreign_run import status
+
+        return status()
+
+    def foreign_run(self, body: dict[str, Any]) -> dict[str, object]:
+        self._need("languages")
+        from local_host.foreign_run import run_source
+
+        language = body.get("language")
+        source = body.get("source")
+        stdin = body.get("stdin", "")
+        if (
+            not isinstance(language, str)
+            or not isinstance(source, str)
+            or not isinstance(stdin, str)
+        ):
+            raise HostError("El cuerpo no es válido.")
+        return run_source(language, source, stdin)
+
     def stream(self, session_id: str, after: int, *, once: bool) -> Iterator[str]:
         live = self._require(session_id)
         return _stream(live, session_id, after, once=once)

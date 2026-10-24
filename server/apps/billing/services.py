@@ -28,6 +28,7 @@ _FREE_STUDENT = {
     "compose": False,
     "validate": True,
     "translate": False,
+    "languages": False,
     "execute": True,
     "debug": False,
     "download": False,
@@ -42,6 +43,7 @@ _FREE_TEACHER = {
     "compose": False,
     "validate": True,
     "translate": False,
+    "languages": False,
     "execute": True,
     "debug": False,
     "download": False,
@@ -55,7 +57,9 @@ _FREE_TEACHER = {
     "lab_progress": True,
 }
 _PREMIUM_STUDENT = {key: True for key in _FREE_STUDENT}
+_PREMIUM_STUDENT["languages"] = False
 _PREMIUM_TEACHER = {key: True for key in _FREE_TEACHER}
+_PREMIUM_TEACHER["languages"] = False
 
 
 def seed_definitions() -> list[dict[str, Any]]:
@@ -241,9 +245,9 @@ def account_access(user: User) -> dict[str, object]:
             "currency": assigned.currency,
             "period_days": assigned.period_days,
             "status": "active" if active else "expired",
-            "paid_until": None
-            if subscription.paid_until is None
-            else subscription.paid_until.isoformat(),
+            "paid_until": (
+                None if subscription.paid_until is None else subscription.paid_until.isoformat()
+            ),
             "days_remaining": _remaining(subscription.paid_until),
         },
         "access": {

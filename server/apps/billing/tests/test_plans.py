@@ -29,6 +29,7 @@ def test_el_plan_gratis_limita_proyectos_y_abre_el_navegador(settings):
     assert body["access"]["browser_app"] is True
     assert body["access"]["features"]["execute"] is True
     assert body["access"]["features"]["translate"] is False
+    assert body["access"]["features"]["languages"] is False
     assert browser.get("/api/v1/auth/me/").status_code == 200
     opened = browser.get("/api/v1/projects/")
     assert opened.status_code == 200
@@ -126,6 +127,26 @@ def test_el_administrador_define_un_nivel_y_lo_asigna(client):
     assert Plan.objects.get(audience="student", code="escuela").price_cents == 15000
     denied = client.get("/api/v1/billing/plans/")
     assert denied.status_code == 403
+    catalog = admin.get("/api/v1/billing/catalog/")
+    assert catalog.status_code == 200
+    assert any(
+        item["key"] == "languages" and item["label"] == "Lenguajes"
+        for item in catalog.json()["results"]
+    )
+    gratis = next(
+        item
+        for item in listed.json()["results"]
+        if item["code"] == "gratis" and item["audience"] == "student"
+    )
+    assert gratis["features"]["languages"] is False
+    enabled = admin.patch(
+        f"/api/v1/billing/plans/{gratis['id']}/",
+        {"features": {**gratis["features"], "languages": True}},
+        format="json",
+    )
+    assert enabled.status_code == 200, enabled.content
+    assert enabled.json()["features"]["languages"] is True
+    assert enabled.json()["features"]["execute"] is True
 
 
 def test_sin_comunidades_el_docente_sigue_viendo_sus_proyectos(client):
