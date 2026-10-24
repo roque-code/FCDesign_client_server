@@ -5,6 +5,7 @@ import { AuthScreen } from "./auth/AuthScreen"
 import { AdminHome } from "./admin/AdminHome"
 import { Composer, type DiagramRequest } from "./compose/Composer"
 import { LocaleProvider, readStoredLocale, storeLocale, translate, translatedMessage, type Locale } from "./i18n"
+import { ForeignBench } from "./foreign/ForeignBench"
 import { LearningLab } from "./learning/LearningLab"
 import { inInstalledApp, installedLocal, launchSearch, rememberAccess } from "./runtime"
 import { AccountOnly } from "./shell/AccountOnly"
@@ -15,7 +16,7 @@ import { Workbench } from "./workbench/Workbench"
 export function App() {
   const [account, setAccount] = useState<Account | null>(null)
   const [ready, setReady] = useState(false)
-  const [screen, setScreen] = useState<"editor" | "lab" | "compose">("editor")
+  const [screen, setScreen] = useState<"editor" | "lab" | "compose" | "languages">("editor")
   const [diagramRequest, setDiagramRequest] = useState<DiagramRequest | null>(null)
   const [editorFocus, setEditorFocus] = useState<{ projectId: string; algorithmId: string; token: number } | null>(null)
   const [locale, setLocale] = useState<Locale>(readStoredLocale)
@@ -192,6 +193,7 @@ function openCompose(payload: { name?: string; source?: string; semicolons: bool
           onAccount={holdAccount}
           onLogout={() => void logout()}
           onOpenLab={() => setScreen("lab")}
+          onOpenLanguages={() => setScreen("languages")}
           onOpenCompose={openCompose}
           focus={editorFocus}
           onLocale={applyLocale}
@@ -199,6 +201,9 @@ function openCompose(payload: { name?: string; source?: string; semicolons: bool
       </div>
       {screen === "lab" && (
         <LearningLab account={account} onAccount={holdAccount} onBack={backToEditor} />
+      )}
+      {screen === "languages" && (
+        <ForeignBench account={account} onAccount={holdAccount} onBack={backToEditor} />
       )}
       <div className="screen-slot" hidden={screen !== "compose"}>
         <Composer account={account} onAccount={holdAccount} active={screen === "compose"} incoming={diagramRequest} onBack={backToEditor} onOpenInEditor={openInEditor} />

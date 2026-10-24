@@ -39,7 +39,6 @@ import {
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
 import { CommunitiesPanel } from "./Communities"
-import { ForeignBench } from "../foreign/ForeignBench"
 import { TranslateDialog } from "./TranslateDialog"
 import { stdlibHelp } from "./stdlibHelp"
 
@@ -63,6 +62,7 @@ export function Workbench({
   onAccount,
   onLogout,
   onOpenLab,
+  onOpenLanguages,
   onOpenCompose,
   focus,
   onLocale,
@@ -71,6 +71,7 @@ export function Workbench({
   onAccount: (account: Account) => void
   onLogout: () => void
   onOpenLab: () => void
+  onOpenLanguages: () => void
   onOpenCompose: (payload: { name?: string; source?: string; semicolons: boolean }) => void
   focus: { projectId: string; algorithmId: string; token: number } | null
   onLocale: (locale: Locale) => void
@@ -120,7 +121,6 @@ export function Workbench({
   const [slice, setSlice] = useState("")
   const [playing, setPlaying] = useState(false)
   const [translateOpen, setTranslateOpen] = useState(false)
-  const [foreignOpen, setForeignOpen] = useState(false)
   const [translations, setTranslations] = useState<Translation[]>([])
   const [translateBusy, setTranslateBusy] = useState(false)
   const [translateLocked, setTranslateLocked] = useState(false)
@@ -1040,6 +1040,11 @@ export function Workbench({
           >
             {t("refresh")}
           </button>
+          {inInstalledApp() && can("languages") && (
+          <button className="top-action" type="button" onClick={onOpenLanguages}>
+            {t("foreignOpen")}
+          </button>
+          )}
           {(can("editor") || can("diagram")) && (
           <div className="zone-switch" role="tablist" aria-label={t("editor")}>
             {can("editor") && (
@@ -1462,11 +1467,6 @@ export function Workbench({
                 {t("translate")}
               </button>
               )}
-              {inInstalledApp() && can("languages") && (
-              <button type="button" onClick={() => setForeignOpen(true)}>
-                {t("foreignOpen")}
-              </button>
-              )}
               {can("execute") && (
               <button className="primary" type="button" onClick={() => void execute()} disabled={!algorithmId || playing}>
                 {t("run")}
@@ -1699,9 +1699,6 @@ export function Workbench({
           </aside>
         </div>
       </div>
-      {foreignOpen && inInstalledApp() && can("languages") && (
-        <ForeignBench onClose={() => setForeignOpen(false)} />
-      )}
       {translateOpen && (
         <TranslateDialog
           translations={translations}

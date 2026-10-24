@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState, type MouseEvent } from "react"
+import { useEffect, useState } from "react"
 
-import { ApiError } from "../api"
+import { ApiError, type Account } from "../api"
 import { translatedMessage, useT } from "../i18n"
 import { installedLocal, localForeignRun, localForeignStatus, type ForeignRun } from "../runtime"
+import { AccountIdentity } from "../shell/Identity"
+import { Logo } from "../shell/Logo"
 import { ForeignEditor } from "./ForeignEditor"
 import { FOREIGN_LANGUAGES, type ForeignLanguage } from "./keywords"
 
@@ -32,7 +34,15 @@ function draftOf(language: ForeignLanguage): string {
   return drafts.get(language) ?? STARTERS[language]
 }
 
-export function ForeignBench({ onClose }: { onClose: () => void }) {
+export function ForeignBench({
+  account,
+  onAccount,
+  onBack,
+}: {
+  account: Account
+  onAccount: (account: Account) => void
+  onBack: () => void
+}) {
   const t = useT()
   const [language, setLanguage] = useState<ForeignLanguage>("python")
   const [source, setSource] = useState(() => draftOf("python"))
@@ -43,24 +53,6 @@ export function ForeignBench({ onClose }: { onClose: () => void }) {
   const [result, setResult] = useState<ForeignRun | null>(null)
   const [ready, setReady] = useState<Record<string, string>>({})
   const local = installedLocal() !== null
-  const armed = useRef(false)
-
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose()
-    }
-    function arm() {
-      armed.current = true
-    }
-    window.addEventListener("keydown", onKey)
-    window.addEventListener("pointerup", arm)
-    window.addEventListener("pointercancel", arm)
-    return () => {
-      window.removeEventListener("keydown", onKey)
-      window.removeEventListener("pointerup", arm)
-      window.removeEventListener("pointercancel", arm)
-    }
-  }, [onClose])
 
   useEffect(() => {
     if (!local) return
@@ -79,11 +71,6 @@ export function ForeignBench({ onClose }: { onClose: () => void }) {
       ignore = true
     }
   }, [local])
-
-  function dismissBackdrop(event: MouseEvent<HTMLDivElement>) {
-    if (!armed.current || event.target !== event.currentTarget) return
-    onClose()
-  }
 
   function choose(next: ForeignLanguage) {
     drafts.set(language, source)
@@ -130,24 +117,20 @@ export function ForeignBench({ onClose }: { onClose: () => void }) {
     via === "system" ? t("foreignReadySystem") : via === "cached" ? t("foreignReadyCached") : via === "missing" ? t("foreignReadyMissing") : ""
 
   return (
-    <div className="foreign-backdrop" role="presentation" onMouseDown={dismissBackdrop} onClick={dismissBackdrop}>
-      <section
-        className="foreign-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="foreign-title"
-        onMouseDown={(event) => event.stopPropagation()}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <header>
-          <h2 id="foreign-title">{t("foreignTitle")}</h2>
-          <button type="button" onClick={onClose}>
-            {t("close")}
+    <div className="shell foreign-screen">
+      <header className="topbar topbar-editor">
+        <div className="brand">
+          <h1><Logo mark />{t("foreignOpen")}</h1>
+          <AccountIdentity account={account} onAccount={onAccount} />
+        </div>
+        <div className="actions">
+          <button className="top-leave" type="button" onClick={onBack}>
+            {t("backToEditor")}
           </button>
-        </header>
-        <p>{t("foreignNote")}</p>
-        {!local && <p className="error">{t("foreignDesktop")}</p>}
-        <div className="foreign-tabs" role="tablist">
+        </div>
+      </header>
+      <div className="foreign-body">
+        <div className="foreign-tabs" role="tablist" aria-label={t("foreignTitle")}>
           {FOREIGN_LANGUAGES.map((item) => (
             <button
               key={item}
@@ -160,6 +143,8 @@ export function ForeignBench({ onClose }: { onClose: () => void }) {
             </button>
           ))}
         </div>
+        <p className="note">{t("foreignNote")}</p>
+        {!local && <p className="error">{t("foreignDesktop")}</p>}
         <ForeignEditor key={language} language={language} source={source} onChange={edit} />
         <div className="foreign-actions">
           <label>
@@ -177,17 +162,14 @@ export function ForeignBench({ onClose }: { onClose: () => void }) {
           <button className="primary" type="button" onClick={() => void run()} disabled={!local || busy}>
             {busy ? t("foreignRunning") : t("run")}
           </button>
+          {runtimeNote && <p>{runtimeNote}</p>}
         </div>
-        {runtimeNote && <p>{runtimeNote}</p>}
         {failure && <p className="error">{failure}</p>}
         {result?.message && <p className="error">{translatedMessage(result.message)}</p>}
-        {result && (result.stdout || result.stderr) && (
-          <pre className="foreign-output" aria-label={t("console")}>
-            {result.stderr}
-            {result.stdout}
-          </pre>
-        )}
-      </section>
+        <pre className="foreign-output" aria-label={t("console")}>
+          {result ? `${result.stderr}${result.stdout}` : ""}
+        </pre>
+      </div>
     </div>
   )
 }

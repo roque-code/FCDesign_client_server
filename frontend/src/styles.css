@@ -1107,46 +1107,22 @@ button.fold {
   color: var(--danger);
 }
 
-.foreign-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  display: grid;
-  place-items: center;
-  padding: 1.5rem;
-  background: color-mix(in srgb, var(--ink) 35%, transparent);
-}
-
-.foreign-dialog {
+.foreign-screen > .foreign-body {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  width: min(52rem, 100%);
-  height: min(36rem, 100%);
-  max-width: 100%;
-  max-height: 100%;
-  padding: 1rem;
+  padding: 0.85rem 1rem 1rem;
   overflow: hidden;
-  background: var(--sheet);
-  color: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  box-shadow: var(--shadow);
 }
 
-.foreign-dialog header,
 .foreign-actions,
 .foreign-tabs {
   display: flex;
   align-items: center;
   gap: 0.4rem;
 }
-
-.foreign-dialog header { justify-content: space-between; }
-.foreign-dialog h2,
-.foreign-dialog p { margin: 0; }
-.foreign-dialog p { color: var(--muted); }
-.foreign-dialog p.error { color: var(--danger); }
 
 .foreign-tabs { flex-wrap: wrap; }
 .foreign-tabs button[aria-selected="true"] {
@@ -1155,7 +1131,7 @@ button.fold {
 }
 
 .foreign-editor {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -1165,16 +1141,18 @@ button.fold {
 
 .foreign-editor .cm-editor { height: 100%; min-height: 0; }
 .foreign-editor .cm-scroller { overflow: auto; }
+.foreign-editor .cm-content { tab-size: 4; }
 
-.foreign-actions { flex-wrap: wrap; }
+.foreign-actions { flex: 0 0 auto; flex-wrap: wrap; }
 .foreign-actions label {
   display: flex;
   align-items: center;
   gap: 0.4rem;
   color: var(--muted);
 }
+.foreign-actions p { margin: 0; color: var(--muted); }
 .foreign-actions textarea {
-  width: 14rem;
+  width: 16rem;
   height: 2.6rem;
   padding: 0.35rem 0.5rem;
   border: 1px solid var(--line);
@@ -1190,11 +1168,12 @@ button.fold {
 }
 
 .foreign-output {
-  max-height: 8rem;
+  flex: 0 0 9rem;
   margin: 0;
   overflow: auto;
   white-space: pre-wrap;
   padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--panel);
   color: var(--ink);
