@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from local_host.engine import HostError
-from local_host.foreign_run import java_file_name, platform_key, run_source, status
+from local_host.foreign_run import java_file_name, load_manifest, platform_key, run_source, status
 from local_host.serve import LocalServer
 
 TOKEN = "token-de-prueba"
@@ -219,6 +219,30 @@ def test_el_estado_no_marca_listo_un_runtime_vacio(tmp_path: Path) -> None:
     assert found["platform"] == platform_key()
     assert isinstance(rows, list)
     assert all(isinstance(item, dict) and item["ready"] is False for item in rows)
+
+
+def test_una_suma_sha512_tambien_instala(tmp_path: Path) -> None:
+    payload = _zip_script()
+    digest = hashlib.sha512(payload).hexdigest()
+    manifest = _manifest(payload, "")
+    manifest["runtimes"]["python"]["files"][platform_key()]["sha512"] = digest
+    result = run_source(
+        "python",
+        "print(1)\n",
+        root=tmp_path,
+        manifest=manifest,
+        finder=_none,
+        fetch=lambda _url: payload,
+    )
+    assert result["status"] == "ok"
+    assert result["via"] == "cached"
+
+
+def test_un_manifiesto_ausente_deja_el_vacio(tmp_path: Path, monkeypatch: Any) -> None:
+    monkeypatch.setenv("TRAZA_RUNTIME_MANIFEST", str(tmp_path / "no-esta.json"))
+    monkeypatch.setenv("TRAZA_RUNTIME_DIR", str(tmp_path))
+    found = load_manifest()
+    assert found["runtimes"]["python"]["version"] == ""
 
 
 def test_el_nombre_de_la_clase_java_sale_del_fuente() -> None:
