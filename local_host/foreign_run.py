@@ -16,11 +16,8 @@ import platform
 import re
 import secrets
 import shutil
-<<<<<<< HEAD
 import signal
-=======
 import ssl
->>>>>>> version_compiladores_lenguajes
 import stat
 import subprocess
 import sys
@@ -134,9 +131,20 @@ def runtime_root() -> Path:
     return app_support() / "runtimes"
 
 
+_api_origin = ""
+
+
+def remember_api_origin(origin: str) -> None:
+    """El mismo servidor de la cuenta publica el manifiesto en /runtimes/manifest.json."""
+    global _api_origin
+    _api_origin = origin.strip().rstrip("/")
+
+
 def load_manifest() -> dict[str, Any]:
-    """El manifiesto publicado. Si no se puede leer, sigue el de la carpeta de datos y, si tampoco, el vacío."""
+    """Primero la variable, si existe. Si no, el servidor de la cuenta. Luego la copia local."""
     location = os.environ.get("TRAZA_RUNTIME_MANIFEST", "").strip()
+    if not location and _api_origin:
+        location = f"{_api_origin}/runtimes/manifest.json"
     if location:
         try:
             return _read_manifest(location)

@@ -25,10 +25,13 @@ class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, address: tuple[str, int], token: str, api_origin: str) -> None:
+        from local_host.foreign_run import remember_api_origin
+
         self.entitlements = Entitlements()
         self.host_engine = Host(self.entitlements)
         self.token = token
         self.proxy = ApiProxy(api_origin)
+        remember_api_origin(api_origin)
         super().__init__(address, LocalHandler)
 
 

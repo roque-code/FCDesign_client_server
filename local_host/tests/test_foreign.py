@@ -238,6 +238,24 @@ def test_una_suma_sha512_tambien_instala(tmp_path: Path) -> None:
     assert result["via"] == "cached"
 
 
+def test_sin_variable_el_manifiesto_sale_del_servidor(tmp_path: Path, monkeypatch: Any) -> None:
+    import local_host.foreign_run as foreign_run
+
+    monkeypatch.delenv("TRAZA_RUNTIME_MANIFEST", raising=False)
+    monkeypatch.setenv("TRAZA_RUNTIME_DIR", str(tmp_path))
+    monkeypatch.setattr(foreign_run, "_api_origin", "http://cuentas.test")
+    asked: list[str] = []
+
+    def fail(location: str) -> dict[str, Any]:
+        asked.append(location)
+        raise HostError("No se pudo leer el manifiesto.")
+
+    monkeypatch.setattr(foreign_run, "_read_manifest", fail)
+    found = load_manifest()
+    assert asked == ["http://cuentas.test/runtimes/manifest.json"]
+    assert found["runtimes"]["python"]["version"] == ""
+
+
 def test_un_manifiesto_ausente_deja_el_vacio(tmp_path: Path, monkeypatch: Any) -> None:
     monkeypatch.setenv("TRAZA_RUNTIME_MANIFEST", str(tmp_path / "no-esta.json"))
     monkeypatch.setenv("TRAZA_RUNTIME_DIR", str(tmp_path))
