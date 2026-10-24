@@ -14,13 +14,16 @@ import json
 import os
 import platform
 import re
+import secrets
 import shutil
+import signal
 import stat
 import subprocess
 import sys
 import tarfile
 import tempfile
 import threading
+import time
 import urllib.request
 import zipfile
 from collections.abc import Callable
@@ -201,6 +204,72 @@ def run_source(
             "TypeScript necesita Node 22 o posterior.",
         )
     return _execute(language, source, stdin, prepared)
+
+
+def open_session(
+    language: str,
+    source: str,
+    *,
+    root: Path | None = None,
+    manifest: dict[str, Any] | None = None,
+    finder: Finder | None = None,
+    fetch: Fetch | None = None,
+) -> dict[str, object]:
+    """Arranca el programa y se detiene cuando pide un dato."""
+    _sweep_sessions()
+    prepared, failed = _ready(
+        language,
+        source,
+        root=root,
+        manifest=manifest,
+        finder=finder,
+        fetch=fetch,
+    )
+    if failed is not None or prepared is None:
+        return _with_session(
+            failed or _result("error", "missing", None, "", "", "No se pudo ejecutar."), ""
+        )
+    folder = tempfile.TemporaryDirectory(prefix="traza-foreign-")
+    try:
+        env = _child_env(language, prepared.commands, prepared.via)
+        argv, error, timeout = _program_command(language, source, Path(folder.name), env, prepared)
+        if error is not None or argv is None:
+            folder.cleanup()
+            return _with_session(
+                error or _result("error", prepared.via, None, "", "", "No se pudo ejecutar."), ""
+            )
+        job = _start_job(argv, folder, Path(folder.name), env, prepared.via, float(timeout))
+    except OSError:
+        folder.cleanup()
+        return _with_session(
+            _result("error", prepared.via, None, "", "", "No se pudo ejecutar."), ""
+        )
+    return _advance(job, job.limit, enforce=True)
+
+
+def feed_session(session_id: str, text: str) -> dict[str, object]:
+    if len(text) > MAX_STDIN:
+        raise HostError("El código es demasiado grande.")
+    line = text.replace("\r", "").split("\n", 1)[0]
+    job = _lookup_session(session_id)
+    with job.lock:
+        job.deadline = time.monotonic() + job.limit
+        _write_line(job, line)
+        job.text = _cap(job.text + line + "\n")
+    return _advance(job, job.limit, enforce=True)
+
+
+def poll_session(session_id: str) -> dict[str, object]:
+    job = _lookup_session(session_id)
+    return _advance(job, 0.25, enforce=False)
+
+
+def close_session(session_id: str) -> None:
+    job = _pop_session(session_id)
+    if job is None:
+        return
+    with job.lock:
+        _shutdown(job)
 
 
 def java_file_name(source: str) -> str:
@@ -422,106 +491,118 @@ def _install_lock(key: str) -> threading.Lock:
         return lock
 
 
+def _ready(
+    language: str,
+    source: str,
+    *,
+    root: Path | None,
+    manifest: dict[str, Any] | None,
+    finder: Finder | None,
+    fetch: Fetch | None,
+) -> tuple[_Prepared | None, dict[str, object] | None]:
+    if language not in LABELS:
+        raise HostError("Ese lenguaje no está en la lista.")
+    if len(source) > MAX_SOURCE:
+        raise HostError("El código es demasiado grande.")
+    try:
+        prepared = _prepare(
+            language,
+            download=True,
+            root=root or runtime_root(),
+            manifest=manifest if manifest is not None else load_manifest(),
+            finder=finder or shutil.which,
+            fetch=fetch or _fetch_url,
+        )
+    except _RuntimeProblem as exc:
+        return None, _result("error", "missing", None, "", "", exc.message)
+    if prepared is None:
+        return None, _result(
+            "missing", "missing", None, "", "", "Falta el runtime en esta máquina."
+        )
+    if language == "typescript" and not _node_strips_types(prepared.commands["node"]):
+        return None, _result(
+            "error",
+            prepared.via,
+            None,
+            "",
+            "",
+            "TypeScript necesita Node 22 o posterior.",
+        )
+    return prepared, None
+
+
 def _execute(language: str, source: str, stdin: str, prepared: _Prepared) -> dict[str, object]:
     with tempfile.TemporaryDirectory(prefix="traza-foreign-") as folder_name:
         folder = Path(folder_name)
         env = _child_env(language, prepared.commands, prepared.via)
-        if language == "python":
-            path = folder / "programa.py"
-            path.write_text(source, encoding="utf-8")
-            return _spawn(
-                [prepared.commands["python"], str(path)], stdin, folder, env, prepared.via
+        argv, failed, timeout = _program_command(language, source, folder, env, prepared)
+        if failed is not None or argv is None:
+            return (
+                failed
+                if failed is not None
+                else _result("error", prepared.via, None, "", "", "No se pudo ejecutar.")
             )
-        if language == "javascript":
-            path = folder / "programa.js"
-            path.write_text(source, encoding="utf-8")
-            return _spawn([prepared.commands["node"], str(path)], stdin, folder, env, prepared.via)
-        if language == "typescript":
-            path = folder / "programa.ts"
-            path.write_text(source, encoding="utf-8")
-            return _spawn(
-                [prepared.commands["node"], "--experimental-strip-types", str(path)],
-                stdin,
-                folder,
-                env,
-                prepared.via,
-            )
-        if language == "java":
-            return _run_java(source, stdin, folder, env, prepared)
-        if language == "c":
-            return _run_native(
-                source,
-                stdin,
-                folder,
-                env,
-                prepared,
-                "programa.c",
-                [prepared.commands["cc"], "-std=c11", "-o"],
-            )
-        if language == "cpp":
-            return _run_native(
-                source,
-                stdin,
-                folder,
-                env,
-                prepared,
-                "programa.cpp",
-                [prepared.commands["cxx"], "-std=c++17", "-o"],
-            )
-        return _run_csharp(source, stdin, folder, env, prepared)
+        return _spawn(argv, stdin, folder, env, prepared.via, timeout=timeout)
 
 
-def _run_java(
-    source: str, stdin: str, folder: Path, env: dict[str, str], prepared: _Prepared
-) -> dict[str, object]:
-    name = java_file_name(source)
-    (folder / name).write_text(source, encoding="utf-8")
-    compiled = _spawn(
-        [prepared.commands["javac"], name],
-        "",
-        folder,
-        env,
-        prepared.via,
-        timeout=COMPILE_TIMEOUT,
-    )
-    if compiled["status"] != "ok":
-        return compiled
-    return _spawn(
-        [prepared.commands["java"], "-cp", str(folder), Path(name).stem],
-        stdin,
-        folder,
-        env,
-        prepared.via,
-    )
-
-
-def _run_native(
+def _program_command(
+    language: str,
     source: str,
-    stdin: str,
     folder: Path,
     env: dict[str, str],
     prepared: _Prepared,
-    filename: str,
-    compiler: list[str],
-) -> dict[str, object]:
-    binary = folder / ("programa.exe" if os.name == "nt" else "programa")
-    (folder / filename).write_text(source, encoding="utf-8")
-    compiled = _spawn(
-        [*compiler, str(binary), str(folder / filename), "-lm"],
-        "",
-        folder,
-        env,
-        prepared.via,
-        timeout=COMPILE_TIMEOUT,
-    )
-    if compiled["status"] != "ok":
-        return compiled
-    return _spawn([str(binary)], stdin, folder, env, prepared.via)
-
-
-def _run_csharp(
-    source: str, stdin: str, folder: Path, env: dict[str, str], prepared: _Prepared
-) -> dict[str, object]:
+) -> tuple[list[str] | None, dict[str, object] | None, int]:
+    if language == "python":
+        path = folder / "programa.py"
+        path.write_text(source, encoding="utf-8")
+        return [prepared.commands["python"], "-u", str(path)], None, RUN_TIMEOUT
+    if language == "javascript":
+        path = folder / "programa.js"
+        path.write_text(source, encoding="utf-8")
+        return [prepared.commands["node"], str(path)], None, RUN_TIMEOUT
+    if language == "typescript":
+        path = folder / "programa.ts"
+        path.write_text(source, encoding="utf-8")
+        return (
+            [prepared.commands["node"], "--experimental-strip-types", str(path)],
+            None,
+            RUN_TIMEOUT,
+        )
+    if language == "java":
+        name = java_file_name(source)
+        (folder / name).write_text(source, encoding="utf-8")
+        compiled = _spawn(
+            [prepared.commands["javac"], name],
+            "",
+            folder,
+            env,
+            prepared.via,
+            timeout=COMPILE_TIMEOUT,
+        )
+        if compiled["status"] != "ok":
+            return None, compiled, RUN_TIMEOUT
+        return (
+            [prepared.commands["java"], "-cp", str(folder), Path(name).stem],
+            None,
+            RUN_TIMEOUT,
+        )
+    if language in {"c", "cpp"}:
+        filename = "programa.c" if language == "c" else "programa.cpp"
+        compiler = prepared.commands["cc" if language == "c" else "cxx"]
+        standard = "-std=c11" if language == "c" else "-std=c++17"
+        binary = folder / ("programa.exe" if os.name == "nt" else "programa")
+        (folder / filename).write_text(source, encoding="utf-8")
+        compiled = _spawn(
+            [compiler, standard, "-o", str(binary), str(folder / filename), "-lm"],
+            "",
+            folder,
+            env,
+            prepared.via,
+            timeout=COMPILE_TIMEOUT,
+        )
+        if compiled["status"] != "ok":
+            return None, compiled, RUN_TIMEOUT
+        return [str(binary)], None, RUN_TIMEOUT
     framework = _dotnet_tfm(prepared.commands["dotnet"])
     project = (
         '<Project Sdk="Microsoft.NET.Sdk">\n'
@@ -537,14 +618,290 @@ def _run_csharp(
     (folder / "Programa.cs").write_text(source, encoding="utf-8")
     env["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"
     env["DOTNET_NOLOGO"] = "1"
-    return _spawn(
+    return (
         [prepared.commands["dotnet"], "run", "--project", str(folder), "--nologo"],
-        stdin,
-        folder,
-        env,
-        prepared.via,
-        timeout=60,
+        None,
+        60,
     )
+
+
+class _Job:
+    def __init__(
+        self,
+        session: str,
+        proc: subprocess.Popen[bytes],
+        master: int | None,
+        folder: tempfile.TemporaryDirectory[str],
+        via: str,
+        limit: float,
+    ) -> None:
+        now = time.monotonic()
+        self.session = session
+        self.proc = proc
+        self.master = master
+        self.folder = folder
+        self.via = via
+        self.limit = limit
+        self.started = now
+        self.deadline = now + limit
+        self.text = ""
+        self.exit_code: int | None = None
+        self.finished = False
+        self.closed = False
+        self.chunks = bytearray()
+        self.lock = threading.Lock()
+        self.cv = threading.Condition()
+
+
+_SESSION_ID = re.compile(r"^[0-9a-f]{32}$")
+_sessions: dict[str, _Job] = {}
+_sessions_guard = threading.Lock()
+_IDLE_SECONDS = 0.2
+_ABANDON_SECONDS = 10 * 60
+
+
+def _start_job(
+    argv: list[str],
+    folder: tempfile.TemporaryDirectory[str],
+    cwd: Path,
+    env: dict[str, str],
+    via: str,
+    limit: float,
+) -> _Job:
+    if os.name == "nt":
+        proc = subprocess.Popen(
+            argv,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            cwd=cwd,
+            env=env,
+        )
+        master: int | None = None
+    else:
+        proc, master = _start_pty(argv, cwd, env)
+    job = _Job(secrets.token_hex(16), proc, master, folder, via, limit)
+    target = _read_pipe if master is None else _read_master
+    threading.Thread(target=target, args=(job,), daemon=True).start()
+    with _sessions_guard:
+        _sessions[job.session] = job
+    return job
+
+
+def _start_pty(
+    argv: list[str], cwd: Path, env: dict[str, str]
+) -> tuple[subprocess.Popen[bytes], int]:
+    import pty
+    import termios
+
+    master, slave = pty.openpty()
+    try:
+        attrs = termios.tcgetattr(slave)
+        attrs[3] = attrs[3] & ~termios.ECHO
+        termios.tcsetattr(slave, termios.TCSANOW, attrs)
+        proc = subprocess.Popen(
+            argv,
+            stdin=slave,
+            stdout=slave,
+            stderr=slave,
+            cwd=cwd,
+            env=env,
+            start_new_session=True,
+        )
+    except OSError:
+        os.close(master)
+        os.close(slave)
+        raise
+    os.close(slave)
+    return proc, master
+
+
+def _read_master(job: _Job) -> None:
+    assert job.master is not None
+    while True:
+        try:
+            data = os.read(job.master, 8192)
+        except OSError:
+            data = b""
+        with job.cv:
+            if data:
+                job.chunks.extend(data)
+            else:
+                job.closed = True
+            job.cv.notify_all()
+            if not data:
+                return
+
+
+def _read_pipe(job: _Job) -> None:
+    stream = job.proc.stdout
+    if stream is None:
+        with job.cv:
+            job.closed = True
+            job.cv.notify_all()
+        return
+    while True:
+        data = stream.read(8192)
+        with job.cv:
+            if data:
+                job.chunks.extend(data)
+            else:
+                job.closed = True
+            job.cv.notify_all()
+            if not data:
+                return
+
+
+def _write_line(job: _Job, line: str) -> None:
+    payload = (line + "\n").encode("utf-8")
+    try:
+        if job.master is not None:
+            os.write(job.master, payload)
+            return
+        if job.proc.stdin is not None:
+            job.proc.stdin.write(payload)
+            job.proc.stdin.flush()
+    except OSError:
+        return
+
+
+def _advance(job: _Job, budget: float, *, enforce: bool) -> dict[str, object]:
+    with job.lock:
+        if job.finished:
+            return _session_view(job, "done")
+        state = _pull(job, budget, enforce=enforce)
+        if state != "waiting":
+            _shutdown(job)
+        payload = _session_view(job, state)
+    if state != "waiting":
+        _pop_session(job.session)
+    return payload
+
+
+def _pull(job: _Job, budget: float, *, enforce: bool) -> str:
+    call_end = time.monotonic() + budget
+    quiet_since: float | None = None
+    while True:
+        with job.cv:
+            if job.chunks:
+                piece = bytes(job.chunks)
+                job.chunks.clear()
+            else:
+                piece = b""
+            closed = job.closed
+            now = time.monotonic()
+            if piece:
+                quiet_since = None
+            elif quiet_since is None:
+                quiet_since = now
+            quiet_for = 0.0 if quiet_since is None else now - quiet_since
+            wait_for = min(_IDLE_SECONDS, call_end - now)
+            if enforce:
+                wait_for = min(wait_for, job.deadline - now)
+        if piece:
+            job.text = _cap(job.text + _decode_output(piece))
+            if enforce and time.monotonic() >= job.deadline:
+                return "timeout"
+            continue
+        code = job.proc.poll()
+        if closed and code is not None:
+            job.exit_code = code
+            return "done"
+        if enforce and now >= job.deadline:
+            return "timeout"
+        if quiet_for >= _IDLE_SECONDS and code is None:
+            return "waiting"
+        if wait_for <= 0:
+            if code is not None:
+                job.exit_code = code
+                return "done"
+            return "waiting"
+        with job.cv:
+            if not job.chunks and not job.closed:
+                job.cv.wait(timeout=max(wait_for, 0.01))
+
+
+def _session_view(job: _Job, state: str) -> dict[str, object]:
+    if state == "waiting":
+        return _with_session(_result("waiting", job.via, None, job.text, "", ""), job.session)
+    if state == "timeout":
+        return _with_session(
+            _result(
+                "error",
+                job.via,
+                124,
+                job.text,
+                "",
+                "El programa superó el tiempo de ejecución.",
+            ),
+            "",
+        )
+    code = job.exit_code if job.exit_code is not None else 1
+    status = "ok" if code == 0 else "error"
+    return _with_session(_result(status, job.via, code, job.text, "", ""), "")
+
+
+def _shutdown(job: _Job) -> None:
+    if job.finished:
+        return
+    job.finished = True
+    if job.proc.poll() is None:
+        if os.name != "nt":
+            try:
+                os.killpg(job.proc.pid, signal.SIGKILL)
+            except OSError:
+                job.proc.kill()
+        else:
+            job.proc.kill()
+        try:
+            job.proc.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            pass
+    if job.exit_code is None:
+        job.exit_code = job.proc.poll()
+    if job.master is not None:
+        os.close(job.master)
+        job.master = None
+    if job.proc.stdin is not None:
+        try:
+            job.proc.stdin.close()
+        except OSError:
+            pass
+    try:
+        job.folder.cleanup()
+    except OSError:
+        pass
+
+
+def _lookup_session(session_id: str) -> _Job:
+    if not _SESSION_ID.fullmatch(session_id):
+        raise HostError("No se pudo ejecutar.", code="not_found", status=404)
+    with _sessions_guard:
+        job = _sessions.get(session_id)
+    if job is None:
+        raise HostError("No se pudo ejecutar.", code="not_found", status=404)
+    return job
+
+
+def _pop_session(session_id: str) -> _Job | None:
+    with _sessions_guard:
+        return _sessions.pop(session_id, None)
+
+
+def _sweep_sessions() -> None:
+    now = time.monotonic()
+    with _sessions_guard:
+        stale = [job.session for job in _sessions.values() if now - job.started > _ABANDON_SECONDS]
+    for session_id in stale:
+        close_session(session_id)
+
+
+def _decode_output(payload: bytes) -> str:
+    return payload.decode("utf-8", errors="replace").replace("\r\n", "\n").replace("\r", "\n")
+
+
+def _with_session(payload: dict[str, object], session: str) -> dict[str, object]:
+    return {**payload, "session": session}
 
 
 def _dotnet_tfm(dotnet: str) -> str:

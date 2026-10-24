@@ -1151,15 +1151,13 @@ button.fold {
   color: var(--muted);
 }
 .foreign-actions p { margin: 0; color: var(--muted); }
-.foreign-actions textarea {
-  width: 16rem;
-  height: 2.6rem;
-  padding: 0.35rem 0.5rem;
+.foreign-actions input {
+  width: min(24rem, 70vw);
+  padding: 0.4rem 0.55rem;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
   color: var(--ink);
-  resize: vertical;
   font: 0.92rem/1.4 ui-monospace, "SFMono-Regular", Consolas, monospace;
 }
 .foreign-actions .primary {

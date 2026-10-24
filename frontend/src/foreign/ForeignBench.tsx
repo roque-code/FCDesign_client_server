@@ -1,8 +1,16 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { ApiError, type Account } from "../api"
 import { translatedMessage, useT } from "../i18n"
-import { installedLocal, localForeignRun, localForeignStatus, type ForeignRun } from "../runtime"
+import {
+  installedLocal,
+  localForeignClose,
+  localForeignInput,
+  localForeignOpen,
+  localForeignPoll,
+  localForeignStatus,
+  type ForeignRun,
+} from "../runtime"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
 import { ForeignEditor } from "./ForeignEditor"
@@ -48,10 +56,15 @@ export function ForeignBench({
   const [source, setSource] = useState(() => draftOf("python"))
   const [stdin, setStdin] = useState("")
   const [busy, setBusy] = useState(false)
+  const [waiting, setWaiting] = useState(false)
   const [copied, setCopied] = useState(false)
   const [failure, setFailure] = useState("")
   const [result, setResult] = useState<ForeignRun | null>(null)
   const [ready, setReady] = useState<Record<string, string>>({})
+  const inputRef = useRef<HTMLInputElement>(null)
+  const outputRef = useRef<HTMLPreElement>(null)
+  const sessionRef = useRef("")
+  const busyRef = useRef(false)
   const local = installedLocal() !== null
 
   useEffect(() => {
@@ -72,13 +85,74 @@ export function ForeignBench({
     }
   }, [local])
 
+  useEffect(() => {
+    if (!waiting) return
+    setStdin("")
+    const focus = window.requestAnimationFrame(() => inputRef.current?.focus())
+    return () => window.cancelAnimationFrame(focus)
+  }, [waiting])
+
+  useEffect(() => {
+    const node = outputRef.current
+    if (node) node.scrollTop = node.scrollHeight
+  }, [result?.stdout, result?.stderr])
+
+  useEffect(() => {
+    if (!waiting || !sessionRef.current) return
+    let ignore = false
+    const timer = window.setInterval(() => {
+      const current = sessionRef.current
+      if (!current || busyRef.current || ignore) return
+      void localForeignPoll(current)
+        .then((payload) => {
+          if (!ignore && sessionRef.current === current) show(payload)
+        })
+        .catch(() => {
+          if (!ignore) {
+            sessionRef.current = ""
+            setWaiting(false)
+          }
+        })
+    }, 400)
+    return () => {
+      ignore = true
+      window.clearInterval(timer)
+    }
+  }, [waiting])
+
+  useEffect(() => {
+    return () => {
+      const current = sessionRef.current
+      sessionRef.current = ""
+      if (current) void localForeignClose(current)
+    }
+  }, [])
+
+  function show(payload: ForeignRun) {
+    setResult(payload)
+    sessionRef.current = payload.session
+    setWaiting(payload.status === "waiting")
+    if (payload.via === "cached" || payload.via === "system") {
+      setReady((current) => ({ ...current, [language]: payload.via }))
+    }
+  }
+
+  function dropSession() {
+    const current = sessionRef.current
+    sessionRef.current = ""
+    setWaiting(false)
+    if (current) void localForeignClose(current)
+  }
+
   function choose(next: ForeignLanguage) {
     drafts.set(language, source)
+    dropSession()
     setLanguage(next)
     setSource(draftOf(next))
     setCopied(false)
     setResult(null)
     setFailure("")
+    setStdin("")
   }
 
   function edit(next: string) {
@@ -96,19 +170,41 @@ export function ForeignBench({
   }
 
   async function run() {
+    dropSession()
     setBusy(true)
+    busyRef.current = true
     setFailure("")
     setResult(null)
+    setStdin("")
     try {
-      const payload = await localForeignRun(language, source, stdin)
-      setResult(payload)
-      if (payload.via === "cached" || payload.via === "system") {
-        setReady((current) => ({ ...current, [language]: payload.via }))
-      }
+      show(await localForeignOpen(language, source))
     } catch (caught) {
       setFailure(caught instanceof ApiError ? translatedMessage(caught.message) : t("foreignFailed"))
     } finally {
+      busyRef.current = false
       setBusy(false)
+    }
+  }
+
+  async function send(event: { preventDefault: () => void }) {
+    event.preventDefault()
+    const current = sessionRef.current
+    if (!current || busyRef.current) return
+    const text = stdin
+    setStdin("")
+    setBusy(true)
+    busyRef.current = true
+    setFailure("")
+    try {
+      show(await localForeignInput(current, text))
+    } catch (caught) {
+      setWaiting(false)
+      sessionRef.current = ""
+      setFailure(caught instanceof ApiError ? translatedMessage(caught.message) : t("foreignFailed"))
+    } finally {
+      busyRef.current = false
+      setBusy(false)
+      window.requestAnimationFrame(() => inputRef.current?.focus())
     }
   }
 
@@ -147,26 +243,35 @@ export function ForeignBench({
         {!local && <p className="error">{t("foreignDesktop")}</p>}
         <ForeignEditor key={language} language={language} source={source} onChange={edit} />
         <div className="foreign-actions">
-          <label>
-            {t("foreignInput")}
-            <textarea
-              value={stdin}
-              spellCheck={false}
-              rows={2}
-              onChange={(event) => setStdin(event.target.value)}
-            />
-          </label>
           <button type="button" onClick={() => void copy()}>
             {copied ? t("copied") : t("copy")}
           </button>
           <button className="primary" type="button" onClick={() => void run()} disabled={!local || busy}>
-            {busy ? t("foreignRunning") : t("run")}
+            {busy && !waiting ? t("foreignRunning") : t("run")}
           </button>
           {runtimeNote && <p>{runtimeNote}</p>}
         </div>
+        {waiting && (
+          <form className="foreign-actions" onSubmit={(event) => void send(event)}>
+            <label>
+              {t("foreignInput")}
+              <input
+                ref={inputRef}
+                value={stdin}
+                spellCheck={false}
+                autoFocus
+                disabled={busy}
+                onChange={(event) => setStdin(event.target.value)}
+              />
+            </label>
+            <button className="primary" type="submit" disabled={busy}>
+              {t("send")}
+            </button>
+          </form>
+        )}
         {failure && <p className="error">{failure}</p>}
         {result?.message && <p className="error">{translatedMessage(result.message)}</p>}
-        <pre className="foreign-output" aria-label={t("console")}>
+        <pre className="foreign-output" aria-label={t("console")} ref={outputRef}>
           {result ? `${result.stderr}${result.stdout}` : ""}
         </pre>
       </div>

@@ -280,6 +280,45 @@ class Host:
             raise HostError("El cuerpo no es válido.")
         return run_source(language, source, stdin)
 
+    def foreign_open(self, body: dict[str, Any]) -> dict[str, object]:
+        self._need("languages")
+        from local_host.foreign_run import open_session
+
+        language = body.get("language")
+        source = body.get("source")
+        if not isinstance(language, str) or not isinstance(source, str):
+            raise HostError("El cuerpo no es válido.")
+        return open_session(language, source)
+
+    def foreign_input(self, body: dict[str, Any]) -> dict[str, object]:
+        self._need("languages")
+        from local_host.foreign_run import feed_session
+
+        session_id = body.get("session")
+        text = body.get("text")
+        if not isinstance(session_id, str) or not isinstance(text, str):
+            raise HostError("El cuerpo no es válido.")
+        return feed_session(session_id, text)
+
+    def foreign_poll(self, body: dict[str, Any]) -> dict[str, object]:
+        self._need("languages")
+        from local_host.foreign_run import poll_session
+
+        session_id = body.get("session")
+        if not isinstance(session_id, str):
+            raise HostError("El cuerpo no es válido.")
+        return poll_session(session_id)
+
+    def foreign_close(self, body: dict[str, Any]) -> dict[str, object]:
+        self._need("languages")
+        from local_host.foreign_run import close_session
+
+        session_id = body.get("session")
+        if not isinstance(session_id, str):
+            raise HostError("El cuerpo no es válido.")
+        close_session(session_id)
+        return {"ok": True}
+
     def stream(self, session_id: str, after: int, *, once: bool) -> Iterator[str]:
         live = self._require(session_id)
         return _stream(live, session_id, after, once=once)

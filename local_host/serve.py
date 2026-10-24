@@ -77,6 +77,18 @@ class LocalHandler(BaseHTTPRequestHandler):
             if self.command == "POST" and path == "/local/v1/foreign/run":
                 self._json(200, self.server.host_engine.foreign_run(body))
                 return
+            if self.command == "POST" and path == "/local/v1/foreign/open":
+                self._json(200, self.server.host_engine.foreign_open(body))
+                return
+            if self.command == "POST" and path == "/local/v1/foreign/input":
+                self._json(200, self.server.host_engine.foreign_input(body))
+                return
+            if self.command == "POST" and path == "/local/v1/foreign/poll":
+                self._json(200, self.server.host_engine.foreign_poll(body))
+                return
+            if self.command == "POST" and path == "/local/v1/foreign/close":
+                self._json(200, self.server.host_engine.foreign_close(body))
+                return
             if self.command == "POST" and path == "/local/v1/flowchart":
                 self._json(200, self.server.host_engine.flowchart(body))
                 return

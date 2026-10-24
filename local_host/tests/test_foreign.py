@@ -70,6 +70,35 @@ def _manifest(payload: bytes, digest: str) -> dict[str, Any]:
     }
 
 
+def test_python_se_detiene_para_leer_un_dato() -> None:
+    server, origin = _server()
+    session = ""
+    try:
+        code, opened = _call(
+            origin,
+            "/local/v1/foreign/open",
+            {"language": "python", "source": 'print(input("Dato: "))\n'},
+        )
+        assert code == 200
+        assert opened["status"] == "waiting"
+        assert "Dato:" in opened["stdout"]
+        session = opened["session"]
+        code, finished = _call(
+            origin,
+            "/local/v1/foreign/input",
+            {"session": session, "text": "7"},
+        )
+        assert code == 200
+        assert finished["status"] == "ok"
+        assert "7" in finished["stdout"]
+        assert finished["session"] == ""
+        session = ""
+    finally:
+        if session:
+            _call(origin, "/local/v1/foreign/close", {"session": session})
+        server.shutdown()
+
+
 def test_python_del_sistema_escribe_la_salida() -> None:
     server, origin = _server()
     try:

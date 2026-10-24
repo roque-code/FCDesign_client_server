@@ -153,12 +153,13 @@ export function rememberAccess(access: { features: Record<string, boolean> }): P
 }
 
 export type ForeignRun = {
-  status: "ok" | "error" | "missing"
+  status: "ok" | "error" | "missing" | "waiting"
   via: "system" | "cached" | "missing"
   exit_code: number | null
   stdout: string
   stderr: string
   message: string
+  session: string
 }
 
 export type ForeignStatus = {
@@ -172,6 +173,22 @@ export function localForeignStatus(): Promise<ForeignStatus> {
 
 export function localForeignRun(language: string, source: string, stdin: string): Promise<ForeignRun> {
   return localJson("/local/v1/foreign/run", { language, source, stdin })
+}
+
+export function localForeignOpen(language: string, source: string): Promise<ForeignRun> {
+  return localJson("/local/v1/foreign/open", { language, source })
+}
+
+export function localForeignInput(session: string, text: string): Promise<ForeignRun> {
+  return localJson("/local/v1/foreign/input", { session, text })
+}
+
+export function localForeignPoll(session: string): Promise<ForeignRun> {
+  return localJson("/local/v1/foreign/poll", { session })
+}
+
+export function localForeignClose(session: string): Promise<{ ok: boolean }> {
+  return localJson("/local/v1/foreign/close", { session })
 }
 
 function localUrl(local: LocalEndpoint, path: string): string {
