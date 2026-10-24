@@ -1,9 +1,10 @@
 """Manifiesto vacío de runtimes.
 
 La ventana no consulta la página de cada lenguaje al ejecutar. Las direcciones
-y las sumas se publican en un JSON propio: la variable TRAZA_RUNTIME_MANIFEST
-o el archivo runtimes.json de la carpeta de datos. C y C++ no entran aquí:
-usan el cc de la máquina. Una entrada sin url o sin suma de 64 hexadecimales
+y las sumas se publican con `python3 -m local_host.build_runtime_manifest`.
+La aplicación las lee de TRAZA_RUNTIME_MANIFEST o de runtimes.json en la
+carpeta de datos. C y C++ no entran aquí: usan el cc de la máquina. Una
+entrada sin url, o sin suma sha256 de 64 hexadecimales ni sha512 de 128,
 no se descarga.
 """
 

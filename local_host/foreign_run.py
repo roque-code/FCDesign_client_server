@@ -15,6 +15,7 @@ import os
 import platform
 import re
 import shutil
+import ssl
 import stat
 import subprocess
 import sys
@@ -128,12 +129,19 @@ def runtime_root() -> Path:
 
 
 def load_manifest() -> dict[str, Any]:
+    """El manifiesto publicado. Si no se puede leer, sigue el de la carpeta de datos y, si tampoco, el vacío."""
     location = os.environ.get("TRAZA_RUNTIME_MANIFEST", "").strip()
     if location:
-        return _read_manifest(location)
+        try:
+            return _read_manifest(location)
+        except HostError:
+            pass
     local = app_support() / "runtimes.json"
     if local.is_file():
-        return _read_manifest(str(local))
+        try:
+            return _read_manifest(str(local))
+        except HostError:
+            pass
     return json.loads(json.dumps(DEFAULT_MANIFEST))
 
 
@@ -262,21 +270,22 @@ def _cached_or_download(
     if entry is None:
         return None
     folder = root / runtime_id / platform_key() / entry["version"]
-    ready = _command_map(language, folder, entry["bins"], entry["sha256"])
+    digest = _sum(entry)
+    ready = _command_map(language, folder, entry["bins"], digest)
     if ready is not None:
         return ready
     if not download or not _published(entry):
         return None
     lock = _install_lock(f"{runtime_id}:{platform_key()}:{entry['version']}")
     with lock:
-        ready = _command_map(language, folder, entry["bins"], entry["sha256"])
+        ready = _command_map(language, folder, entry["bins"], digest)
         if ready is not None:
             return ready
         try:
             payload = fetch(entry["url"])
         except OSError as exc:
             raise _RuntimeProblem("No se pudo descargar el runtime.") from exc
-        if not _matches(payload, entry["sha256"]):
+        if not _matches(payload, digest):
             raise _RuntimeProblem("La suma del runtime no coincide.")
         try:
             _extract(payload, folder, entry["archive"])
@@ -289,7 +298,7 @@ def _cached_or_download(
             raise _RuntimeProblem("El archivo del runtime no es válido.")
         for path in mapped.values():
             _mark_exec(Path(path))
-        (folder / ".sha256").write_text(entry["sha256"].strip().lower() + "\n", encoding="utf-8")
+        (folder / ".sha256").write_text(digest + "\n", encoding="utf-8")
         return mapped
 
 
@@ -311,26 +320,36 @@ def _entry(manifest: dict[str, Any], runtime_id: str) -> dict[str, Any] | None:
     archive = raw.get("archive")
     url = raw.get("url")
     sha = raw.get("sha256")
+    sha512 = raw.get("sha512")
     if not isinstance(bins, dict) or not isinstance(archive, str):
         return None
     return {
         "version": version.strip(),
         "url": url if isinstance(url, str) else "",
         "sha256": sha if isinstance(sha, str) else "",
+        "sha512": sha512 if isinstance(sha512, str) else "",
         "archive": archive,
         "bins": bins,
     }
 
 
+def _sum(entry: dict[str, Any]) -> str:
+    sha256 = str(entry.get("sha256", "")).strip().lower()
+    if _hex(sha256, 64):
+        return sha256
+    sha512 = str(entry.get("sha512", "")).strip().lower()
+    if _hex(sha512, 128):
+        return sha512
+    return ""
+
+
+def _hex(value: str, size: int) -> bool:
+    return len(value) == size and all(char in "0123456789abcdef" for char in value)
+
+
 def _published(entry: dict[str, Any]) -> bool:
     url = entry["url"]
-    sha = entry["sha256"].strip().lower()
-    return (
-        isinstance(url, str)
-        and url.startswith(("https://", "http://"))
-        and len(sha) == 64
-        and all(ch in "0123456789abcdef" for ch in sha)
-    )
+    return isinstance(url, str) and url.startswith(("https://", "http://")) and bool(_sum(entry))
 
 
 def _command_map(
@@ -400,11 +419,28 @@ def _safe_name(name: str) -> None:
 
 
 def _matches(payload: bytes, expected: str) -> bool:
-    digest = hashlib.sha256(payload).hexdigest()
     wanted = expected.strip().lower()
-    if len(digest) != len(wanted):
+    if len(wanted) == 64:
+        digest = hashlib.sha256(payload).hexdigest()
+    elif len(wanted) == 128:
+        digest = hashlib.sha512(payload).hexdigest()
+    else:
         return False
     return hmac.compare_digest(digest, wanted)
+
+
+def ssl_context() -> ssl.SSLContext:
+    """El Python de python.org en macOS no trae las autoridades del sistema."""
+    try:
+        import certifi
+    except ImportError:
+        certifi = None
+    if certifi is not None:
+        return ssl.create_default_context(cafile=certifi.where())
+    for candidate in ("/etc/ssl/cert.pem", "/etc/ssl/certs/ca-certificates.crt"):
+        if Path(candidate).is_file():
+            return ssl.create_default_context(cafile=candidate)
+    return ssl.create_default_context()
 
 
 def _mark_exec(path: Path) -> None:
@@ -689,7 +725,7 @@ def _read_manifest(location: str) -> dict[str, Any]:
 
 def _fetch_url(url: str) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": "Aulivana-FCDdesign"})
-    with urllib.request.urlopen(request, timeout=120) as response:
+    with urllib.request.urlopen(request, timeout=120, context=ssl_context()) as response:
         return _read_limited(response)
 
 

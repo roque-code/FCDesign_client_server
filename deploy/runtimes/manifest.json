@@ -1,0 +1,230 @@
+{
+  "version": 1,
+  "note": "Manifiesto fijo. Python es un CPython reubicable, Node sale de nodejs.org, Java de Eclipse Temurin 21 y C# del SDK 8 de Microsoft. C y C++ no se descargan. La aplicación guarda cada archivo en su carpeta de datos, no dentro del paquete.",
+  "runtimes": {
+    "python": {
+      "version": "3.13.17",
+      "files": {
+        "darwin-arm64": {
+          "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261021/cpython-3.13.17%2B20261021-aarch64-apple-darwin-install_only.tar.gz",
+          "sha256": "9c985cbf327425873469896ce748c7134b6deca8edb81e93c589ad2fc5aff445",
+          "archive": "tar.gz",
+          "bins": {
+            "python": "python/bin/python3"
+          }
+        },
+        "darwin-x86_64": {
+          "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261021/cpython-3.13.17%2B20261021-x86_64-apple-darwin-install_only.tar.gz",
+          "sha256": "b7d7c2dd63545cabe996191b6f20f0b652c7de123d9ca451dda7e5f1ebbcbbbc",
+          "archive": "tar.gz",
+          "bins": {
+            "python": "python/bin/python3"
+          }
+        },
+        "windows-x86_64": {
+          "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261021/cpython-3.13.17%2B20261021-x86_64-pc-windows-msvc-install_only.tar.gz",
+          "sha256": "e10b46d9b03a3a494297f336770f55f86474d683061137b1cf595e12e47bcef5",
+          "archive": "tar.gz",
+          "bins": {
+            "python": "python/python.exe"
+          }
+        },
+        "windows-arm64": {
+          "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261021/cpython-3.13.17%2B20261021-aarch64-pc-windows-msvc-install_only.tar.gz",
+          "sha256": "dd7f2c489a30356b02dc0aca8c210400a09952b06a955d432313d605f8850765",
+          "archive": "tar.gz",
+          "bins": {
+            "python": "python/python.exe"
+          }
+        },
+        "linux-x86_64": {
+          "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261021/cpython-3.13.17%2B20261021-x86_64-unknown-linux-gnu-install_only.tar.gz",
+          "sha256": "cbda6f7767884fc456860b11fd184391a9320cae00a86c0f49a1c7ac6e236f7a",
+          "archive": "tar.gz",
+          "bins": {
+            "python": "python/bin/python3"
+          }
+        },
+        "linux-arm64": {
+          "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261021/cpython-3.13.17%2B20261021-aarch64-unknown-linux-gnu-install_only.tar.gz",
+          "sha256": "616ab0a31b2a3f28119582f4d1943e342f13bac2ec5a8dfe8572c3c0bcadb95a",
+          "archive": "tar.gz",
+          "bins": {
+            "python": "python/bin/python3"
+          }
+        }
+      }
+    },
+    "node": {
+      "version": "22.23.4",
+      "files": {
+        "darwin-arm64": {
+          "url": "https://nodejs.org/dist/v22.23.4/node-v22.23.4-darwin-arm64.tar.gz",
+          "sha256": "c9e1dbc748b33ed2d14f42445191ecaf14c56259c7a9a26d0042c49ec2b66428",
+          "archive": "tar.gz",
+          "bins": {
+            "node": "node-v22.23.4-darwin-arm64/bin/node"
+          }
+        },
+        "darwin-x86_64": {
+          "url": "https://nodejs.org/dist/v22.23.4/node-v22.23.4-darwin-x64.tar.gz",
+          "sha256": "efcc2b0db6f94bf53eddb038fe2b370277a042bd29e4f19b8f8e23598795b819",
+          "archive": "tar.gz",
+          "bins": {
+            "node": "node-v22.23.4-darwin-x64/bin/node"
+          }
+        },
+        "windows-x86_64": {
+          "url": "https://nodejs.org/dist/v22.23.4/node-v22.23.4-win-x64.zip",
+          "sha256": "cbc74b5e0982c9dbb41525fd8fb5dcd32fbee237863f7829072f4639a1ce5f20",
+          "archive": "zip",
+          "bins": {
+            "node": "node-v22.23.4-win-x64/node.exe"
+          }
+        },
+        "windows-arm64": {
+          "url": "https://nodejs.org/dist/v22.23.4/node-v22.23.4-win-arm64.zip",
+          "sha256": "a8b8cd79cbbb3062435f449591d98dd63730bbbf30ce2d7cc3a6376c236cb111",
+          "archive": "zip",
+          "bins": {
+            "node": "node-v22.23.4-win-arm64/node.exe"
+          }
+        },
+        "linux-x86_64": {
+          "url": "https://nodejs.org/dist/v22.23.4/node-v22.23.4-linux-x64.tar.gz",
+          "sha256": "b8492284c76a54baf58d61668dd0e41ee0fc98adabf9503d30f05d08f55b4406",
+          "archive": "tar.gz",
+          "bins": {
+            "node": "node-v22.23.4-linux-x64/bin/node"
+          }
+        },
+        "linux-arm64": {
+          "url": "https://nodejs.org/dist/v22.23.4/node-v22.23.4-linux-arm64.tar.gz",
+          "sha256": "f7a1e486dbc8b286847815b477d4fb5e9fb963ed4489c3e1588853d685f589f9",
+          "archive": "tar.gz",
+          "bins": {
+            "node": "node-v22.23.4-linux-arm64/bin/node"
+          }
+        }
+      }
+    },
+    "java": {
+      "version": "21.0.13+9",
+      "files": {
+        "darwin-arm64": {
+          "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13%2B9/OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.13_9.tar.gz",
+          "sha256": "bf036b35b071bfb2f54f2c0af8ee8d88afa95ee6eb3dce02c0f94cfc2524d04a",
+          "archive": "tar.gz",
+          "bins": {
+            "java": "jdk-21.0.13+9/Contents/Home/bin/java",
+            "javac": "jdk-21.0.13+9/Contents/Home/bin/javac"
+          }
+        },
+        "darwin-x86_64": {
+          "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13%2B9/OpenJDK21U-jdk_x64_mac_hotspot_21.0.13_9.tar.gz",
+          "sha256": "9aa1d1c17ae5467a022679e7e0af5c00797d94ac462ed1a46f4db07a8a34a6dd",
+          "archive": "tar.gz",
+          "bins": {
+            "java": "jdk-21.0.13+9/Contents/Home/bin/java",
+            "javac": "jdk-21.0.13+9/Contents/Home/bin/javac"
+          }
+        },
+        "windows-x86_64": {
+          "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jdk_x64_windows_hotspot_21.0.12.1_1.zip",
+          "sha256": "f9d6e191ab098c0d416e7d588a24420a8621cd2f4720dab2459b8b7b2d2d8b4e",
+          "archive": "zip",
+          "bins": {
+            "java": "jdk-21.0.12.1+1/bin/java.exe",
+            "javac": "jdk-21.0.12.1+1/bin/javac.exe"
+          }
+        },
+        "windows-arm64": {
+          "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jdk_aarch64_windows_hotspot_21.0.12.1_1.zip",
+          "sha256": "ccf2e51f527d542a70ba5794a600d3aac04b4e967950e227834c7566cb1bec7b",
+          "archive": "zip",
+          "bins": {
+            "java": "jdk-21.0.12.1+1/bin/java.exe",
+            "javac": "jdk-21.0.12.1+1/bin/javac.exe"
+          }
+        },
+        "linux-x86_64": {
+          "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13%2B9/OpenJDK21U-jdk_x64_linux_hotspot_21.0.13_9.tar.gz",
+          "sha256": "d7f5d5cf865a2902b70ff549b97586a7d3f234e016f041ab447ea740c7d66d1c",
+          "archive": "tar.gz",
+          "bins": {
+            "java": "jdk-21.0.13+9/bin/java",
+            "javac": "jdk-21.0.13+9/bin/javac"
+          }
+        },
+        "linux-arm64": {
+          "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13%2B9/OpenJDK21U-jdk_aarch64_linux_hotspot_21.0.13_9.tar.gz",
+          "sha256": "e3522e707fc7dbe2a72c30746b1e7068301a0213ecd213d4491f35a14eb55578",
+          "archive": "tar.gz",
+          "bins": {
+            "java": "jdk-21.0.13+9/bin/java",
+            "javac": "jdk-21.0.13+9/bin/javac"
+          }
+        }
+      }
+    },
+    "dotnet": {
+      "version": "8.0.426",
+      "files": {
+        "darwin-arm64": {
+          "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/8.0.426/dotnet-sdk-8.0.426-osx-arm64.tar.gz",
+          "sha256": "",
+          "sha512": "17cd408c92eb6ceedc06d41fa726c783b9be020c6ae5f3624ad3a0b2c26a78aa7d09f38338003163a72bb14d437731debf533c0451a5c6a05de3b1e37a3aa50a",
+          "archive": "tar.gz",
+          "bins": {
+            "dotnet": "dotnet"
+          }
+        },
+        "darwin-x86_64": {
+          "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/8.0.426/dotnet-sdk-8.0.426-osx-x64.tar.gz",
+          "sha256": "",
+          "sha512": "44f5356cd8c96a937540547df6b71995636afe35827bc380478543cc7b7b3ca089679f3bee0498db3f6399bd9ee6b5829f3b452bcfc85d3c899714712ea3c5e3",
+          "archive": "tar.gz",
+          "bins": {
+            "dotnet": "dotnet"
+          }
+        },
+        "windows-x86_64": {
+          "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/8.0.426/dotnet-sdk-8.0.426-win-x64.zip",
+          "sha256": "",
+          "sha512": "10261657109f1c62126f106a9ac966739b025b5f6b4a9f88ab7c6e73cacce9aec771895daa3267b8da933a83c32ee91bf458dc6704e1ddcd9bcf0d5edd036abb",
+          "archive": "zip",
+          "bins": {
+            "dotnet": "dotnet.exe"
+          }
+        },
+        "windows-arm64": {
+          "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/8.0.426/dotnet-sdk-8.0.426-win-arm64.zip",
+          "sha256": "",
+          "sha512": "1384efbcb158c12afbc949839f360b5556d90ad5a9a0edfb89e594f89b3c199d14bd45d7c8de48d6d464fa2ac2ff026546bf2dfb4275596d548c3219480ce5ca",
+          "archive": "zip",
+          "bins": {
+            "dotnet": "dotnet.exe"
+          }
+        },
+        "linux-x86_64": {
+          "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/8.0.426/dotnet-sdk-8.0.426-linux-x64.tar.gz",
+          "sha256": "",
+          "sha512": "8141d01bdc53f604aed3bb661b604707a64209f8a947cd81bf95b4f518951593d77864069191f54ea5e84362a409da6b0f69074bf893b283d7e0cf93e2bf20a8",
+          "archive": "tar.gz",
+          "bins": {
+            "dotnet": "dotnet"
+          }
+        },
+        "linux-arm64": {
+          "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/8.0.426/dotnet-sdk-8.0.426-linux-arm64.tar.gz",
+          "sha256": "",
+          "sha512": "8a49694501bb67f35be0d345fec4ec660b7e311e6d31cde48e2699cc94cbd901d71dc5aef61a42bc35883e0175883cc2599f7f6ff4af3525381b7d7b8342bef5",
+          "archive": "tar.gz",
+          "bins": {
+            "dotnet": "dotnet"
+          }
+        }
+      }
+    }
+  }
+}

@@ -126,6 +126,16 @@ fn start_host() -> Result<Bridge, String> {
     let token = random_token();
     let api = std::env::var("TRAZA_API_ORIGIN").unwrap_or_else(|_| "http://18.118.112.206:18080".into());
     let mut command = host_command()?;
+    if std::env::var("TRAZA_RUNTIME_MANIFEST")
+        .ok()
+        .filter(|value| !value.is_empty())
+        .is_none()
+    {
+        command.env(
+            "TRAZA_RUNTIME_MANIFEST",
+            format!("{}/runtimes/manifest.json", api.trim_end_matches('/')),
+        );
+    }
     command
         .arg("--host")
         .arg("127.0.0.1")
