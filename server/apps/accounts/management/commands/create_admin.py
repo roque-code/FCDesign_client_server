@@ -23,7 +23,7 @@ class Command(BaseCommand):
             visible = clean_label(options["name"], field="El nombre", limit=80, required=False)
         except DomainError as exc:
             raise CommandError(exc.message) from exc
-        if User.objects.filter(email=email).exists():
+        if User.objects.filter(email__iexact=email).exists():
             raise CommandError("Ese correo ya está registrado.")
         user = User.objects.create_user(
             email=email,

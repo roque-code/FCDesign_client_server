@@ -152,16 +152,17 @@ def test_register_sends_confirmation_before_login(client):
     assert blocked.status_code == 400
     assert blocked.json()["error"]["code"] == "email_unconfirmed"
 
-    again = register(client, email="nuevo@ejemplo.test", display_name="Nuevo")
-    assert again.status_code == 201
-    assert len(mail.outbox) == 2
+    again = register(client, email="Nuevo@Ejemplo.Test", display_name="Otro")
+    assert again.status_code == 400
+    assert again.json()["error"]["message"] == "Ese correo ya está registrado."
+    assert User.objects.filter(email__iexact="nuevo@ejemplo.test").count() == 1
     unknown = client.post(
         "/api/v1/auth/confirm-email/resend/",
         {"email": "nadie@ejemplo.test"},
         format="json",
     )
     assert unknown.status_code == 200
-    assert len(mail.outbox) == 2
+    assert len(mail.outbox) == 1
 
     query = _confirmation_query()
     bad = client.post(
@@ -395,8 +396,10 @@ def test_duplicate_email_and_weak_password(client):
     assert register(client).status_code == 201
     other = APIClient(enforce_csrf_checks=True)
     refresh_csrf(other)
-    again = register(other, email="ana@ejemplo.test")
+    again = register(other, email="Ana@ejemplo.test")
     assert again.status_code == 400
+    assert again.json()["error"]["message"] == "Ese correo ya está registrado."
+    assert User.objects.filter(email__iexact="ana@ejemplo.test").count() == 1
     weak = register(other, email="luz@ejemplo.test", password="123")
     assert weak.status_code == 400
 

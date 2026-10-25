@@ -822,6 +822,7 @@ const es = {
   signupStudentClosed: "Ahora no se pueden crear cuentas de alumno.",
   signupTeacherClosed: "Ahora no se pueden crear cuentas de docente.",
   signupAdminsOnly: "Solo un administrador puede definir las altas.",
+  emailTaken: "Ese correo ya está registrado.",
   rights: "© {year} R&J Integra Soluciones Tecnológicas. Todos los derechos reservados.",
 }
 
@@ -1645,6 +1646,7 @@ const en: { [Key in keyof typeof es]: string } = {
   signupStudentClosed: "Student accounts cannot be created right now.",
   signupTeacherClosed: "Teacher accounts cannot be created right now.",
   signupAdminsOnly: "Only an administrator can define signup.",
+  emailTaken: "That email is already registered.",
   rights: "© {year} R&J Integra Soluciones Tecnológicas. All rights reserved.",
 }
 
@@ -1673,6 +1675,7 @@ const SERVER_TEXT: Record<string, MessageKey> = {
   "Esta cuenta administra los niveles.": "adminAccount",
   "Solo un administrador puede definir los niveles.": "adminsDefinePlans",
   "Ahora no se pueden crear cuentas de alumno.": "signupStudentClosed",
+  "Ese correo ya está registrado.": "emailTaken",
   "Ahora no se pueden crear cuentas de docente.": "signupTeacherClosed",
   "Solo un administrador puede definir las altas.": "signupAdminsOnly",
   "Indica si la traducción queda habilitada.": "translationFlagRequired",

@@ -12,7 +12,7 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator, default_toke
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.core.validators import validate_email
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
@@ -217,30 +217,17 @@ def register_user(
     school = clean_label(institution, field="La institución", limit=120, required=False)
     chosen = Profile.STUDENT if role is None or role == "" else clean_role(role)
     ensure_signup_open(chosen)
-    existing = User.objects.filter(email=cleaned).first()
-    if existing is not None:
-        if existing.email_confirmed or not settings.EMAIL_CONFIRMATION_REQUIRED:
-            raise DomainError("Ese correo ya está registrado.")
-        existing.set_password(secret)
-        existing.save(update_fields=["password"])
-        profile = existing.profile
-        if visible:
-            profile.display_name = visible
-        if school:
-            profile.institution = school
-        if role not in (None, ""):
-            profile.role = chosen
-        profile.save()
-        from apps.billing.services import assign_default_subscription
-
-        assign_default_subscription(existing)
-        _send_confirmation(existing)
-        return existing
-    user = User.objects.create_user(
-        email=cleaned,
-        password=secret,
-        email_confirmed=not settings.EMAIL_CONFIRMATION_REQUIRED,
-    )
+    if User.objects.filter(email__iexact=cleaned).exists():
+        raise DomainError("Ese correo ya está registrado.")
+    try:
+        with transaction.atomic():
+            user = User.objects.create_user(
+                email=cleaned,
+                password=secret,
+                email_confirmed=not settings.EMAIL_CONFIRMATION_REQUIRED,
+            )
+    except IntegrityError as exc:
+        raise DomainError("Ese correo ya está registrado.") from exc
     Profile.objects.create(
         user=user,
         display_name=visible or cleaned.split("@", 1)[0],
@@ -448,7 +435,7 @@ def resend_confirmation(email: object) -> None:
         cleaned = clean_email(email)
     except DomainError:
         return
-    user = User.objects.filter(email=cleaned, email_confirmed=False).first()
+    user = User.objects.filter(email__iexact=cleaned, email_confirmed=False).first()
     if user is None:
         return
     _send_confirmation(user)
