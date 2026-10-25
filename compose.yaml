@@ -101,6 +101,8 @@ services:
       DEFAULT_FROM_EMAIL: aulivana.fcdesign@gmail.com
       TRAZA_EMAIL_CONFIRMATION: "1"
       TRAZA_PUBLIC_ORIGIN: ${TRAZA_PUBLIC_ORIGIN:-http://127.0.0.1:18080}
+      TRAZA_RUNTIME_MANIFEST: /opt/traza/deploy/runtimes/manifest.json
+      TRAZA_RUNTIME_DIR: /var/lib/traza
       TRAZA_MAIL_UI: http://127.0.0.1:8025
       POSTGRES_DB: traza
       POSTGRES_USER: traza
@@ -111,6 +113,7 @@ services:
       - "8002:8000"
     volumes:
       - .:/opt/traza
+      - traza-runtimes:/var/lib/traza
     depends_on:
       db:
         condition: service_healthy
@@ -186,3 +189,4 @@ volumes:
   traza-db:
   traza-redis:
   frontend-modules:
+  traza-runtimes:

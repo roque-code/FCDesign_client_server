@@ -23,6 +23,7 @@ import { GuideButtons } from "../help/Guides"
 import { translatedMessage, useLocale, useT, type Locale } from "../i18n"
 import { saveDownload } from "../saveFile"
 import {
+  browserLanguageHost,
   inInstalledApp,
   localControl,
   localDebug,
@@ -1040,7 +1041,7 @@ export function Workbench({
           >
             {t("refresh")}
           </button>
-          {inInstalledApp() && can("languages") && (
+          {(inInstalledApp() ? can("languages") : browserLanguageHost() !== null) && (
           <button className="top-action" type="button" onClick={onOpenLanguages}>
             {t("foreignOpen")}
           </button>

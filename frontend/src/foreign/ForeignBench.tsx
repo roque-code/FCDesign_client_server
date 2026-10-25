@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react"
 import { ApiError, api, type Account, type LabPath } from "../api"
 import { translatedMessage, useT } from "../i18n"
 import {
-  installedLocal,
+  languageHost,
   localForeignClose,
   localForeignInput,
   localForeignOpen,
@@ -73,7 +73,7 @@ export function ForeignBench({
   const outputRef = useRef<HTMLPreElement>(null)
   const sessionRef = useRef("")
   const busyRef = useRef(false)
-  const local = installedLocal() !== null
+  const local = languageHost() !== null
 
   useEffect(() => {
     if (!local) return

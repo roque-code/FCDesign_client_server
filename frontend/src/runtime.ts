@@ -40,6 +40,18 @@ export function inInstalledApp(): boolean {
   return installedLocal() !== null || "__TAURI_INTERNALS__" in window
 }
 
+/** En localhost el navegador usa los compiladores de esta máquina, sin volverse la app. */
+export function browserLanguageHost(): LocalEndpoint | null {
+  if (installedLocal() || !import.meta.env.DEV || typeof window === "undefined") return null
+  const name = window.location.hostname
+  if (name !== "127.0.0.1" && name !== "localhost") return null
+  return { origin: "http://127.0.0.1:8766", token: "traza-local-language" }
+}
+
+export function languageHost(): LocalEndpoint | null {
+  return installedLocal() ?? browserLanguageHost()
+}
+
 export function desktopProxiesServer(): boolean {
   if (typeof window === "undefined") return false
   return (window as TrazaWindow).__TRAZA_DESKTOP_PROXY__ === true
@@ -168,27 +180,27 @@ export type ForeignStatus = {
 }
 
 export function localForeignStatus(): Promise<ForeignStatus> {
-  return localJson("/local/v1/foreign/status", {})
+  return foreignJson("/local/v1/foreign/status", {})
 }
 
 export function localForeignRun(language: string, source: string, stdin: string): Promise<ForeignRun> {
-  return localJson("/local/v1/foreign/run", { language, source, stdin })
+  return foreignJson("/local/v1/foreign/run", { language, source, stdin })
 }
 
 export function localForeignOpen(language: string, source: string): Promise<ForeignRun> {
-  return localJson("/local/v1/foreign/open", { language, source })
+  return foreignJson("/local/v1/foreign/open", { language, source })
 }
 
 export function localForeignInput(session: string, text: string): Promise<ForeignRun> {
-  return localJson("/local/v1/foreign/input", { session, text })
+  return foreignJson("/local/v1/foreign/input", { session, text })
 }
 
 export function localForeignPoll(session: string): Promise<ForeignRun> {
-  return localJson("/local/v1/foreign/poll", { session })
+  return foreignJson("/local/v1/foreign/poll", { session })
 }
 
 export function localForeignClose(session: string): Promise<{ ok: boolean }> {
-  return localJson("/local/v1/foreign/close", { session })
+  return foreignJson("/local/v1/foreign/close", { session })
 }
 
 function localUrl(local: LocalEndpoint, path: string): string {
@@ -197,11 +209,22 @@ function localUrl(local: LocalEndpoint, path: string): string {
   return url.toString()
 }
 
+function foreignJson<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const local = languageHost()
+  if (!local) throw new ApiError(0, "local_missing", localMissingMessage())
+  const payload = installedLocal() ? body : { ...body, isolated: true }
+  return endpointJson(local, path, payload)
+}
+
 async function localJson<T>(path: string, body: unknown, method = "POST"): Promise<T> {
   const local = installedLocal()
   if (!local) {
     throw new ApiError(0, "local_missing", localMissingMessage())
   }
+  return endpointJson(local, path, body, method)
+}
+
+async function endpointJson<T>(local: LocalEndpoint, path: string, body: unknown, method = "POST"): Promise<T> {
   const response = await fetch(localUrl(local, path), {
     method,
     headers: {

@@ -1082,7 +1082,7 @@ def _execute_language(language: str, source: str, cases) -> list[str]:
         lines = [item for item in raw if isinstance(item, str)]
         stdin = "\n".join(lines) + ("\n" if lines else "")
         try:
-            result = run_source(language, source, stdin, download=False, isolated=True)
+            result = run_source(language, source, stdin, download=True, isolated=True)
         except Exception as exc:
             message = getattr(exc, "message", None)
             outputs.append(
@@ -1100,12 +1100,24 @@ def _execute_language(language: str, source: str, cases) -> list[str]:
 
 
 def _language_runner():
+    import os
     import sys
     from pathlib import Path
 
-    root = str(Path(__file__).resolve().parents[3])
-    if root not in sys.path:
-        sys.path.insert(0, root)
+    root = Path(__file__).resolve().parents[3]
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    manifest = root / "deploy" / "runtimes" / "manifest.json"
+    if manifest.is_file() and not os.environ.get("TRAZA_RUNTIME_MANIFEST", "").strip():
+        os.environ["TRAZA_RUNTIME_MANIFEST"] = str(manifest)
+    store = Path("/var/lib/traza")
+    if not os.environ.get("TRAZA_RUNTIME_DIR", "").strip():
+        try:
+            store.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            store = None
+        if store is not None:
+            os.environ["TRAZA_RUNTIME_DIR"] = str(store)
     from local_host.foreign_run import run_source
 
     return run_source

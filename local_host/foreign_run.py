@@ -235,6 +235,8 @@ def open_session(
     manifest: dict[str, Any] | None = None,
     finder: Finder | None = None,
     fetch: Fetch | None = None,
+    download: bool = True,
+    isolated: bool = False,
 ) -> dict[str, object]:
     """Arranca el programa y se detiene cuando pide un dato."""
     _sweep_sessions()
@@ -245,6 +247,7 @@ def open_session(
         manifest=manifest,
         finder=finder,
         fetch=fetch,
+        download=download,
     )
     if failed is not None or prepared is None:
         return _with_session(
@@ -252,7 +255,11 @@ def open_session(
         )
     folder = tempfile.TemporaryDirectory(prefix="traza-foreign-")
     try:
-        env = _child_env(language, prepared.commands, prepared.via)
+        env = (
+            _isolated_env(language, prepared.commands, prepared.via)
+            if isolated
+            else _child_env(language, prepared.commands, prepared.via)
+        )
         argv, error, timeout = _program_command(language, source, Path(folder.name), env, prepared)
         if error is not None or argv is None:
             folder.cleanup()
@@ -548,6 +555,7 @@ def _ready(
     manifest: dict[str, Any] | None,
     finder: Finder | None,
     fetch: Fetch | None,
+    download: bool = True,
 ) -> tuple[_Prepared | None, dict[str, object] | None]:
     if language not in LABELS:
         raise HostError("Ese lenguaje no está en la lista.")
@@ -556,7 +564,7 @@ def _ready(
     try:
         prepared = _prepare(
             language,
-            download=True,
+            download=download,
             root=root or runtime_root(),
             manifest=manifest if manifest is not None else load_manifest(),
             finder=finder or shutil.which,

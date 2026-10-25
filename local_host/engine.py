@@ -278,7 +278,8 @@ class Host:
             or not isinstance(stdin, str)
         ):
             raise HostError("El cuerpo no es válido.")
-        return run_source(language, source, stdin)
+        download, isolated = _compiler_flags(body)
+        return run_source(language, source, stdin, download=download, isolated=isolated)
 
     def foreign_open(self, body: dict[str, Any]) -> dict[str, object]:
         self._need("languages")
@@ -288,7 +289,8 @@ class Host:
         source = body.get("source")
         if not isinstance(language, str) or not isinstance(source, str):
             raise HostError("El cuerpo no es válido.")
-        return open_session(language, source)
+        download, isolated = _compiler_flags(body)
+        return open_session(language, source, download=download, isolated=isolated)
 
     def foreign_input(self, body: dict[str, Any]) -> dict[str, object]:
         self._need("languages")
@@ -350,6 +352,15 @@ class Host:
 
 def session_id(live: _Live) -> str:
     return live.public_id
+
+
+def _compiler_flags(body: dict[str, Any]) -> tuple[bool, bool]:
+    """Sin descarga y aislado: los compiladores de esta máquina, como en el servidor."""
+    download = body.get("download", True)
+    isolated = body.get("isolated", False)
+    if not isinstance(download, bool) or not isinstance(isolated, bool):
+        raise HostError("El cuerpo no es válido.")
+    return download, isolated
 
 
 def _source_and_profile(body: dict[str, Any]) -> tuple[str, LanguageProfile]:
