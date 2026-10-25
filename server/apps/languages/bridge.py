@@ -14,7 +14,13 @@ from typing import Any
 from config.errors import DomainError
 
 _engine = None
-_host_ready: bool | None = None
+_host_ready = False
+
+
+class _HostDown(Exception):
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+        self.detail = detail
 
 
 def _ensure_local_host() -> None:
@@ -34,7 +40,10 @@ def dispatch(action: str, body: dict[str, Any]) -> dict[str, object]:
         payload["isolated"] = True
     try:
         if _use_host():
-            return _post(f"/local/v1/foreign/{action}", payload)
+            try:
+                return _post(f"/local/v1/foreign/{action}", payload)
+            except _HostDown:
+                pass
         return _direct(action, payload)
     except HostError as exc:
         raise DomainError(exc.message, code=exc.code, status_code=exc.status) from exc
@@ -52,19 +61,18 @@ def _token() -> str:
 
 def _use_host() -> bool:
     global _host_ready
-    if _host_ready is not None:
-        return _host_ready
+    if _host_ready:
+        return True
     token = _token()
     if not token:
-        _host_ready = False
         return False
     origin = _origin()
     url = f"{origin}/local/v1/health?token={urllib.parse.quote(token)}"
     try:
-        with urllib.request.urlopen(url, timeout=0.5) as response:
+        with urllib.request.urlopen(url, timeout=0.3) as response:
             _host_ready = response.status == 200
     except (urllib.error.URLError, TimeoutError, OSError):
-        _host_ready = False
+        return False
     return _host_ready
 
 
@@ -94,7 +102,7 @@ def _post(path: str, body: dict[str, Any]) -> dict[str, object]:
         try:
             parsed = json.loads(raw)
         except json.JSONDecodeError as decode_error:
-            raise DomainError("No se pudo ejecutar.") from decode_error
+            raise _HostDown("No se pudo ejecutar.") from decode_error
         error = parsed.get("error") if isinstance(parsed, dict) else None
         if isinstance(error, dict):
             message = error.get("message")
@@ -106,10 +114,19 @@ def _post(path: str, body: dict[str, Any]) -> dict[str, object]:
             ) from exc
         raise DomainError("No se pudo ejecutar.") from exc
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
-        raise DomainError("No se pudo ejecutar.") from exc
+        detail = exc.strerror if isinstance(exc, OSError) and exc.strerror else ""
+        raise _HostDown(f"No se pudo ejecutar. {detail}".strip()) from exc
     if not isinstance(payload, dict):
-        raise DomainError("No se pudo ejecutar.")
+        raise _HostDown("No se pudo ejecutar.")
     return payload
+
+
+def _gevent_patched() -> bool:
+    try:
+        from gevent.monkey import is_module_patched
+    except ImportError:
+        return False
+    return is_module_patched("threading")
 
 
 def _direct(action: str, body: dict[str, Any]) -> dict[str, object]:
@@ -117,6 +134,11 @@ def _direct(action: str, body: dict[str, Any]) -> dict[str, object]:
     engine = _local_engine()
     if action == "status":
         return engine.foreign_status()
+    # Dentro de gunicorn el hilo de la sesión se vuelve un greenlet y no avanza.
+    if action in {"run", "open"} and _gevent_patched():
+        result = dict(engine.foreign_run(body))
+        result.setdefault("session", "")
+        return result
     if action == "run":
         return engine.foreign_run(body)
     if action == "open":

@@ -267,10 +267,10 @@ def open_session(
                 error or _result("error", prepared.via, None, "", "", "No se pudo ejecutar."), ""
             )
         job = _start_job(argv, folder, Path(folder.name), env, prepared.via, float(timeout))
-    except OSError:
+    except OSError as exc:
         folder.cleanup()
         return _with_session(
-            _result("error", prepared.via, None, "", "", "No se pudo ejecutar."), ""
+            _result("error", prepared.via, None, "", "", _could_not_run(exc)), ""
         )
     return _advance(job, job.limit, enforce=True)
 
@@ -737,17 +737,14 @@ def _start_job(
     limit: float,
 ) -> _Job:
     if os.name == "nt":
-        proc = subprocess.Popen(
-            argv,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            cwd=cwd,
-            env=env,
-        )
+        proc = _start_pipes(argv, cwd, env)
         master: int | None = None
     else:
-        proc, master = _start_pty(argv, cwd, env)
+        try:
+            proc, master = _start_pty(argv, cwd, env)
+        except OSError:
+            proc = _start_pipes(argv, cwd, env)
+            master = None
     job = _Job(secrets.token_hex(16), proc, master, folder, via, limit)
     target = _read_pipe if master is None else _read_master
     threading.Thread(target=target, args=(job,), daemon=True).start()
@@ -782,6 +779,25 @@ def _start_pty(
         raise
     os.close(slave)
     return proc, master
+
+
+def _start_pipes(
+    argv: list[str], cwd: Path, env: dict[str, str]
+) -> subprocess.Popen[bytes]:
+    """Sin terminal: el contenedor del servidor a veces no tiene /dev/pts."""
+    return subprocess.Popen(
+        argv,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        cwd=cwd,
+        env=env,
+    )
+
+
+def _could_not_run(exc: OSError) -> str:
+    detail = exc.strerror or str(exc)
+    return f"No se pudo ejecutar. {detail}" if detail else "No se pudo ejecutar."
 
 
 def _read_master(job: _Job) -> None:
@@ -1096,8 +1112,8 @@ def _spawn(
         return _result(
             "error", via, 124, stdout, stderr, "El programa superó el tiempo de ejecución."
         )
-    except OSError:
-        return _result("error", via, None, "", "", "No se pudo ejecutar.")
+    except OSError as exc:
+        return _result("error", via, None, "", "", _could_not_run(exc))
     state = "ok" if completed.returncode == 0 else "error"
     return _result(state, via, completed.returncode, completed.stdout, completed.stderr, "")
 

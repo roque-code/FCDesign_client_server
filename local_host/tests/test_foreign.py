@@ -17,6 +17,7 @@ from local_host.foreign_run import (
     _decode_output,
     java_file_name,
     load_manifest,
+    open_session,
     platform_key,
     run_source,
     status,
@@ -104,6 +105,16 @@ def test_python_se_detiene_para_leer_un_dato() -> None:
         if session:
             _call(origin, "/local/v1/foreign/close", {"session": session})
         server.shutdown()
+
+
+def test_sin_terminal_python_igual_escribe(monkeypatch) -> None:
+    def boom(*_args: object, **_kwargs: object) -> None:
+        raise OSError("sin terminal")
+
+    monkeypatch.setattr("local_host.foreign_run._start_pty", boom)
+    opened = open_session("python", 'print("hola")\n', download=False, isolated=True)
+    assert opened["status"] == "ok", opened
+    assert opened["stdout"] == "hola\n"
 
 
 def test_python_del_sistema_escribe_la_salida() -> None:

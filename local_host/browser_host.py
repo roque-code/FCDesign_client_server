@@ -82,6 +82,11 @@ class LanguageHandler(BaseHTTPRequestHandler):
         except (json.JSONDecodeError, UnicodeError):
             self._error(400, "invalid", "El cuerpo no es JSON.")
             return
+        except OSError as exc:
+            detail = exc.strerror or str(exc)
+            message = f"No se pudo ejecutar. {detail}" if detail else "No se pudo ejecutar."
+            self._error(500, "invalid", message)
+            return
         self._error(404, "not_found", "No existe esa orden local.")
 
     def _authorized(self) -> bool:
