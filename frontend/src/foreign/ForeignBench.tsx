@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 
-import { ApiError, type Account } from "../api"
+import { ApiError, api, type Account, type LabPath } from "../api"
 import { translatedMessage, useT } from "../i18n"
 import {
   installedLocal,
@@ -11,19 +11,21 @@ import {
   localForeignStatus,
   type ForeignRun,
 } from "../runtime"
+import { saveDownload } from "../saveFile"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
+import { runLanguageCases } from "./cases"
 import { ForeignEditor } from "./ForeignEditor"
-import { FOREIGN_LANGUAGES, type ForeignLanguage } from "./keywords"
+import { FOREIGN_LANGUAGES, LANGUAGE_LABELS, type ForeignLanguage } from "./keywords"
 
-const LABELS: Record<ForeignLanguage, string> = {
-  python: "Python",
-  javascript: "JavaScript",
-  typescript: "TypeScript",
-  java: "Java",
-  c: "C",
-  cpp: "C++",
-  csharp: "C#",
+const EXTENSIONS: Record<ForeignLanguage, string> = {
+  python: "py",
+  javascript: "js",
+  typescript: "ts",
+  java: "java",
+  c: "c",
+  cpp: "cpp",
+  csharp: "cs",
 }
 
 const STARTERS: Record<ForeignLanguage, string> = {
@@ -61,7 +63,13 @@ export function ForeignBench({
   const [failure, setFailure] = useState("")
   const [result, setResult] = useState<ForeignRun | null>(null)
   const [ready, setReady] = useState<Record<string, string>>({})
+  const [paths, setPaths] = useState<LabPath[] | null>(null)
+  const [routeId, setRouteId] = useState("")
+  const [challengeId, setChallengeId] = useState("")
+  const [attachOpen, setAttachOpen] = useState(false)
+  const [attachNote, setAttachNote] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
   const outputRef = useRef<HTMLPreElement>(null)
   const sessionRef = useRef("")
   const busyRef = useRef(false)
@@ -169,6 +177,53 @@ export function ForeignBench({
     }
   }
 
+  async function saveFile() {
+    await saveDownload(`programa.${EXTENSIONS[language]}`, source)
+  }
+
+  function openPicked(file: File | undefined) {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === "string") edit(reader.result)
+    }
+    reader.readAsText(file)
+  }
+
+  async function showAttach() {
+    setAttachOpen(true)
+    setAttachNote("")
+    if (paths) return
+    try {
+      const payload = await api.labPaths()
+      setPaths(payload.results)
+    } catch (caught) {
+      setFailure(caught instanceof ApiError ? translatedMessage(caught.message) : t("foreignFailed"))
+    }
+  }
+
+  async function passCode() {
+    if (!routeId || !challengeId) {
+      setFailure(t("languageChoose"))
+      return
+    }
+    setBusy(true)
+    setFailure("")
+    setAttachNote("")
+    try {
+      const session = await api.startAttempt(challengeId, routeId)
+      const spec = session.challenge.task.cases ?? []
+      const outputs = await runLanguageCases(language, source, spec)
+      const graded = await api.submitLanguage(session.attempt.id, { language, source, outputs })
+      const percent = graded.percent ?? 0
+      setAttachNote(graded.passed ? t("languagePassedOn", { percent }) : t("languageHeld", { percent }))
+    } catch (caught) {
+      setFailure(caught instanceof ApiError ? translatedMessage(caught.message) : t("foreignFailed"))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function run() {
     dropSession()
     setBusy(true)
@@ -208,6 +263,10 @@ export function ForeignBench({
     }
   }
 
+  const route = paths?.find((item) => item.id === routeId) ?? null
+  const builds = (route?.challenges ?? []).filter(
+    (item) => item.activity_type === "build" && item.state === "available",
+  )
   const via = ready[language]
   const runtimeNote =
     via === "system" ? t("foreignReadySystem") : via === "cached" ? t("foreignReadyCached") : via === "missing" ? t("foreignReadyMissing") : ""
@@ -235,7 +294,7 @@ export function ForeignBench({
               aria-selected={item === language}
               onClick={() => choose(item)}
             >
-              {LABELS[item]}
+              {LANGUAGE_LABELS[item]}
             </button>
           ))}
         </div>
@@ -246,11 +305,74 @@ export function ForeignBench({
           <button type="button" onClick={() => void copy()}>
             {copied ? t("copied") : t("copy")}
           </button>
+          <button type="button" onClick={() => void saveFile()}>
+            {t("languageSave")}
+          </button>
+          <button type="button" onClick={() => fileRef.current?.click()}>
+            {t("languageOpen")}
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".py,.js,.ts,.java,.c,.cpp,.cs,.h,.txt"
+            hidden
+            onChange={(event) => {
+              openPicked(event.target.files?.[0])
+              event.target.value = ""
+            }}
+          />
+          <button type="button" onClick={() => void showAttach()} disabled={!local}>
+            {t("languageAttach")}
+          </button>
           <button className="primary" type="button" onClick={() => void run()} disabled={!local || busy}>
             {busy && !waiting ? t("foreignRunning") : t("run")}
           </button>
           {runtimeNote && <p>{runtimeNote}</p>}
         </div>
+        {attachOpen && (
+          <form
+            className="foreign-attach"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void passCode()
+            }}
+          >
+            <label>
+              {t("languageRoute")}
+              <select
+                value={routeId}
+                onChange={(event) => {
+                  setRouteId(event.target.value)
+                  setChallengeId("")
+                  setAttachNote("")
+                }}
+              >
+                <option value="">{t("choose")}</option>
+                {(paths ?? []).map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {t("languageChallenge")}
+              <select value={challengeId} onChange={(event) => setChallengeId(event.target.value)}>
+                <option value="">{t("choose")}</option>
+                {builds.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button className="primary" type="submit" disabled={!local || busy || !challengeId}>
+              {t("languageAttach")}
+            </button>
+            {routeId && builds.length === 0 ? <p>{t("languageNoBuild")}</p> : null}
+            {attachNote ? <p>{attachNote}</p> : null}
+          </form>
+        )}
         {waiting && (
           <form className="foreign-actions" onSubmit={(event) => void send(event)}>
             <label>

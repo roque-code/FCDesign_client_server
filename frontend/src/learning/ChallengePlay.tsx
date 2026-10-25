@@ -5,6 +5,8 @@ import { editorKeywords, spellText, starterSource } from "../dialect"
 import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
 import { Composer } from "../compose/Composer"
 import { CodeEditor } from "../editor/CodeEditor"
+import { runLanguageCases } from "../foreign/cases"
+import { FOREIGN_LANGUAGES, LANGUAGE_LABELS, type ForeignLanguage } from "../foreign/keywords"
 import { inInstalledApp, localImport } from "../runtime"
 import { BlockWorkspace } from "./BlockWorkspace"
 import { SolutionCard } from "./SolutionCard"
@@ -28,6 +30,7 @@ const STAGE: Record<StageName, MessageKey> = {
   razonar: "reason",
   construir: "build",
   comprobar: "check",
+  lenguaje: "languageStage",
   explicar: "explain",
 }
 
@@ -89,6 +92,10 @@ export function ChallengePlay({
   const [mode, setMode] = useState<string | null>(null)
   const [code, setCode] = useState(() => starterSource(locale))
   const [diagramSource, setDiagramSource] = useState("")
+  const [langId, setLangId] = useState<ForeignLanguage>("python")
+  const [langSource, setLangSource] = useState("")
+  const [langCases, setLangCases] = useState<LabCase[] | null>(null)
+  const [grade, setGrade] = useState<number | null>(null)
   const [keywords, setKeywords] = useState<string[]>([])
   const [stdlib, setStdlib] = useState<string[]>([])
   const expiredOnce = useRef(false)
@@ -103,6 +110,13 @@ export function ChallengePlay({
         if (cancelled) return
         setSession(result)
         if (result.attempt.cases?.length) setCases(result.attempt.cases)
+        const saved = result.attempt.language
+        if (saved && (FOREIGN_LANGUAGES as readonly string[]).includes(saved.language)) {
+          setLangId(saved.language as ForeignLanguage)
+          setLangSource(saved.source)
+          setGrade(saved.percent)
+          if (saved.cases?.length) setLangCases(saved.cases)
+        }
         const items = result.challenge.task.items ?? []
         if (result.challenge.activity_type === "order") setOrder(items.map((item) => item.id))
       },
@@ -169,6 +183,10 @@ export function ChallengePlay({
     if (settled.cases) setCases(settled.cases)
     if (settled.diagnostics) setDiagnostics(settled.diagnostics)
     if (typeof settled.output === "string") setOutput(settled.output)
+    if (typeof settled.percent === "number") {
+      setGrade(settled.percent)
+      if (settled.cases) setLangCases(settled.cases)
+    }
     if (typeof settled.points === "number" && typeof settled.rank === "number") {
       onStanding?.({ points: settled.points, rank: settled.rank })
     }
@@ -255,6 +273,24 @@ export function ChallengePlay({
         return
       }
       apply(await api.checkAttempt(attempt.id, imported.workspace, buildMode))
+    } catch (caught) {
+      setError(messageOf(caught, t("challengeContinueError")))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function proveLanguage() {
+    const spec = challenge.task.cases ?? []
+    setBusy(true)
+    setError("")
+    try {
+      const body: { language: string; source: string; outputs?: string[] } = {
+        language: langId,
+        source: langSource,
+      }
+      if (inInstalledApp()) body.outputs = await runLanguageCases(langId, langSource, spec)
+      apply(await api.submitLanguage(attempt.id, body))
     } catch (caught) {
       setError(messageOf(caught, t("challengeContinueError")))
     } finally {
@@ -522,6 +558,7 @@ export function ChallengePlay({
                     <li>{t("proveAll")}</li>
                     <li>{t("outputExact")}</li>
                     <li>{t("explainGate")}</li>
+                    <li>{t("languageAfterCheck")}</li>
                     <li>{t("stayCheck")}</li>
                   </ul>
                   {specCases.length > 0 ? (
@@ -550,6 +587,72 @@ export function ChallengePlay({
                   {t("run")}
                 </button>
               </>
+            ) : null}
+            {!finished && !timedOut && current === "lenguaje" ? (
+              <form
+                className="stage-form"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void proveLanguage()
+                }}
+              >
+                <h2>{t("languageStage")}</h2>
+                <p>{inInstalledApp() ? t("languageNoteApp") : t("languageNote")}</p>
+                <label>
+                  {t("foreignTitle")}
+                  <select value={langId} onChange={(event) => setLangId(event.target.value as ForeignLanguage)}>
+                    {FOREIGN_LANGUAGES.map((item) => (
+                      <option key={item} value={item}>
+                        {LANGUAGE_LABELS[item]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  {t("languagePaste")}
+                  <textarea
+                    className="language-source"
+                    value={langSource}
+                    spellCheck={false}
+                    rows={12}
+                    onChange={(event) => setLangSource(event.target.value)}
+                  />
+                </label>
+                <button type="submit" className="primary" disabled={busy || langSource.trim() === ""}>
+                  {t("prove")}
+                </button>
+                {grade != null ? (
+                  <p className={grade === 100 ? "note" : "error"}>{t("languageGrade", { percent: grade })}</p>
+                ) : null}
+                {langCases && langCases.length > 0 ? (
+                  <ul className="case-list">
+                    {langCases.map((item) => (
+                      <li key={item.name}>
+                        {item.passed ? t("passed") : t("mismatch")} · {item.name}
+                        <pre className="lab-output">{item.output}</pre>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {specCases.length > 0 ? (
+                  <>
+                  <h3>{t("casesWord")}</h3>
+                  <ul className="case-list">
+                    {specCases.map((item) => (
+                      <li key={item.name}>
+                        <strong>{item.name}</strong>
+                        <span>
+                          {item.inputs.length > 0
+                            ? t("caseInputs", { values: item.inputs.join(", ") })
+                            : t("noInputs")}
+                        </span>
+                        <pre className="lab-output">{item.expected_output}</pre>
+                      </li>
+                    ))}
+                  </ul>
+                  </>
+                ) : null}
+              </form>
             ) : null}
             {!finished && !timedOut && current === "explicar" ? (
               <form

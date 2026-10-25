@@ -53,7 +53,9 @@ def test_el_docente_ve_solo_a_quien_ya_puede_ver():
     assert other.get(f"/api/v1/learning/roster/{student_id}/").status_code == 404
     assert teacher.get(f"/api/v1/learning/roster/{outside_id}/").status_code == 404
 
-    challenge = Challenge.objects.filter(is_published=True).order_by("unit__position", "position").first()
+    challenge = (
+        Challenge.objects.filter(is_published=True).order_by("unit__position", "position").first()
+    )
     assert challenge is not None
     user = get_user_model().objects.get(pk=student_id)
     ChallengeAttempt.objects.create(
@@ -119,7 +121,9 @@ def test_el_docente_ve_solo_a_quien_ya_puede_ver():
     assert private.status_code == 201, private.content
 
     other_student = APIClient()
-    other_created = register(other_student, email="otro-grupo@ejemplo.test", display_name="Otro Alumno")
+    other_created = register(
+        other_student, email="otro-grupo@ejemplo.test", display_name="Otro Alumno"
+    )
     other_id = other_created.json()["id"]
     other_community = teacher.post("/api/v1/communities/", {"name": "Grupo B"}, format="json")
     assert other_community.status_code == 201, other_community.content
@@ -136,7 +140,9 @@ def test_el_docente_ve_solo_a_quien_ya_puede_ver():
     assert [item["id"] for item in by_name["Repaso grupo"]["students"]] == [student_id]
     assert by_name["Repaso grupo"]["students"][0]["completed"] == 1
     assert by_name["Repaso grupo"]["students"][0]["total"] == 1
-    assert sorted(item["id"] for item in by_name["Fundamentos"]["students"]) == sorted([student_id, other_id])
+    assert sorted(item["id"] for item in by_name["Fundamentos"]["students"]) == sorted(
+        [student_id, other_id]
+    )
 
     again = teacher.get(f"/api/v1/learning/roster/{student_id}/").json()
     names = [item["name"] for item in again["paths"]]
@@ -189,11 +195,29 @@ def test_el_docente_lee_la_respuesta_y_el_codigo():
         schema_version=1,
         pseudocode="Algoritmo Laboratorio\nEscribir 1;\nFinAlgoritmo\n",
     )
+    WorkspaceSnapshot.objects.create(
+        attempt=attempt,
+        schema_version=2,
+        blockly_json={
+            "stage": "lenguaje",
+            "mark": 2,
+            "answer": {
+                "language": "python",
+                "source": "print('hola')\n",
+                "outputs": ["hola\n"],
+                "passed": True,
+                "percent": 100,
+            },
+        },
+    )
     Reflection.objects.create(attempt=attempt, body="Expliqué el resultado del reto.")
 
     hidden = student.get(f"/api/v1/learning/roster/{student_id}/challenges/{challenge.id}/")
     assert hidden.status_code == 403
-    assert outsider.get(f"/api/v1/learning/roster/{student_id}/challenges/{challenge.id}/").status_code == 404
+    assert (
+        outsider.get(f"/api/v1/learning/roster/{student_id}/challenges/{challenge.id}/").status_code
+        == 404
+    )
 
     work = teacher.get(f"/api/v1/learning/roster/{student_id}/challenges/{challenge.id}/")
     assert work.status_code == 200, work.content
@@ -205,6 +229,9 @@ def test_el_docente_lee_la_respuesta_y_el_codigo():
     assert body["attempt"]["source"].startswith("Algoritmo Laboratorio")
     assert body["attempt"]["solution"]["tool"] == "codigo"
     assert body["attempt"]["solution"]["source"].startswith("Algoritmo Laboratorio")
+    assert body["attempt"]["solution"]["language"]["source"] == "print('hola')\n"
+    assert body["attempt"]["solution"]["language"]["percent"] == 100
+    assert body["attempt"]["language"]["language"] == "python"
     assert "blocks" not in body["attempt"]["solution"]
     assert body["attempt"]["reflection"] == "Expliqué el resultado del reto."
     leaked = work.content.decode()

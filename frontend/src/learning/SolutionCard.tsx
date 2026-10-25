@@ -3,6 +3,7 @@ import { useMemo } from "react"
 import { type LabSolution } from "../api"
 import { Composer } from "../compose/Composer"
 import { spellText } from "../dialect"
+import { LANGUAGE_LABELS, type ForeignLanguage } from "../foreign/keywords"
 import { useLocale, useT, type MessageKey } from "../i18n"
 import { BlockWorkspace } from "./BlockWorkspace"
 
@@ -57,6 +58,13 @@ export function SolutionCard({
         </div>
       ) : null}
       {showCode ? <pre className="lab-code">{spellText(locale, solution.source)}</pre> : null}
+      {solution.language ? (
+        <>
+          <h2>{LANGUAGE_LABELS[solution.language.language as ForeignLanguage] ?? solution.language.language}</h2>
+          <p>{t("languageGrade", { percent: solution.language.percent })}</p>
+          <pre className="lab-code">{solution.language.source}</pre>
+        </>
+      ) : null}
     </article>
   )
 }

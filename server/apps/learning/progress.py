@@ -266,6 +266,58 @@ def check_attempt(user, attempt_id, data: dict[str, Any]) -> dict[str, object]:
     return _bundle(attempt, passed=passed, cases=cases, diagnostics=diagnostics)
 
 
+_LANGUAGES = frozenset({"python", "javascript", "typescript", "java", "c", "cpp", "csharp"})
+
+
+def submit_language(user, attempt_id, data: dict[str, Any]) -> dict[str, object]:
+    """Comprueba el código de un lenguaje con los casos del reto de construir."""
+    attempt = _open_attempt(user, attempt_id)
+    if attempt.challenge.activity_type != Challenge.BUILD:
+        raise DomainError("Este reto no se comprueba con un lenguaje.")
+    language = data.get("language")
+    source = data.get("source")
+    if not isinstance(language, str) or language not in _LANGUAGES:
+        raise DomainError("Ese lenguaje no está en la lista.")
+    if not isinstance(source, str) or source.strip() == "":
+        raise DomainError("Falta el código del lenguaje.")
+    if len(source) > 256 * 1024:
+        raise DomainError("El código es demasiado grande.")
+    cases = list(attempt.challenge.test_cases.order_by("position"))
+    supplied = data.get("outputs", None)
+    if supplied is None:
+        outputs = _execute_language(language, source, cases)
+    elif (
+        not isinstance(supplied, list)
+        or len(supplied) != len(cases)
+        or any(not isinstance(item, str) for item in supplied)
+    ):
+        raise DomainError("El cuerpo no es válido.")
+    else:
+        outputs = [str(item) for item in supplied]
+    rows: list[dict[str, object]] = []
+    matched = 0
+    for index, case in enumerate(cases):
+        output = outputs[index]
+        ok = _accepts_language_output(output, case.expected_output, case.inputs)
+        if ok:
+            matched += 1
+        rows.append({"name": case.name, "kind": case.kind, "passed": ok, "output": output})
+    passed = len(cases) > 0 and matched == len(cases)
+    percent = 0 if not cases else (100 * matched) // len(cases)
+    _remember(
+        attempt,
+        "lenguaje",
+        {
+            "language": language,
+            "source": source,
+            "outputs": outputs,
+            "passed": passed,
+            "percent": percent,
+        },
+    )
+    return _bundle(attempt, passed=passed, cases=rows, percent=percent)
+
+
 def run_prediction(user, attempt_id) -> dict[str, object]:
     attempt = _open_attempt(user, attempt_id)
     if attempt.challenge.activity_type != Challenge.PREDICT:
@@ -297,9 +349,17 @@ def close_attempt(user, attempt_id, reflection: object) -> dict[str, object]:
     attempt = _open_attempt(user, attempt_id)
     if _next(attempt) != "explicar":
         raise DomainError("Todavía no está resuelto.", code="conflict", status_code=409)
-    if attempt.challenge.activity_type == Challenge.BUILD and not _build_matches_every_case(attempt):
+    if attempt.challenge.activity_type == Challenge.BUILD and not _build_matches_every_case(
+        attempt
+    ):
         raise DomainError(
             "Todavía no coinciden todos los casos.",
+            code="conflict",
+            status_code=409,
+        )
+    if attempt.challenge.activity_type == Challenge.BUILD and not _language_matches(attempt):
+        raise DomainError(
+            "El código del lenguaje no pasó todos los casos.",
             code="conflict",
             status_code=409,
         )
@@ -380,9 +440,7 @@ def _sequence(path: LearningPath, user=None) -> list[Challenge]:
                 ).values_list("challenge_id", flat=True)
             )
     return [
-        entry.challenge
-        for entry in entries
-        if not entry.withdrawn or entry.challenge_id in solved
+        entry.challenge for entry in entries if not entry.withdrawn or entry.challenge_id in solved
     ]
 
 
@@ -670,6 +728,9 @@ def _state(attempt: ChallengeAttempt) -> dict[str, object]:
     checked = _checked_cases(attempt)
     if checked:
         state["cases"] = checked
+    language = _language_public(attempt)
+    if language is not None:
+        state["language"] = language
     return state
 
 
@@ -707,7 +768,9 @@ def _chosen_tool(data: dict[str, Any]) -> str | None:
     return None
 
 
-def _solution(attempt: ChallengeAttempt, *, only_completed: bool = True) -> dict[str, object] | None:
+def _solution(
+    attempt: ChallengeAttempt, *, only_completed: bool = True
+) -> dict[str, object] | None:
     """La forma en que el alumno construyó la respuesta, para mostrarla junto a la nota."""
     if only_completed and attempt.status != ChallengeAttempt.COMPLETED:
         return None
@@ -732,6 +795,9 @@ def _solution(attempt: ChallengeAttempt, *, only_completed: bool = True) -> dict
     payload: dict[str, object] = {"tool": tool, "source": snap.pseudocode}
     if tool == "bloques":
         payload["blocks"] = snap.blockly_json
+    language = _language_public(attempt)
+    if language is not None:
+        payload["language"] = language
     return payload
 
 
@@ -796,6 +862,8 @@ def _next(attempt: ChallengeAttempt) -> str:
         answer = check.get("answer")
         if not isinstance(answer, dict) or answer.get("passed") is not True:
             return "comprobar"
+        if not _language_matches(attempt):
+            return "lenguaje"
     elif activity == Challenge.PREDICT:
         check = _latest(attempt, "comprobar")
         if check is None:
@@ -915,14 +983,132 @@ def _grade_cases(program, source: str, challenge: Challenge) -> list[dict[str, o
     for case in challenge.test_cases.order_by("position"):
         result = _execute(program, source, list(case.inputs))
         ok = result.status == "completed" and result.output == case.expected_output
-        rows.append(
-            {"name": case.name, "kind": case.kind, "passed": ok, "output": result.output}
-        )
+        rows.append({"name": case.name, "kind": case.kind, "passed": ok, "output": result.output})
     return rows
 
 
 def _every_case_passed(cases: list[dict[str, object]]) -> bool:
     return len(cases) > 0 and all(item.get("passed") is True for item in cases)
+
+
+def _accepts_language_output(output: str, expected: str, inputs: object) -> bool:
+    """El intérprete repite cada Leer. Un lenguaje real no tiene que repetirlo."""
+    if output == expected:
+        return True
+    if not isinstance(inputs, list) or not inputs:
+        return False
+    pending = [f"{item}\n" for item in inputs if isinstance(item, str)]
+    kept: list[str] = []
+    for line in expected.splitlines(keepends=True):
+        if pending and line == pending[0]:
+            pending.pop(0)
+            continue
+        kept.append(line)
+    return output == "".join(kept)
+
+
+def _language_matches(attempt: ChallengeAttempt) -> bool:
+    cases = list(attempt.challenge.test_cases.order_by("position"))
+    if not cases:
+        return True
+    saved = _latest(attempt, "lenguaje")
+    if not isinstance(saved, dict):
+        return False
+    answer = saved.get("answer")
+    if not isinstance(answer, dict):
+        return False
+    outputs = answer.get("outputs")
+    if not isinstance(outputs, list) or len(outputs) != len(cases):
+        return False
+    return all(
+        isinstance(outputs[index], str)
+        and _accepts_language_output(outputs[index], case.expected_output, case.inputs)
+        for index, case in enumerate(cases)
+    )
+
+
+def _language_public(attempt: ChallengeAttempt) -> dict[str, object] | None:
+    saved = _latest(attempt, "lenguaje")
+    if not isinstance(saved, dict):
+        return None
+    answer = saved.get("answer")
+    if not isinstance(answer, dict):
+        return None
+    language = answer.get("language")
+    source = answer.get("source")
+    percent = answer.get("percent")
+    if not isinstance(language, str) or not isinstance(source, str):
+        return None
+    if not isinstance(percent, int):
+        percent = 0
+    outputs = answer.get("outputs")
+    rows: list[dict[str, object]] = []
+    if isinstance(outputs, list):
+        for index, case in enumerate(attempt.challenge.test_cases.order_by("position")):
+            output = (
+                outputs[index] if index < len(outputs) and isinstance(outputs[index], str) else ""
+            )
+            rows.append(
+                {
+                    "name": case.name,
+                    "kind": case.kind,
+                    "passed": _accepts_language_output(output, case.expected_output, case.inputs),
+                    "output": output,
+                }
+            )
+    if rows:
+        matched = sum(1 for row in rows if row["passed"] is True)
+        percent = (100 * matched) // len(rows)
+        passed = matched == len(rows)
+    else:
+        passed = answer.get("passed") is True
+    return {
+        "language": language,
+        "source": source,
+        "percent": percent,
+        "passed": passed,
+        "cases": rows,
+    }
+
+
+def _execute_language(language: str, source: str, cases) -> list[str]:
+    try:
+        run_source = _language_runner()
+    except ImportError:
+        return ["Falta el runtime en esta máquina."] * len(cases)
+    outputs: list[str] = []
+    for case in cases:
+        raw = case.inputs if isinstance(case.inputs, list) else []
+        lines = [item for item in raw if isinstance(item, str)]
+        stdin = "\n".join(lines) + ("\n" if lines else "")
+        try:
+            result = run_source(language, source, stdin, download=False, isolated=True)
+        except Exception as exc:
+            message = getattr(exc, "message", None)
+            outputs.append(
+                message if isinstance(message, str) and message else "No se pudo ejecutar."
+            )
+            continue
+        stdout = result.get("stdout") if isinstance(result.get("stdout"), str) else ""
+        stderr = result.get("stderr") if isinstance(result.get("stderr"), str) else ""
+        message = result.get("message") if isinstance(result.get("message"), str) else ""
+        if result.get("status") == "ok":
+            outputs.append(stdout)
+        else:
+            outputs.append(stderr or stdout or message or "No se pudo ejecutar.")
+    return outputs
+
+
+def _language_runner():
+    import sys
+    from pathlib import Path
+
+    root = str(Path(__file__).resolve().parents[3])
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    from local_host.foreign_run import run_source
+
+    return run_source
 
 
 def _build_matches_every_case(attempt: ChallengeAttempt) -> bool:

@@ -1,6 +1,6 @@
 import type { LabBinding } from "../api"
 
-export type StageName = "comprender" | "razonar" | "construir" | "comprobar" | "explicar"
+export type StageName = "comprender" | "razonar" | "construir" | "comprobar" | "lenguaje" | "explicar"
 
 export function blockOnLine(bindings: LabBinding[], line: number | null): string | null {
   if (line == null) return null
@@ -13,7 +13,7 @@ export function blockOnLine(bindings: LabBinding[], line: number | null): string
 export function stagesFor(activity: string): StageName[] {
   if (activity === "classify" || activity === "order") return ["comprender", "razonar", "explicar"]
   if (activity === "predict") return ["comprender", "razonar", "comprobar", "explicar"]
-  return ["comprender", "razonar", "construir", "comprobar", "explicar"]
+  return ["comprender", "razonar", "construir", "comprobar", "lenguaje", "explicar"]
 }
 
 export function formatClock(seconds: number): string {

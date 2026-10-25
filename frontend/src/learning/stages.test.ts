@@ -24,6 +24,17 @@ describe("etapas del reto", () => {
   it("la predicción ejecuta después de razonar", () => {
     expect(stagesFor("predict")).toEqual(["comprender", "razonar", "comprobar", "explicar"])
   })
+
+  it("construir pide el lenguaje entre comprobar y explicar", () => {
+    expect(stagesFor("build")).toEqual([
+      "comprender",
+      "razonar",
+      "construir",
+      "comprobar",
+      "lenguaje",
+      "explicar",
+    ])
+  })
 })
 
 describe("bloque de la línea", () => {

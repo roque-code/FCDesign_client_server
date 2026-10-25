@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 
 import { ApiError, api, type LabMemberProgress, type LabMemberWork, type LabRosterRoute } from "../api"
 import { spellText } from "../dialect"
+import { LANGUAGE_LABELS, type ForeignLanguage } from "../foreign/keywords"
 import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
 import { saveDownload } from "../saveFile"
 import { SolutionCard } from "./SolutionCard"
@@ -106,6 +107,13 @@ function StudentWork({
         <section className="review-block">
           <h2>{t("codeOfChallenge")}</h2>
           <pre className="lab-code">{spellText(locale, readSource)}</pre>
+        </section>
+      ) : null}
+      {attempt?.language && !attempt.solution?.language ? (
+        <section className="review-block">
+          <h2>{LANGUAGE_LABELS[attempt.language.language as ForeignLanguage] ?? attempt.language.language}</h2>
+          <p>{t("languageGrade", { percent: attempt.language.percent })}</p>
+          <pre className="lab-code">{attempt.language.source}</pre>
         </section>
       ) : null}
       {attempt && attempt.source && !attempt.solution ? (

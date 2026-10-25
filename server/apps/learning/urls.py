@@ -17,6 +17,7 @@ from apps.learning.course_views import (
     AttemptCloseView,
     AttemptExpireView,
     AttemptHintView,
+    AttemptLanguageView,
     AttemptRunView,
     AttemptStageView,
     AttemptStartView,
@@ -126,6 +127,11 @@ urlpatterns = [
         "learning/attempts/<uuid:attempt_id>/expire/",
         AttemptExpireView.as_view(),
         name="learning-attempt-expire",
+    ),
+    path(
+        "learning/attempts/<uuid:attempt_id>/language/",
+        AttemptLanguageView.as_view(),
+        name="learning-attempt-language",
     ),
     path(
         "learning/attempts/<uuid:attempt_id>/close/",

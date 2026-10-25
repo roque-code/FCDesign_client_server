@@ -318,6 +318,7 @@ export type LabMemberWork = {
     answer: { label: string; value: string }[]
     source: string
     solution?: LabSolution | null
+    language?: LabLanguage | null
     cases: { name: string; passed: boolean; output: string }[]
   } | null
 }
@@ -483,10 +484,19 @@ export type LabChallenge = {
   }
 }
 
+export type LabLanguage = {
+  language: string
+  source: string
+  percent: number
+  passed: boolean
+  cases?: LabCase[]
+}
+
 export type LabSolution = {
   tool: "codigo" | "diagrama" | "bloques"
   source: string
   blocks?: object
+  language?: LabLanguage
 }
 
 export type LabAttempt = {
@@ -501,6 +511,7 @@ export type LabAttempt = {
   prediction: { answer: string; is_correct: boolean } | null
   reflection: string | null
   solution?: LabSolution | null
+  language?: LabLanguage | null
   time_limit_seconds: number | null
   seconds_left: number | null
   elapsed_seconds: number | null
@@ -530,6 +541,7 @@ export type LabSession = {
   diagnostics?: Diagnostic[]
   output?: string
   source?: string
+  percent?: number
   points?: number
   rank?: number
 }
@@ -1072,6 +1084,14 @@ export const api = {
     request<LabSession>(`/api/v1/learning/attempts/${attemptId}/close/`, {
       method: "POST",
       body: JSON.stringify({ reflection }),
+    }),
+  submitLanguage: (
+    attemptId: string,
+    body: { language: string; source: string; outputs?: string[] },
+  ) =>
+    request<LabSession>(`/api/v1/learning/attempts/${attemptId}/language/`, {
+      method: "POST",
+      body: JSON.stringify(body),
     }),
   planCatalog: () => request<{ results: PlanFeature[] }>("/api/v1/billing/catalog/"),
   plans: () => request<{ results: BillingPlan[] }>("/api/v1/billing/plans/"),

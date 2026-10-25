@@ -88,7 +88,31 @@ def _stage(client, attempt_id: str, stage: str, answer: dict) -> dict:
     return response.json()
 
 
+def _accept_language(client, attempt_id: str) -> None:
+    attempt = ChallengeAttempt.objects.select_related("challenge").get(pk=attempt_id)
+    if attempt.challenge.activity_type != "build" or attempt.status != ChallengeAttempt.OPEN:
+        return
+    cases = list(attempt.challenge.test_cases.order_by("position"))
+    if not cases:
+        return
+    from apps.learning.progress import _language_matches
+
+    if _language_matches(attempt):
+        return
+    response = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/language/",
+        {
+            "language": "python",
+            "source": "print('ok')\n",
+            "outputs": [case.expected_output for case in cases],
+        },
+        format="json",
+    )
+    assert response.status_code == 200, response.content
+
+
 def _close(client, attempt_id: str) -> dict:
+    _accept_language(client, attempt_id)
     response = client.post(
         f"/api/v1/learning/attempts/{attempt_id}/close/",
         {"reflection": "Ya entiendo cómo funciona este reto."},
@@ -1060,3 +1084,68 @@ def _finish_until(client, title: str) -> None:
         elif spec["activity_type"] == "order":
             _stage(client, attempt_id, "razonar", {"order": restrictions["solution"]})
         _close(client, attempt_id)
+
+
+def test_el_lenguaje_califica_los_casos_y_frena_el_cierre(client):
+    register(client, email="lenguaje-reto@ejemplo.test", display_name="Lenguaje Reto")
+    _finish_until(client, "Presentar un saludo")
+    started = _start(client, "Presentar un saludo")
+    attempt_id = started["attempt"]["id"]
+    _stage(client, attempt_id, "comprender", {"ack": True})
+    _stage(client, attempt_id, "razonar", {"text": "<-"})
+    checked = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/check/",
+        {"workspace": SALUDO},
+        format="json",
+    )
+    assert checked.status_code == 200, checked.content
+    assert checked.json()["passed"] is True
+    assert checked.json()["attempt"]["next_stage"] == "lenguaje"
+    blocked = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/close/",
+        {"reflection": "Ya entiendo cómo funciona este reto."},
+        format="json",
+    )
+    assert blocked.status_code == 409
+    missed = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/language/",
+        {"language": "python", "source": 'print("no")\n'},
+        format="json",
+    )
+    assert missed.status_code == 200, missed.content
+    assert missed.json()["passed"] is False
+    assert missed.json()["percent"] == 0
+    assert missed.json()["attempt"]["next_stage"] == "lenguaje"
+    still = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/close/",
+        {"reflection": "Ya entiendo cómo funciona este reto."},
+        format="json",
+    )
+    assert still.status_code == 409
+    shaped = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/language/",
+        {"language": "python", "source": "print(1)\n", "outputs": []},
+        format="json",
+    )
+    assert shaped.status_code == 400
+    sent = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/language/",
+        {"language": "csharp", "source": 'Console.WriteLine("hola");\n', "outputs": ["no\n"]},
+        format="json",
+    )
+    assert sent.status_code == 200, sent.content
+    assert sent.json()["percent"] == 0
+    graded = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/language/",
+        {"language": "python", "source": 'print("hola")\n'},
+        format="json",
+    )
+    assert graded.status_code == 200, graded.content
+    assert graded.json()["passed"] is True
+    assert graded.json()["percent"] == 100
+    assert graded.json()["attempt"]["next_stage"] == "explicar"
+    assert graded.json()["attempt"]["language"]["source"] == 'print("hola")\n'
+    closed = _close(client, attempt_id)
+    assert closed["attempt"]["status"] == "completed"
+    assert closed["attempt"]["solution"]["language"]["percent"] == 100
+    assert closed["attempt"]["solution"]["language"]["source"] == 'print("hola")\n'

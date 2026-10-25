@@ -1165,6 +1165,39 @@ button.fold {
   color: white;
 }
 
+.foreign-attach {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.6rem;
+}
+
+.foreign-attach label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: var(--muted);
+}
+
+.foreign-attach select,
+.language-source {
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font: 0.92rem/1.4 ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+
+.language-source {
+  width: 100%;
+  min-height: 12rem;
+  resize: vertical;
+}
+
+.foreign-attach p { margin: 0; color: var(--muted); }
+
 .foreign-output {
   flex: 0 0 9rem;
   margin: 0;

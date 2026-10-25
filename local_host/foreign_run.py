@@ -195,6 +195,8 @@ def run_source(
     manifest: dict[str, Any] | None = None,
     finder: Finder | None = None,
     fetch: Fetch | None = None,
+    download: bool = True,
+    isolated: bool = False,
 ) -> dict[str, object]:
     if language not in LABELS:
         raise HostError("Ese lenguaje no está en la lista.")
@@ -203,7 +205,7 @@ def run_source(
     try:
         prepared = _prepare(
             language,
-            download=True,
+            download=download,
             root=root or runtime_root(),
             manifest=manifest if manifest is not None else load_manifest(),
             finder=finder or shutil.which,
@@ -222,7 +224,7 @@ def run_source(
             "",
             "TypeScript necesita Node 22 o posterior.",
         )
-    return _execute(language, source, stdin, prepared)
+    return _execute(language, source, stdin, prepared, isolated=isolated)
 
 
 def open_session(
@@ -578,10 +580,21 @@ def _ready(
     return prepared, None
 
 
-def _execute(language: str, source: str, stdin: str, prepared: _Prepared) -> dict[str, object]:
+def _execute(
+    language: str,
+    source: str,
+    stdin: str,
+    prepared: _Prepared,
+    *,
+    isolated: bool = False,
+) -> dict[str, object]:
     with tempfile.TemporaryDirectory(prefix="traza-foreign-") as folder_name:
         folder = Path(folder_name)
-        env = _child_env(language, prepared.commands, prepared.via)
+        env = (
+            _isolated_env(language, prepared.commands, prepared.via)
+            if isolated
+            else _child_env(language, prepared.commands, prepared.via)
+        )
         argv, failed, timeout = _program_command(language, source, folder, env, prepared)
         if failed is not None or argv is None:
             return (
@@ -945,10 +958,7 @@ def _sweep_sessions() -> None:
 
 # Códigos de pantalla (color, cursor, teclado). La consola muestra texto plano.
 _TERMINAL_CODE = re.compile(
-    r"\x1b\[[0-?]*[ -/]*[@-~]"
-    r"|\x1b\][^\x07]*(?:\x07|\x1b\\)?"
-    r"|\x1b[@-_]"
-    r"|\x1b[=><]"
+    r"\x1b\[[0-?]*[ -/]*[@-~]" r"|\x1b\][^\x07]*(?:\x07|\x1b\\)?" r"|\x1b[@-_]" r"|\x1b[=><]"
 )
 
 
@@ -1000,6 +1010,37 @@ def _node_strips_types(node: str) -> bool:
     if len(parts) < 2 or not parts[0].isdigit() or not parts[1].isdigit():
         return False
     return (int(parts[0]), int(parts[1])) >= (22, 6)
+
+
+def _isolated_env(language: str, commands: dict[str, str], via: str) -> dict[str, str]:
+    """Entorno mínimo para correr un programa que no es de esta máquina."""
+    path = os.environ.get("PATH", "")
+    if via == "cached":
+        folders: list[str] = []
+        for item in commands.values():
+            folder = str(Path(item).parent)
+            if folder not in folders:
+                folders.append(folder)
+        path = os.pathsep.join([*folders, path])
+    env = {
+        "PATH": path,
+        "LANG": os.environ.get("LANG", "C.UTF-8"),
+        "LC_ALL": os.environ.get("LC_ALL", "C.UTF-8"),
+        "HOME": tempfile.gettempdir(),
+        "TMPDIR": tempfile.gettempdir(),
+        "TEMP": tempfile.gettempdir(),
+        "TMP": tempfile.gettempdir(),
+    }
+    if language == "java" and via == "cached":
+        java = Path(commands["java"])
+        if java.parent.name == "bin":
+            env["JAVA_HOME"] = str(java.parent.parent)
+    if language == "csharp":
+        env["DOTNET_ROOT"] = str(Path(commands["dotnet"]).parent)
+        env["DOTNET_MULTILEVEL_LOOKUP"] = "0"
+        env["DOTNET_CLI_HOME"] = tempfile.gettempdir()
+        env["DOTNET_NOLOGO"] = "1"
+    return env
 
 
 def _child_env(language: str, commands: dict[str, str], via: str) -> dict[str, str]:

@@ -411,6 +411,16 @@ export const FOREIGN_LANGUAGES = [
 
 export type ForeignLanguage = (typeof FOREIGN_LANGUAGES)[number]
 
+export const LANGUAGE_LABELS: Record<ForeignLanguage, string> = {
+  python: "Python",
+  javascript: "JavaScript",
+  typescript: "TypeScript",
+  java: "Java",
+  c: "C",
+  cpp: "C++",
+  csharp: "C#",
+}
+
 const TABLES = {
   python: PYTHON_KEYWORDS,
   javascript: JAVASCRIPT_KEYWORDS,

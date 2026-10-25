@@ -9,7 +9,7 @@ from apps.learning.contest_data import (
     build_contest,
 )
 from apps.learning.csv_import import template_csv
-from apps.learning.models import Challenge, PathEntry, WorkspaceSnapshot
+from apps.learning.models import Challenge, ChallengeAttempt, PathEntry, WorkspaceSnapshot
 from apps.tests.helpers import register
 from language_core.block_import import workspace_from_source
 
@@ -181,7 +181,10 @@ def test_un_docente_descarga_los_retos_de_un_tipo_y_otro_los_carga():
     register(author, email="csv-exporta@ejemplo.test", display_name="Profe Exporta", role="teacher")
     student = APIClient()
     register(student, email="csv-exporta-alumno@ejemplo.test")
-    assert student.get("/api/v1/learning/challenges/csv/?tipo=clasificar&contenido=retos").status_code == 403
+    assert (
+        student.get("/api/v1/learning/challenges/csv/?tipo=clasificar&contenido=retos").status_code
+        == 403
+    )
 
     for kind in ("clasificar", "ordenar", "construir", "predecir"):
         created = author.post(
@@ -192,7 +195,9 @@ def test_un_docente_descarga_los_retos_de_un_tipo_y_otro_los_carga():
         assert created.status_code == 201, created.content
 
     colleague = APIClient()
-    register(colleague, email="csv-recibe@ejemplo.test", display_name="Profe Recibe", role="teacher")
+    register(
+        colleague, email="csv-recibe@ejemplo.test", display_name="Profe Recibe", role="teacher"
+    )
     expected = {
         "clasificar": "Señales del dato",
         "ordenar": "Pasos del saludo",
@@ -221,7 +226,9 @@ def test_un_docente_descarga_los_retos_de_un_tipo_y_otro_los_carga():
             writer.writerow(own)
             csv_text = buffer.getvalue()
             expected_count = 1
-        loaded = colleague.post("/api/v1/learning/challenges/csv/", {"csv": csv_text}, format="json")
+        loaded = colleague.post(
+            "/api/v1/learning/challenges/csv/", {"csv": csv_text}, format="json"
+        )
         assert loaded.status_code == 201, loaded.content
         assert loaded.json()["created"] == expected_count
         bodies[kind] = body
@@ -248,11 +255,17 @@ def test_un_docente_descarga_los_retos_de_un_tipo_y_otro_los_carga():
     assert predicted_copy["accepted"] == predicted["accepted"]
     ordered = _owned(origin, "Pasos del saludo")
     ordered_copy = _owned(copy, "Pasos del saludo")
-    assert [item["text"] for item in ordered_copy["items"]] == [item["text"] for item in ordered["items"]]
+    assert [item["text"] for item in ordered_copy["items"]] == [
+        item["text"] for item in ordered["items"]
+    ]
 
-    contest = author.get("/api/v1/learning/challenges/csv/?tipo=clasificar&contenido=retos&banco=concurso")
+    contest = author.get(
+        "/api/v1/learning/challenges/csv/?tipo=clasificar&contenido=retos&banco=concurso"
+    )
     assert contest.status_code == 400
-    programs = author.get("/api/v1/learning/challenges/csv/?tipo=construir&contenido=retos&banco=concurso")
+    programs = author.get(
+        "/api/v1/learning/challenges/csv/?tipo=construir&contenido=retos&banco=concurso"
+    )
     assert programs.status_code == 200, programs.content
     assert programs.json()["count"] == 50
     assert programs.json()["filename"] == "retos-construir-concurso.csv"
@@ -312,13 +325,36 @@ def test_el_primer_caso_no_alcanza_si_faltan_los_demas(client):
         format="json",
     )
     assert closed.status_code == 409
-    snap = WorkspaceSnapshot.objects.filter(attempt_id=attempt_id, schema_version=2).order_by("-created_at").first()
+    snap = (
+        WorkspaceSnapshot.objects.filter(attempt_id=attempt_id, schema_version=2)
+        .order_by("-created_at")
+        .first()
+    )
     stored = dict(snap.blockly_json)
     answer = dict(stored["answer"])
     answer["passed"] = True
     stored["answer"] = answer
     snap.blockly_json = stored
     snap.save(update_fields=["blockly_json"])
+    attempt = ChallengeAttempt.objects.get(pk=attempt_id)
+    WorkspaceSnapshot.objects.create(
+        attempt=attempt,
+        schema_version=2,
+        blockly_json={
+            "stage": "lenguaje",
+            "mark": 1,
+            "answer": {
+                "language": "python",
+                "source": "print(1)\n",
+                "outputs": [
+                    case.expected_output
+                    for case in attempt.challenge.test_cases.order_by("position")
+                ],
+                "passed": True,
+                "percent": 100,
+            },
+        },
+    )
     forced = client.post(
         f"/api/v1/learning/attempts/{attempt_id}/close/",
         {"reflection": "Ya entiendo cómo funciona este reto."},
@@ -371,7 +407,26 @@ def test_al_terminar_queda_la_forma_en_que_respondio(client):
     )
     assert checked.status_code == 200, checked.content
     assert checked.json()["passed"] is True
-    assert checked.json()["attempt"]["next_stage"] == "explicar"
+    assert checked.json()["attempt"]["next_stage"] == "lenguaje"
+    program = "n1 = int(input())\nn2 = int(input())\nprint(n1 + n2)\n"
+    missed = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/language/",
+        {"language": "python", "source": program, "outputs": ["8\n", "30\n", "1\n"]},
+        format="json",
+    )
+    assert missed.status_code == 200, missed.content
+    assert missed.json()["passed"] is False
+    assert missed.json()["percent"] == 66
+    sent = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/language/",
+        {"language": "python", "source": program},
+        format="json",
+    )
+    assert sent.status_code == 200, sent.content
+    assert sent.json()["passed"] is True
+    assert sent.json()["percent"] == 100
+    assert [item["output"] for item in sent.json()["cases"]] == ["8\n", "30\n", "0\n"]
+    assert sent.json()["attempt"]["next_stage"] == "explicar"
     graded = checked.json()["attempt"]["cases"]
     assert [item["passed"] for item in graded] == [True, True, True]
     assert graded[0]["output"].endswith("8\n")
@@ -385,3 +440,5 @@ def test_al_terminar_queda_la_forma_en_que_respondio(client):
     assert solution["tool"] == "diagrama"
     assert "a + b" in solution["source"]
     assert "blocks" not in solution
+    assert "print(n1 + n2)" in solution["language"]["source"]
+    assert solution["language"]["percent"] == 100

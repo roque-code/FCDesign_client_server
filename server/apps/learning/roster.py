@@ -9,7 +9,14 @@ from apps.accounts.models import Profile
 from apps.accounts.services import standing_of
 from apps.classroom.models import Membership
 from apps.learning.models import Challenge, ChallengeAttempt, ConceptMastery, PathEntry, Reflection
-from apps.learning.progress import _public_challenge, _sequence, _solution, path_payload, visible_paths
+from apps.learning.progress import (
+    _language_public,
+    _public_challenge,
+    _sequence,
+    _solution,
+    path_payload,
+    visible_paths,
+)
 from config.errors import DomainError
 
 NOT_FOUND = "not_found"
@@ -64,7 +71,9 @@ def _progress_rows(user_ids: list[int]) -> dict[int, dict[str, object]]:
     }
 
 
-def _person(user, communities: list[str], progress: dict[str, object], total: int) -> dict[str, object]:
+def _person(
+    user, communities: list[str], progress: dict[str, object], total: int
+) -> dict[str, object]:
     standing = standing_of(user)
     return {
         "id": user.pk,
@@ -77,18 +86,16 @@ def _person(user, communities: list[str], progress: dict[str, object], total: in
         "total": total,
         "last_activity": progress.get("last_activity"),
         "communities": communities,
-        "routes": [
-            {"id": str(path.id), "name": path.name} for path in visible_paths(user)
-        ],
+        "routes": [{"id": str(path.id), "name": path.name} for path in visible_paths(user)],
     }
 
 
 def _route_activity(path, user_ids: list[int]) -> dict[int, dict[str, object]]:
     offered = {item.id for item in _sequence(path)}
     withdrawn = set(
-        PathEntry.objects.filter(path=path, withdrawn=True, challenge__is_published=True).values_list(
-            "challenge_id", flat=True
-        )
+        PathEntry.objects.filter(
+            path=path, withdrawn=True, challenge__is_published=True
+        ).values_list("challenge_id", flat=True)
     )
     if not user_ids:
         return {}
@@ -163,7 +170,9 @@ def roster_payload(teacher) -> dict[str, object]:
                 }
             )
     routes: list[dict[str, object]] = []
-    ordered = sorted(grouped.values(), key=lambda item: (item["position"], str(item["name"]).casefold()))
+    ordered = sorted(
+        grouped.values(), key=lambda item: (item["position"], str(item["name"]).casefold())
+    )
     for bucket in ordered:
         path = bucket.pop("path")
         bucket.pop("position")
@@ -187,7 +196,9 @@ def _scored_path(member, path, scores: dict[str, int | None]) -> dict[str, objec
     for item in challenges:
         assert isinstance(item, dict)
         item["score"] = scores.get(str(item["id"]))
-    done = sum(1 for item in challenges if isinstance(item, dict) and item.get("state") == "completed")
+    done = sum(
+        1 for item in challenges if isinstance(item, dict) and item.get("state") == "completed"
+    )
     return {
         "id": payload["id"],
         "name": payload["name"],
@@ -269,11 +280,7 @@ def _attempt_work(challenge: Challenge, attempt: ChallengeAttempt) -> dict[str, 
     except Reflection.DoesNotExist:
         reflection = None
     answer = _answer_lines(challenge, razonar)
-    if (
-        prediction is not None
-        and len(answer) == 1
-        and answer[0]["value"] == prediction.answer
-    ):
+    if prediction is not None and len(answer) == 1 and answer[0]["value"] == prediction.answer:
         answer = []
     code = (
         attempt.snapshots.filter(schema_version=1)
@@ -301,6 +308,9 @@ def _attempt_work(challenge: Challenge, attempt: ChallengeAttempt) -> dict[str, 
     solution = _solution(attempt, only_completed=False)
     if solution is not None:
         payload["solution"] = solution
+    language = _language_public(attempt)
+    if language is not None:
+        payload["language"] = language
     return payload
 
 
