@@ -25,7 +25,7 @@ Texto para la presentación del canal:
 
 - Correos reales, contraseñas, el buzón de desarrollo ni la pantalla de administración.
 - Actividades y entregas de aula. Esas pantallas no existen. El canal habla del editor, del laboratorio, de las comunidades y del diagrama.
-- **Traducir** genera el código y no lo ejecuta. El video lo dice en voz alta.
+- **Traducir** genera el código y no lo ejecuta. El video lo dice en voz alta. **Lenguajes** es otra ventana: ahí sí se ejecuta Python, JavaScript, TypeScript, Java, C, C++ o C# en la máquina. No se mezcla con el video de traducir.
 - Direcciones de servidor, puertos y avisos de desarrollo.
 - Una sesión abierta en otro equipo, el bloqueo de 15 minutos y el cierre a los 30 minutos se mencionan una vez, en el video de la cuenta, sin provocarlos en cámara.
 

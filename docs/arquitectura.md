@@ -1,6 +1,6 @@
 # Arquitectura
 
-Estado: el editor, el laboratorio, el correo de confirmación, el idioma español o inglés, la traducción a otros lenguajes, la aplicación de escritorio, los niveles de suscripción, el bloqueo de pegar y las altas que define el administrador están en el código de desarrollo. Fecha de referencia: 2026-10-22. `DEBUG` sigue en verdadero. `config.settings.production` no lo carga el compose.
+Estado: el editor, el laboratorio, el correo de confirmación, el idioma español o inglés, la traducción a otros lenguajes, la aplicación de escritorio, los niveles de suscripción, el bloqueo de pegar y las altas que define el administrador están en el código de desarrollo. Fecha de referencia: 2026-10-24. `DEBUG` sigue en verdadero. `config.settings.production` no lo carga el compose.
 
 Este documento describe el sistema que corre hoy. La gramática está en [gramatica.md](gramatica.md), el árbol en [ast.md](ast.md), las tablas en [modelo-de-datos.md](modelo-de-datos.md) y el aislamiento del intérprete en [ejecucion.md](ejecucion.md).
 
@@ -157,6 +157,12 @@ El parser y el intérprete no son aplicaciones Django. [ADR 0002](adr/0002-nucle
 ## 7. Cliente
 
 `App` pide la cookie CSRF y después `GET /api/v1/auth/me/`. Sin sesión muestra `AuthScreen`. Con sesión elige banco de trabajo, laboratorio o armar diagrama. Las tres pantallas comparten la cuenta. Volver al editor conserva el algoritmo que estaba abierto.
+
+**Lenguajes**, entre Actualizar y Laboratorio, abre otra ventana. No usa el pseudocódigo. Cada lenguaje trae sus palabras en inglés. Ejecutar corre en esta máquina, por `local_host`: si el compilador ya está, se usa; si no, se descarga el que publica `/runtimes/manifest.json`. C y C++ usan el compilador de la máquina. Una lectura detiene el programa hasta que se envía el dato. El borrador no se guarda en la cuenta. Desde esa ventana se puede pasar el código a un reto de construir abierto. En la aplicación de escritorio el botón depende de la función `languages` del nivel. En el navegador de desarrollo, en localhost, el anfitrión es `127.0.0.1:8766`. La semilla deja `languages` apagado: el administrador lo enciende. Pegar en ese editor sigue el bloqueo del docente y la función `paste` del nivel.
+
+El pie de todas las pantallas dice «© {año} R&J Integra Soluciones Tecnológicas. Todos los derechos reservados.»
+
+Una cuenta nueva nace con `browser_allowed` en verdadero en su suscripción, aunque el nivel lo tenga en falso. El administrador puede apagarlo para esa cuenta.
 
 El cliente no ejecuta el pseudocódigo del editor. Validar, ejecutar y depurar pasan por el servidor, para que el resaltado no contradiga al intérprete. La lista de palabras sale de `GET /api/v1/language/keywords/`, generada por `grammar.py`. `frontend/src/dialect.ts` muestra la grafía del idioma de la cuenta. Los textos de pantalla viven en `frontend/src/i18n.tsx`.
 
@@ -326,7 +332,9 @@ En Armar diagrama, el panel de la figura queda arriba de la caja de figuras. Ah�
 
 Al agregar un reto a una ruta, el docente filtra por tipo: Clasificar, Ordenar, Construir o Predecir. La lista que queda se parte en Tus retos y Del catálogo. Todos muestra los dos grupos sin ese corte.
 
-Al agregar un reto a una ruta, el docente filtra por tipo: Clasificar, Ordenar, Construir o Predecir. La lista que queda se parte en Tus retos y Del catálogo. Todos muestra los dos grupos sin ese corte.
+En cada reto de la ruta, **Ponderación de la calificación** reparte la nota de 100 entre comprensión, diseño, corrección, lenguaje, explicación y autonomía. Tienen que sumar 100. Esas cifras valen en esa ruta y no cambian el reto original. Si el reto no es de construir, lenguaje queda en 0. Si no se definen, un construir con casos usa 15, 20, 20, 20, 15 y 10. El resto usa 20, 25, 30, 0, 15 y 10. La migración es `learning.0017`. El intento guarda la nota al avanzar, aunque no esté cerrado. El docente la ve así. Si el alumno sigue en el mismo intento, esa nota se vuelve a calcular y reemplaza la anterior.
+
+Un reto de construir con casos pide, después del pseudocódigo, el código de un lenguaje: Python, JavaScript, TypeScript, Java, C, C++ o C#. Se comprueban los mismos casos. Si falta uno, el reto no se cierra. El código de un lenguaje no tiene que repetir en la salida el dato que leyó. Pegar en ese cuadro sigue el mismo bloqueo del editor.
 
 Los puntos del reto se suman una vez, al terminarlo, en `Profile.points`. El puesto es cuántos perfiles tienen más puntos, más uno. La identidad de la barra muestra los dos números.
 
@@ -336,9 +344,9 @@ El modelo y las fases están en [laboratorio-fase-0.md](laboratorio-fase-0.md). 
 
 Una comunidad pertenece a un docente. Solo él la crea, la lista y la borra. El nombre es único entre las suyas. Hay un tope de 30 comunidades y de 200 personas. El docente busca por nombre o correo entre cuentas ya registradas y agrega el resultado. No puede agregarse a sí mismo. No se crean cuentas desde la comunidad.
 
-La traducción de código nace habilitada en `classroom.Community.translation_enabled`. Pegar texto nace habilitado en `paste_enabled`. Las dos siguen la misma regla: el docente las apaga para la comunidad o para un alumno; el valor del alumno, si no es nulo, manda; cambiar el de la comunidad pone en nulo los ajustes de sus alumnos. Un docente siempre puede, si su nivel incluye la función. Un alumno que no está en ninguna comunidad también. Si está en varias y en una está apagada, no puede. Traducir responde 403 con `translation_disabled`. Pegar no llama al servidor: el editor deja escribir y rechaza el pegado. El nivel es el techo. Si el plan tiene la función apagada, la comunidad no la enciende.
+La traducción de código nace habilitada en `classroom.Community.translation_enabled`. Pegar texto nace habilitado en `paste_enabled`. Las dos siguen la misma regla: el docente las apaga para la comunidad o para un alumno; el valor del alumno, si no es nulo, manda; cambiar el de la comunidad pone en nulo los ajustes de sus alumnos. Un docente siempre puede, si su nivel incluye la función. Un alumno que no está en ninguna comunidad también. Si está en varias y en una está apagada, no puede. Traducir responde 403 con `translation_disabled`. Pegar no llama al servidor: el editor del pseudocódigo, el de Lenguajes y el cuadro de código del reto dejan escribir y rechazan el pegado. El nivel es el techo. Si el plan tiene la función apagada, la comunidad no la enciende.
 
-En el banco de trabajo, **Repaso** abre los proyectos de un alumno de sus comunidades. El editor queda en solo lectura. Validar, ejecutar, depurar, traducir y el diagrama usan ese fuente y no crean una versión ni lo guardan. En el laboratorio, el avance abre con un tablero: cada barra suma los retos terminados en las rutas asignadas a ese alumno. Desde una ruta se descarga `progreso-{nombre}.csv`, con nombre, correo, comunidades, nota y una columna por reto. La puntuación de un intento va de 0 a 100. La nota es el promedio entero de esas puntuaciones, redondeado al más cercano, y un reto sin terminar cuenta como cero. Abrir un reto muestra la respuesta, el pseudocódigo, los casos, la predicción y la explicación.
+En el banco de trabajo, **Repaso** abre los proyectos de un alumno de sus comunidades. El editor queda en solo lectura. Validar, ejecutar, depurar, traducir y el diagrama usan ese fuente y no crean una versión ni lo guardan. En el laboratorio, el avance abre con un tablero: cada barra suma los retos terminados en las rutas asignadas a ese alumno. Desde una ruta se descarga `progreso-{nombre}.csv`, con nombre, correo, comunidades, nota y una columna por reto. La puntuación de un intento va de 0 a 100 y ya aparece mientras el intento sigue abierto. La nota es el promedio entero de esas puntuaciones, redondeado al más cercano, y un reto sin puntuación cuenta como cero. Abrir un reto muestra la respuesta, el pseudocódigo, los casos, la predicción y la explicación.
 
 ## 13. Perfiles de lenguaje
 

@@ -141,7 +141,9 @@ FinAlgoritmo
 
 `n` empieza en 4 y luego suma 1, así que se escribe 5. La respuesta `5` y la respuesta ` 5 ` cuentan como la misma.
 
-Al colocar un reto en una ruta, el docente elige el tipo. La lista se parte en Tus retos y Del catálogo, y solo muestra ese tipo. Todos deja los dos grupos completos.
+Al colocar un reto en una ruta, el docente elige el tipo. La lista se parte en Tus retos y Del catálogo, y solo muestra ese tipo. Todos deja los dos grupos completos. En esa colocación define la ponderación de la nota. Tiene que sumar 100 y no cambia el reto original.
+
+Un construir con casos pide, después del pseudocódigo, el código de Python, JavaScript, TypeScript, Java, C, C++ o C#. Esos casos son los mismos. El reto no se cierra si falta uno. La salida de un lenguaje no tiene que repetir el dato leído.
 
 ## Archivo CSV
 

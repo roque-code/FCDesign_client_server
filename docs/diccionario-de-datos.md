@@ -411,6 +411,7 @@ Reto. El tipo, la dificultad, los puntos y el tiempo tienen tope en la base.
 | `time_limit_seconds` | `integer` | SÍ | Segundos. Nulo si no hay límite. Si hay, entre 1 y 86 400 |
 | `allowed_blocks` | `jsonb` | NO | Lista de bloques que el lienzo puede mostrar |
 | `restrictions` | `jsonb` | NO | Reglas extra del reto |
+| `weights` | `jsonb` | NO | Ponderación de la nota. Vacío usa la rúbrica por defecto. La migración es `learning.0017` |
 | `position` | `integer` | NO | Orden dentro de la unidad. Único junto con `unit_id` |
 | `is_published` | `boolean` | NO | Si el alumno puede abrirlo |
 | `created_at` | `timestamptz` | NO | Alta |
@@ -455,6 +456,7 @@ Un reto del catálogo puesto dentro de una ruta de docente, con ventana de fecha
 | `opens_at` | `timestamptz` | SÍ | Desde cuándo se abre. Nulo si no hay inicio |
 | `closes_at` | `timestamptz` | SÍ | Hasta cuándo. Nulo si no cierra |
 | `withdrawn` | `boolean` | NO | Verdadero si el docente lo retiró |
+| `weights` | `jsonb` | NO | Ponderación de esta colocación. Si está llena y suma 100, manda sobre la del reto |
 
 ### `learning_pathassignment`
 
