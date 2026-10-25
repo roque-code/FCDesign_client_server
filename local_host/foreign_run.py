@@ -943,8 +943,19 @@ def _sweep_sessions() -> None:
         close_session(session_id)
 
 
+# Códigos de pantalla (color, cursor, teclado). La consola muestra texto plano.
+_TERMINAL_CODE = re.compile(
+    r"\x1b\[[0-?]*[ -/]*[@-~]"
+    r"|\x1b\][^\x07]*(?:\x07|\x1b\\)?"
+    r"|\x1b[@-_]"
+    r"|\x1b[=><]"
+)
+
+
 def _decode_output(payload: bytes) -> str:
-    return payload.decode("utf-8", errors="replace").replace("\r\n", "\n").replace("\r", "\n")
+    text = payload.decode("utf-8", errors="replace").replace("\r\n", "\n").replace("\r", "\n")
+    text = _TERMINAL_CODE.sub("", text)
+    return "".join(char for char in text if char in "\n\t" or ord(char) >= 32)
 
 
 def _with_session(payload: dict[str, object], session: str) -> dict[str, object]:

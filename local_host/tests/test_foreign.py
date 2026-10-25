@@ -13,7 +13,14 @@ from pathlib import Path
 from typing import Any
 
 from local_host.engine import HostError
-from local_host.foreign_run import java_file_name, load_manifest, platform_key, run_source, status
+from local_host.foreign_run import (
+    _decode_output,
+    java_file_name,
+    load_manifest,
+    platform_key,
+    run_source,
+    status,
+)
 from local_host.serve import LocalServer
 
 TOKEN = "token-de-prueba"
@@ -261,6 +268,11 @@ def test_un_manifiesto_ausente_deja_el_vacio(tmp_path: Path, monkeypatch: Any) -
     monkeypatch.setenv("TRAZA_RUNTIME_DIR", str(tmp_path))
     found = load_manifest()
     assert found["runtimes"]["python"]["version"] == ""
+
+
+def test_la_salida_oculta_los_codigos_de_pantalla() -> None:
+    raw = b"\x1b[?1h\x1b=\x1b[?1h\x1b=hola\n\x1b[?1h\x1b="
+    assert _decode_output(raw) == "hola\n"
 
 
 def test_el_nombre_de_la_clase_java_sale_del_fuente() -> None:
