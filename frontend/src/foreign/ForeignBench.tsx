@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react"
 import { ApiError, api, type Account, type LabPath } from "../api"
 import { translatedMessage, useT } from "../i18n"
 import {
-  languageHost,
+  installedLocal,
   localForeignClose,
   localForeignInput,
   localForeignOpen,
@@ -74,11 +74,10 @@ export function ForeignBench({
   const outputRef = useRef<HTMLPreElement>(null)
   const sessionRef = useRef("")
   const busyRef = useRef(false)
-  const local = languageHost() !== null
+  const onThisMachine = installedLocal() !== null
   const pasteBlocked = pasteBlockedFor(account)
 
   useEffect(() => {
-    if (!local) return
     let ignore = false
     void localForeignStatus()
       .then((payload) => {
@@ -93,7 +92,7 @@ export function ForeignBench({
     return () => {
       ignore = true
     }
-  }, [local])
+  }, [])
 
   useEffect(() => {
     if (!waiting) return
@@ -300,8 +299,7 @@ export function ForeignBench({
             </button>
           ))}
         </div>
-        <p className="note">{t("foreignNote")}</p>
-        {!local && <p className="error">{t("foreignDesktop")}</p>}
+        <p className="note">{onThisMachine ? t("foreignNote") : t("foreignServerNote")}</p>
         <ForeignEditor key={language} language={language} source={source} onChange={edit} pasteBlocked={pasteBlocked} />
         <div className="foreign-actions">
           <button type="button" onClick={() => void copy()}>
@@ -323,10 +321,10 @@ export function ForeignBench({
               event.target.value = ""
             }}
           />
-          <button type="button" onClick={() => void showAttach()} disabled={!local}>
+          <button type="button" onClick={() => void showAttach()}>
             {t("languageAttach")}
           </button>
-          <button className="primary" type="button" onClick={() => void run()} disabled={!local || busy}>
+          <button className="primary" type="button" onClick={() => void run()} disabled={busy}>
             {busy && !waiting ? t("foreignRunning") : t("run")}
           </button>
           {runtimeNote && <p>{runtimeNote}</p>}
@@ -369,7 +367,7 @@ export function ForeignBench({
                 ))}
               </select>
             </label>
-            <button className="primary" type="submit" disabled={!local || busy || !challengeId}>
+            <button className="primary" type="submit" disabled={busy || !challengeId}>
               {t("languageAttach")}
             </button>
             {routeId && builds.length === 0 ? <p>{t("languageNoBuild")}</p> : null}

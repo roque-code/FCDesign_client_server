@@ -340,6 +340,8 @@ def _feature_for(path: str) -> tuple[str, ...] | None:
         return ("debug",)
     if "/execute/" in path:
         return ("execute",)
+    if path.startswith("/api/v1/languages/"):
+        return ("languages",)
     if path.startswith("/api/v1/executions/"):
         return ("execute", "debug")
     if path.startswith(("/api/v1/communities/", "/api/v1/people/", "/api/v1/classroom/")):

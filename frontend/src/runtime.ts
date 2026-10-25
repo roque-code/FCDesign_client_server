@@ -1,5 +1,6 @@
 import {
   ApiError,
+  request,
   type Diagnostic,
   type Execution,
   type FlowGraph,
@@ -38,18 +39,6 @@ export function installedLocal(): LocalEndpoint | null {
 export function inInstalledApp(): boolean {
   if (typeof window === "undefined") return false
   return installedLocal() !== null || "__TAURI_INTERNALS__" in window
-}
-
-/** En localhost el navegador usa los compiladores de esta máquina, sin volverse la app. */
-export function browserLanguageHost(): LocalEndpoint | null {
-  if (installedLocal() || !import.meta.env.DEV || typeof window === "undefined") return null
-  const name = window.location.hostname
-  if (name !== "127.0.0.1" && name !== "localhost") return null
-  return { origin: "http://127.0.0.1:8766", token: "traza-local-language" }
-}
-
-export function languageHost(): LocalEndpoint | null {
-  return installedLocal() ?? browserLanguageHost()
 }
 
 export function desktopProxiesServer(): boolean {
@@ -209,11 +198,21 @@ function localUrl(local: LocalEndpoint, path: string): string {
   return url.toString()
 }
 
+const SERVER_FOREIGN: Record<string, string> = {
+  "/local/v1/foreign/status": "/api/v1/languages/status/",
+  "/local/v1/foreign/run": "/api/v1/languages/run/",
+  "/local/v1/foreign/open": "/api/v1/languages/open/",
+  "/local/v1/foreign/input": "/api/v1/languages/input/",
+  "/local/v1/foreign/poll": "/api/v1/languages/poll/",
+  "/local/v1/foreign/close": "/api/v1/languages/close/",
+}
+
 function foreignJson<T>(path: string, body: Record<string, unknown>): Promise<T> {
-  const local = languageHost()
-  if (!local) throw new ApiError(0, "local_missing", localMissingMessage())
-  const payload = installedLocal() ? body : { ...body, isolated: true }
-  return endpointJson(local, path, payload)
+  const local = installedLocal()
+  if (local) return endpointJson(local, path, body)
+  const serverPath = SERVER_FOREIGN[path]
+  if (!serverPath) throw new ApiError(0, "local_missing", localMissingMessage())
+  return request<T>(serverPath, { method: "POST", body: JSON.stringify(body) })
 }
 
 async function localJson<T>(path: string, body: unknown, method = "POST"): Promise<T> {
