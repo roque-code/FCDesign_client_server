@@ -7,6 +7,7 @@ import { Composer } from "../compose/Composer"
 import { CodeEditor } from "../editor/CodeEditor"
 import { runLanguageCases } from "../foreign/cases"
 import { FOREIGN_LANGUAGES, LANGUAGE_LABELS, type ForeignLanguage } from "../foreign/keywords"
+import { refusePaste } from "../paste"
 import { inInstalledApp, localImport } from "../runtime"
 import { BlockWorkspace } from "./BlockWorkspace"
 import { SolutionCard } from "./SolutionCard"
@@ -512,10 +513,12 @@ export function ChallengePlay({
                       active={buildMode === "diagrama"}
                       incoming={null}
                       allowedBlocks={challenge.allowed_blocks}
+                      pasteBlocked={pasteBlocked}
                       onBack={() => undefined}
                       onOpenInEditor={() => undefined}
                       onSource={setDiagramSource}
                     />
+                    {pasteBlocked ? <p className="note">{t("pasteBlockedNote")}</p> : null}
                   </div>
                 ) : null}
                 {tools.includes("bloques") ? (
@@ -615,9 +618,12 @@ export function ChallengePlay({
                     value={langSource}
                     spellCheck={false}
                     rows={12}
+                    onPaste={pasteBlocked ? refusePaste : undefined}
+                    onDrop={pasteBlocked ? refusePaste : undefined}
                     onChange={(event) => setLangSource(event.target.value)}
                   />
                 </label>
+                {pasteBlocked ? <p className="note">{t("pasteBlockedNote")}</p> : null}
                 <button type="submit" className="primary" disabled={busy || langSource.trim() === ""}>
                   {t("prove")}
                 </button>

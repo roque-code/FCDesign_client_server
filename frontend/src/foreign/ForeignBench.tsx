@@ -11,6 +11,7 @@ import {
   localForeignStatus,
   type ForeignRun,
 } from "../runtime"
+import { pasteBlockedFor } from "../paste"
 import { saveDownload } from "../saveFile"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
@@ -74,6 +75,7 @@ export function ForeignBench({
   const sessionRef = useRef("")
   const busyRef = useRef(false)
   const local = languageHost() !== null
+  const pasteBlocked = pasteBlockedFor(account)
 
   useEffect(() => {
     if (!local) return
@@ -300,7 +302,7 @@ export function ForeignBench({
         </div>
         <p className="note">{t("foreignNote")}</p>
         {!local && <p className="error">{t("foreignDesktop")}</p>}
-        <ForeignEditor key={language} language={language} source={source} onChange={edit} />
+        <ForeignEditor key={language} language={language} source={source} onChange={edit} pasteBlocked={pasteBlocked} />
         <div className="foreign-actions">
           <button type="button" onClick={() => void copy()}>
             {copied ? t("copied") : t("copy")}
@@ -308,7 +310,7 @@ export function ForeignBench({
           <button type="button" onClick={() => void saveFile()}>
             {t("languageSave")}
           </button>
-          <button type="button" onClick={() => fileRef.current?.click()}>
+          <button type="button" onClick={() => fileRef.current?.click()} disabled={pasteBlocked}>
             {t("languageOpen")}
           </button>
           <input
@@ -328,6 +330,7 @@ export function ForeignBench({
             {busy && !waiting ? t("foreignRunning") : t("run")}
           </button>
           {runtimeNote && <p>{runtimeNote}</p>}
+          {pasteBlocked ? <p>{t("pasteBlockedNote")}</p> : null}
         </div>
         {attachOpen && (
           <form

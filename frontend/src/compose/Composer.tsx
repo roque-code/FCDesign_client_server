@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEven
 import { api, type Account, type Algorithm, type Project } from "../api"
 import { allKeywordDisplays, spellText } from "../dialect"
 import { useLocale, useT, type MessageKey } from "../i18n"
+import { pasteBlockedFor, refusePaste } from "../paste"
 import { saveDownload } from "../saveFile"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
@@ -177,6 +178,7 @@ export function Composer({
   allowedBlocks = null,
   onSource,
   preview = false,
+  pasteBlocked = false,
 }: {
   account?: Account | null
   onAccount?: (account: Account) => void
@@ -189,9 +191,11 @@ export function Composer({
   allowedBlocks?: readonly string[] | null
   onSource?: (source: string) => void
   preview?: boolean
+  pasteBlocked?: boolean
 }) {
   const t = useT()
   const locale = useLocale()
+  const blocked = pasteBlocked || (account != null && pasteBlockedFor(account))
   const [program, setProgram] = useState<Program>(() => (isolated ? emptyProgram() : loadProgram()))
   const [selected, setSelected] = useState<string | null>(null)
   const [armed, setArmed] = useState<PaletteKind | null>(null)
@@ -423,7 +427,11 @@ export function Composer({
   }
 
   return (
-    <div className={["shell composer-shell", embedded ? "composer-embedded" : "", preview ? "composer-preview" : ""].filter(Boolean).join(" ")}>
+    <div
+      className={["shell composer-shell", embedded ? "composer-embedded" : "", preview ? "composer-preview" : ""].filter(Boolean).join(" ")}
+      onPaste={blocked ? refusePaste : undefined}
+      onDrop={blocked ? refusePaste : undefined}
+    >
       <header className="topbar topbar-editor">
         <div className="brand">
           {embedded ? null : <h1><Logo mark />{t("composeTitle")}</h1>}

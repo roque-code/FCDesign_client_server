@@ -1,6 +1,7 @@
 import { useState } from "react"
 
 import { accessOf, type Account } from "../api"
+import { pasteBlockedFor } from "../paste"
 import { useT } from "../i18n"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
@@ -101,7 +102,7 @@ export function LearningLab({
           challengeId={challengeId}
           pathId={pathId ?? undefined}
           onStanding={(standing) => onAccount({ ...account, ...standing })}
-          pasteBlocked={account.role !== "teacher" && account.paste_enabled === false}
+          pasteBlocked={pasteBlockedFor(account)}
           onDone={() => {
             setChallengeId(null)
             setMode("path")

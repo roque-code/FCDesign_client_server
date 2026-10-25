@@ -21,6 +21,7 @@ import { CodeEditor } from "../editor/CodeEditor"
 import { editorKeywords } from "../dialect"
 import { GuideButtons } from "../help/Guides"
 import { translatedMessage, useLocale, useT, type Locale } from "../i18n"
+import { pasteBlockedFor } from "../paste"
 import { saveDownload } from "../saveFile"
 import {
   browserLanguageHost,
@@ -728,7 +729,7 @@ export function Workbench({
 
   const can = (key: string) => access.features[key] === true
   const translationOn = can("translate") && account.translation_enabled !== false
-  const pasteBlocked = !can("paste") || (account.role !== "teacher" && account.paste_enabled === false)
+  const pasteBlocked = pasteBlockedFor(account)
   const projectsLeft = access.limits.max_projects
   const algorithmsLeft = access.limits.max_algorithms
   const canCreateProject = projectsLeft === null || (account.usage?.projects ?? 0) < projectsLeft
