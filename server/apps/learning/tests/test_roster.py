@@ -169,12 +169,7 @@ def test_el_docente_lee_la_respuesta_y_el_codigo():
     )
     assert added.status_code == 201, added.content
 
-    challenge = (
-        Challenge.objects.filter(is_published=True, activity_type=Challenge.BUILD)
-        .order_by("unit__position", "position")
-        .first()
-    )
-    assert challenge is not None
+    challenge = Challenge.objects.get(title="Presentar un saludo", is_published=True)
     user = get_user_model().objects.get(pk=student_id)
     attempt = ChallengeAttempt.objects.create(
         user=user,
@@ -238,3 +233,72 @@ def test_el_docente_lee_la_respuesta_y_el_codigo():
     assert "workspace" not in leaked
     assert "Esta es la solución explicada" not in leaked
     assert "blockly" not in leaked
+
+
+def test_el_docente_ve_la_nota_y_el_lenguaje_si_el_reto_sigue_abierto():
+    teacher = _teacher("profe-abierto@ejemplo.test", "Profe Abierto")
+    student = APIClient()
+    created = register(student, email="abierto@ejemplo.test", display_name="En Curso")
+    student_id = created.json()["id"]
+    community = teacher.post("/api/v1/communities/", {"name": "Grupo abierto"}, format="json")
+    assert community.status_code == 201, community.content
+    added = teacher.post(
+        f"/api/v1/communities/{community.json()['id']}/members/",
+        {"user_id": student_id},
+        format="json",
+    )
+    assert added.status_code == 201, added.content
+
+    challenge = Challenge.objects.get(title="Presentar un saludo", is_published=True)
+    user = get_user_model().objects.get(pk=student_id)
+    attempt = ChallengeAttempt.objects.create(
+        user=user, challenge=challenge, score=65, summary="Puntuación 65."
+    )
+    WorkspaceSnapshot.objects.create(
+        attempt=attempt,
+        schema_version=2,
+        blockly_json={"stage": "comprender", "answer": {"ack": True}, "mark": 1},
+    )
+    WorkspaceSnapshot.objects.create(
+        attempt=attempt,
+        schema_version=2,
+        blockly_json={"stage": "razonar", "answer": {"text": "<-"}, "mark": 2},
+    )
+    WorkspaceSnapshot.objects.create(
+        attempt=attempt,
+        schema_version=1,
+        pseudocode='Algoritmo Laboratorio\nEscribir "hola";\nFinAlgoritmo\n',
+    )
+    WorkspaceSnapshot.objects.create(
+        attempt=attempt,
+        schema_version=2,
+        blockly_json={
+            "stage": "lenguaje",
+            "mark": 3,
+            "answer": {
+                "language": "python",
+                "source": "print('hola')\n",
+                "outputs": ["hola\n"],
+                "passed": True,
+                "percent": 100,
+            },
+        },
+    )
+
+    detail = teacher.get(f"/api/v1/learning/roster/{student_id}/")
+    assert detail.status_code == 200, detail.content
+    fundamentos = next(item for item in detail.json()["paths"] if item["name"] == "Fundamentos")
+    row = next(item for item in fundamentos["challenges"] if item["id"] == str(challenge.id))
+    assert row["score"] == 65
+    assert row["state"] != "completed"
+
+    work = teacher.get(f"/api/v1/learning/roster/{student_id}/challenges/{challenge.id}/")
+    assert work.status_code == 200, work.content
+    body = work.json()["attempt"]
+    assert body["status"] == "open"
+    assert body["score"] == 65
+    assert body["next_stage"] in {"construir", "comprobar", "lenguaje", "explicar"}
+    assert body["source"].startswith("Algoritmo Laboratorio")
+    assert body["language"]["source"] == "print('hola')\n"
+    assert body["language"]["percent"] == 100
+    assert body["solution"]["language"]["source"] == "print('hola')\n"

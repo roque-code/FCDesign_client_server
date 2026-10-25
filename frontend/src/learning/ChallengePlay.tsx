@@ -342,6 +342,9 @@ export function ChallengePlay({
       </section>
       <div className="lab-main path-play">
         <section className="stage-column">
+          {!finished && !timedOut && attempt.score != null ? (
+            <p className="note">{t("currentScore", { score: attempt.score })}</p>
+          ) : null}
           <div className="stage-pills" aria-label={t("stages")}>
             {stages.map((stage) => {
               const index = stages.indexOf(stage)
@@ -363,6 +366,8 @@ export function ChallengePlay({
                   <p>{t("usedTime", { time: formatClock(attempt.elapsed_seconds) })}</p>
                 ) : null}
                 {attempt.finished_at ? <p>{formatWhen(attempt.finished_at, locale)}</p> : null}
+                {attempt.score != null ? <p className="result-score">{attempt.score}</p> : null}
+                {attempt.summary ? <p>{attempt.summary}</p> : null}
                 <p>{t("savedAgain")}</p>
                 <button type="button" className="primary" onClick={onDone}>
                   {t("backToRoute")}

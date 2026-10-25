@@ -45,6 +45,14 @@ _WEIGHTS = {
     "explicacion": 15,
     "autonomia": 10,
 }
+_LANGUAGE_WEIGHTS = {
+    "comprension": 15,
+    "diseno": 20,
+    "correccion": 20,
+    "lenguaje": 20,
+    "explicacion": 15,
+    "autonomia": 10,
+}
 _SOLUTION_MARK = "Esta es la solución explicada"
 
 
@@ -188,6 +196,7 @@ def save_stage(user, attempt_id, stage: object, answer: object) -> dict[str, obj
         if not isinstance(answer, dict) or answer.get("ack") is not True:
             raise DomainError("Confirma que comprendiste el enunciado.")
         _remember(attempt, "comprender", answer)
+        _record_progress(attempt)
         return _bundle(attempt)
     correct = _grade_answer(attempt.challenge, answer)
     _remember(attempt, "razonar", answer if isinstance(answer, dict) else {"text": answer})
@@ -195,6 +204,7 @@ def save_stage(user, attempt_id, stage: object, answer: object) -> dict[str, obj
         text = answer.get("text")
         if isinstance(text, str):
             _store_prediction(attempt, text, correct)
+    _record_progress(attempt)
     return _bundle(attempt, correct=correct)
 
 
@@ -206,6 +216,7 @@ def reveal_hint(user, attempt_id) -> dict[str, object]:
     if nxt is None:
         raise DomainError("Ya no quedan pistas.", code="conflict", status_code=409)
     HintUsage.objects.create(attempt=attempt, hint=nxt)
+    _record_progress(attempt)
     return _bundle(attempt)
 
 
@@ -222,6 +233,7 @@ def check_attempt(user, attempt_id, data: dict[str, Any]) -> dict[str, object]:
     foreign = _foreign_blocks(workspace, list(attempt.challenge.allowed_blocks))
     if foreign:
         _remember(attempt, "comprobar", {"passed": False})
+        _record_progress(attempt)
         return _bundle(
             attempt,
             passed=False,
@@ -241,6 +253,7 @@ def check_attempt(user, attempt_id, data: dict[str, Any]) -> dict[str, object]:
     errors = [item for item in adapted.diagnostics if item.severity == "error"]
     if adapted.program is None or errors:
         _remember(attempt, "comprobar", {"passed": False})
+        _record_progress(attempt)
         return _bundle(attempt, passed=False, diagnostics=_named(concept, adapted.diagnostics))
     missing = _missing_blocks(workspace, _required(attempt.challenge))
     cases = _grade_cases(adapted.program, adapted.source, attempt.challenge)
@@ -263,6 +276,7 @@ def check_attempt(user, attempt_id, data: dict[str, Any]) -> dict[str, object]:
                 "suggestion": None,
             }
         )
+    _record_progress(attempt)
     return _bundle(attempt, passed=passed, cases=cases, diagnostics=diagnostics)
 
 
@@ -315,6 +329,7 @@ def submit_language(user, attempt_id, data: dict[str, Any]) -> dict[str, object]
             "percent": percent,
         },
     )
+    _record_progress(attempt)
     return _bundle(attempt, passed=passed, cases=rows, percent=percent)
 
 
@@ -334,6 +349,7 @@ def run_prediction(user, attempt_id) -> dict[str, object]:
     result = _execute(adapted.program, adapted.source, [])
     _remember(attempt, "comprobar", {"passed": True, "output": result.output})
     _save_tree(attempt, starter, adapted)
+    _record_progress(attempt)
     return _bundle(attempt, output=result.output, source=adapted.source)
 
 
@@ -596,10 +612,12 @@ def _stamp_elapsed(attempt: ChallengeAttempt) -> None:
 
 
 def _abandon(attempt: ChallengeAttempt) -> None:
+    _record_progress(attempt)
+    note = "Se agotó el tiempo."
     attempt.status = ChallengeAttempt.ABANDONED
-    attempt.summary = "Se agotó el tiempo."
+    attempt.summary = f"{attempt.summary} {note}" if attempt.summary else note
     _stamp_elapsed(attempt)
-    attempt.save(update_fields=["status", "summary", "finished_at", "elapsed_seconds"])
+    attempt.save(update_fields=["status", "score", "summary", "finished_at", "elapsed_seconds"])
 
 
 def _restrictions(challenge: Challenge) -> dict[str, Any]:
@@ -1167,27 +1185,109 @@ def _save_tree(attempt: ChallengeAttempt, workspace: dict[str, Any], adapted) ->
     )
 
 
+def _weights(attempt: ChallengeAttempt) -> dict[str, int]:
+    if _language_weighted(attempt):
+        return dict(_LANGUAGE_WEIGHTS)
+    return dict(_WEIGHTS)
+
+
+def _language_weighted(attempt: ChallengeAttempt) -> bool:
+    return (
+        attempt.challenge.activity_type == Challenge.BUILD and attempt.challenge.test_cases.exists()
+    )
+
+
+def _correction_points(attempt: ChallengeAttempt, weight: int) -> int:
+    if weight <= 0:
+        return 0
+    activity = attempt.challenge.activity_type
+    if activity == Challenge.BUILD:
+        saved = _latest(attempt, "comprobar")
+        if not isinstance(saved, dict):
+            return 0
+        answer = saved.get("answer")
+        if not isinstance(answer, dict):
+            return 0
+        cases = list(attempt.challenge.test_cases.order_by("position"))
+        outputs = answer.get("outputs")
+        if not cases:
+            return weight if answer.get("passed") is True else 0
+        if not isinstance(outputs, list):
+            return 0
+        matched = sum(
+            1
+            for index, case in enumerate(cases)
+            if index < len(outputs)
+            and isinstance(outputs[index], str)
+            and outputs[index] == case.expected_output
+        )
+        return (weight * matched) // len(cases)
+    if activity == Challenge.PREDICT:
+        return weight if _has(attempt, "comprobar") else 0
+    return weight if _razonar_correct(attempt) else 0
+
+
+def _language_points(attempt: ChallengeAttempt, weight: int) -> int:
+    if weight <= 0:
+        return 0
+    saved = _latest(attempt, "lenguaje")
+    if not isinstance(saved, dict):
+        return 0
+    answer = saved.get("answer")
+    if not isinstance(answer, dict):
+        return 0
+    percent = answer.get("percent")
+    if not isinstance(percent, int):
+        return 0
+    return (weight * max(0, min(percent, 100))) // 100
+
+
 def _score_parts(attempt: ChallengeAttempt, reflection: str) -> dict[str, int]:
+    weights = _weights(attempt)
     levels = list(attempt.hint_usages.values_list("hint__level", flat=True))
     if any(level >= 5 for level in levels):
         autonomy = 0
     else:
         autonomy = {0: 10, 1: 6, 2: 3}.get(len(levels), 0)
-    return {
-        "comprension": _WEIGHTS["comprension"],
-        "diseno": _WEIGHTS["diseno"],
-        "correccion": _WEIGHTS["correccion"],
-        "explicacion": _WEIGHTS["explicacion"] if len(reflection) >= 12 else 0,
-        "autonomia": autonomy,
+    understood = _has(attempt, "comprender")
+    parts = {
+        "comprension": weights["comprension"] if understood else 0,
+        "diseno": weights["diseno"] if _razonar_correct(attempt) else 0,
+        "correccion": _correction_points(attempt, weights["correccion"]),
+        "explicacion": weights["explicacion"] if len(reflection) >= 12 else 0,
+        "autonomia": autonomy if understood else 0,
     }
+    language_weight = weights.get("lenguaje", 0)
+    if language_weight:
+        parts["lenguaje"] = _language_points(attempt, language_weight)
+    return parts
+
+
+def _record_progress(attempt: ChallengeAttempt, reflection: str | None = None) -> None:
+    """Guarda la nota alcanzada. Si el alumno retoma, esta nota se vuelve a calcular."""
+    text = reflection
+    if text is None:
+        try:
+            text = attempt.reflection.body
+        except Reflection.DoesNotExist:
+            text = ""
+    parts = _score_parts(attempt, text)
+    attempt.score = sum(parts.values())
+    attempt.summary = _summary(parts, attempt.score)
+    attempt.save(update_fields=["score", "summary"])
 
 
 def _summary(parts: dict[str, int], score: int) -> str:
-    return (
-        f"Puntuación {score}. Comprensión {parts['comprension']}, "
-        f"diseño {parts['diseno']}, corrección {parts['correccion']}, "
-        f"explicación {parts['explicacion']}, autonomía {parts['autonomia']}."
-    )
+    bits = [
+        f"Comprensión {parts['comprension']}",
+        f"diseño {parts['diseno']}",
+        f"corrección {parts['correccion']}",
+    ]
+    if "lenguaje" in parts:
+        bits.append(f"lenguaje {parts['lenguaje']}")
+    bits.append(f"explicación {parts['explicacion']}")
+    bits.append(f"autonomía {parts['autonomia']}")
+    return f"Puntuación {score}. " + ", ".join(bits) + "."
 
 
 def _mastery(user, attempt: ChallengeAttempt, score: int) -> None:

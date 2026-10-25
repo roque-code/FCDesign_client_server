@@ -164,11 +164,13 @@ def test_un_alumno_termina_los_cuatro_tipos(client) -> None:
     started = _start(client, "Qué entra y qué sale")
     attempt_id = started["attempt"]["id"]
     assert started["attempt"]["next_stage"] == "comprender"
-    _stage(client, attempt_id, "comprender", {"ack": True})
+    understood = _stage(client, attempt_id, "comprender", {"ack": True})
+    assert understood["attempt"]["score"] == 30
     choices = {item["id"]: item["category"] for item in restrictions["items"]}
     graded = _stage(client, attempt_id, "razonar", {"choices": choices})
     assert graded["correct"] is True
     assert graded["attempt"]["next_stage"] == "explicar"
+    assert graded["attempt"]["score"] == 85
     closed = _close(client, attempt_id)
     assert closed["attempt"]["status"] == "completed"
     assert closed["attempt"]["score"] == 100
@@ -1091,8 +1093,10 @@ def test_el_lenguaje_califica_los_casos_y_frena_el_cierre(client):
     _finish_until(client, "Presentar un saludo")
     started = _start(client, "Presentar un saludo")
     attempt_id = started["attempt"]["id"]
-    _stage(client, attempt_id, "comprender", {"ack": True})
-    _stage(client, attempt_id, "razonar", {"text": "<-"})
+    understood = _stage(client, attempt_id, "comprender", {"ack": True})
+    assert understood["attempt"]["score"] == 25
+    reasoned = _stage(client, attempt_id, "razonar", {"text": "<-"})
+    assert reasoned["attempt"]["score"] == 45
     checked = client.post(
         f"/api/v1/learning/attempts/{attempt_id}/check/",
         {"workspace": SALUDO},
@@ -1101,6 +1105,7 @@ def test_el_lenguaje_califica_los_casos_y_frena_el_cierre(client):
     assert checked.status_code == 200, checked.content
     assert checked.json()["passed"] is True
     assert checked.json()["attempt"]["next_stage"] == "lenguaje"
+    assert checked.json()["attempt"]["score"] == 65
     blocked = client.post(
         f"/api/v1/learning/attempts/{attempt_id}/close/",
         {"reflection": "Ya entiendo cómo funciona este reto."},
@@ -1116,6 +1121,7 @@ def test_el_lenguaje_califica_los_casos_y_frena_el_cierre(client):
     assert missed.json()["passed"] is False
     assert missed.json()["percent"] == 0
     assert missed.json()["attempt"]["next_stage"] == "lenguaje"
+    assert missed.json()["attempt"]["score"] == 65
     still = client.post(
         f"/api/v1/learning/attempts/{attempt_id}/close/",
         {"reflection": "Ya entiendo cómo funciona este reto."},
@@ -1144,8 +1150,10 @@ def test_el_lenguaje_califica_los_casos_y_frena_el_cierre(client):
     assert graded.json()["passed"] is True
     assert graded.json()["percent"] == 100
     assert graded.json()["attempt"]["next_stage"] == "explicar"
+    assert graded.json()["attempt"]["score"] == 85
     assert graded.json()["attempt"]["language"]["source"] == 'print("hola")\n'
     closed = _close(client, attempt_id)
     assert closed["attempt"]["status"] == "completed"
+    assert closed["attempt"]["score"] == 100
     assert closed["attempt"]["solution"]["language"]["percent"] == 100
     assert closed["attempt"]["solution"]["language"]["source"] == 'print("hola")\n'

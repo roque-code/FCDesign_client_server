@@ -11,6 +11,7 @@ from apps.classroom.models import Membership
 from apps.learning.models import Challenge, ChallengeAttempt, ConceptMastery, PathEntry, Reflection
 from apps.learning.progress import (
     _language_public,
+    _next,
     _public_challenge,
     _sequence,
     _solution,
@@ -215,10 +216,7 @@ def member_progress(teacher, user_id: int) -> dict[str, object]:
         raise DomainError("No se encontró a esa persona.", code=NOT_FOUND, status_code=404)
     member = get_user_model().objects.select_related("profile").get(pk=user_id)
     scores: dict[str, int | None] = {}
-    attempts = ChallengeAttempt.objects.filter(
-        user=member,
-        status=ChallengeAttempt.COMPLETED,
-    ).order_by("-finished_at")
+    attempts = ChallengeAttempt.objects.filter(user=member).order_by("-started_at")
     for attempt in attempts:
         scores.setdefault(str(attempt.challenge_id), attempt.score)
     paths = [_scored_path(member, path, scores) for path in visible_paths(member)]
@@ -293,6 +291,7 @@ def _attempt_work(challenge: Challenge, attempt: ChallengeAttempt) -> dict[str, 
         "status": attempt.status,
         "score": attempt.score,
         "summary": attempt.summary,
+        "next_stage": "cerrado" if attempt.status != ChallengeAttempt.OPEN else _next(attempt),
         "elapsed_seconds": attempt.elapsed_seconds,
         "finished_at": None if attempt.finished_at is None else attempt.finished_at.isoformat(),
         "reflection": reflection,

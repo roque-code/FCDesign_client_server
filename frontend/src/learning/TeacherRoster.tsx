@@ -24,6 +24,15 @@ const ACTIVITY: Record<string, MessageKey> = {
   predict: "predict",
 }
 
+const STAGE: Record<string, MessageKey> = {
+  comprender: "understand",
+  razonar: "reason",
+  construir: "build",
+  comprobar: "check",
+  lenguaje: "languageStage",
+  explicar: "explain",
+}
+
 function messageOf(error: unknown, fallback: string): string {
   return error instanceof ApiError ? translatedMessage(error.message) : fallback
 }
@@ -77,17 +86,21 @@ function StudentWork({
           {attempt.solution ? <SolutionCard solution={attempt.solution} title={challenge.title} kicker="studentBuild" /> : null}
         </div>
       ) : null}
+      {!finished && attempt ? (
+        <article className="result-card">
+          <p className="enunciado-kicker">{timedOut ? t("timeWord") : t("resultWord")}</p>
+          <h2>{timedOut ? t("timeUp") : t("attemptOpen")}</h2>
+          {attempt.score != null ? <p className="result-score">{attempt.score}</p> : null}
+          {attempt.next_stage && attempt.next_stage !== "cerrado" && STAGE[attempt.next_stage] ? (
+            <p>{t("reachedStage", { stage: t(STAGE[attempt.next_stage]) })}</p>
+          ) : null}
+          {attempt.summary ? <p>{attempt.summary}</p> : null}
+          {timedOut && attempt.elapsed_seconds != null ? <p>{t("usedTime", { time: formatClock(attempt.elapsed_seconds) })}</p> : null}
+          {timedOut && attempt.finished_at ? <p>{formatWhen(attempt.finished_at, locale)}</p> : null}
+        </article>
+      ) : null}
       {!finished && attempt?.solution ? (
         <SolutionCard solution={attempt.solution} title={challenge.title} kicker="studentBuild" />
-      ) : null}
-      {timedOut && attempt ? (
-        <article className="result-card">
-          <p className="enunciado-kicker">{t("timeWord")}</p>
-          <h2>{t("timeUp")}</h2>
-          {attempt.elapsed_seconds != null ? <p>{t("usedTime", { time: formatClock(attempt.elapsed_seconds) })}</p> : null}
-          {attempt.finished_at ? <p>{formatWhen(attempt.finished_at, locale)}</p> : null}
-          <p>{t("savedAgain")}</p>
-        </article>
       ) : null}
       {attempt && attempt.answer.length > 0 ? (
         <section className="review-block">
@@ -136,7 +149,7 @@ function StudentWork({
         </section>
       ) : null}
       {attempt == null ? <p className="roster-empty">{t("noAttemptYet")}</p> : null}
-      {attempt && !finished && !timedOut && attempt.answer.length === 0 && attempt.source === "" ? (
+      {attempt && !finished && !timedOut && attempt.answer.length === 0 && attempt.source === "" && !attempt.language && attempt.score == null ? (
         <p className="roster-empty">{t("noAnswerYet")}</p>
       ) : null}
     </div>
@@ -315,7 +328,7 @@ export function TeacherRoster() {
                               {item.opens_at ? <span>{t("fromDate", { when: formatWhen(item.opens_at, locale) })}</span> : null}
                               {item.closes_at ? <span>{t("untilDate", { when: formatWhen(item.closes_at, locale) })}</span> : null}
                               {item.withdrawn ? <span className="roster-state roster-state-locked">{t("withdrawn")}</span> : null}
-                              {item.state === "completed" && item.score != null ? <span>{t("scoreNote", { score: item.score })}</span> : null}
+                              {item.score != null ? <span>{t("scoreNote", { score: item.score })}</span> : null}
                             </p>
                           </div>
                           <div className="roster-actions">

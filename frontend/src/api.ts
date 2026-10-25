@@ -311,6 +311,7 @@ export type LabMemberWork = {
     status: string
     score: number | null
     summary: string
+    next_stage?: string
     elapsed_seconds: number | null
     finished_at: string | null
     reflection: string | null
