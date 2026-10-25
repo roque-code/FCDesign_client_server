@@ -85,6 +85,7 @@ class Challenge(models.Model):
     time_limit_seconds = models.PositiveIntegerField(null=True, blank=True)
     allowed_blocks = models.JSONField(default=list)
     restrictions = models.JSONField(default=dict)
+    weights = models.JSONField(default=dict)
     position = models.PositiveIntegerField()
     is_published = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -186,6 +187,7 @@ class PathEntry(models.Model):
     opens_at = models.DateTimeField(null=True, blank=True)
     closes_at = models.DateTimeField(null=True, blank=True)
     withdrawn = models.BooleanField(default=False)
+    weights = models.JSONField(default=dict)
 
     class Meta:
         ordering = ["path", "position"]

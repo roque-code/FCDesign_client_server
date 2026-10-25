@@ -4,6 +4,8 @@ import { ApiError, api, type LabChallengeDraft, type LabChallengeInput, type Lab
 import { commitSource, presentSource } from "../dialect"
 import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
 import { TOOL_GROUPS } from "./toolbox"
+import { WeightFields } from "./WeightFields"
+import { defaultWeights, parseWeights, weightTotal, type LabWeights } from "./weights"
 
 const ACTIVITIES: { id: string; label: MessageKey }[] = [
   { id: "classify", label: "classify" },
@@ -70,6 +72,7 @@ export function ChallengeForm({
   const [limitBlocks, setLimitBlocks] = useState(false)
   const [blocks, setBlocks] = useState<string[]>([])
   const [hints, setHints] = useState<string[]>([""])
+  const [weights, setWeights] = useState<LabWeights>(() => defaultWeights("classify"))
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(challengeId !== null)
   const [saving, setSaving] = useState(false)
@@ -112,6 +115,7 @@ export function ChallengeForm({
         setLimitBlocks(draft.allowed_blocks.length > 0)
         setBlocks(draft.allowed_blocks)
         setHints(draft.hints.length > 0 ? draft.hints : [""])
+        setWeights(parseWeights(draft.weights, draft.activity_type))
         setLoading(false)
       },
       (caught: unknown) => {
@@ -145,6 +149,11 @@ export function ChallengeForm({
       setError(t("needBlock"))
       return
     }
+    const rubric = activity === "build" ? weights : { ...weights, lenguaje: 0 }
+    if (weightTotal(rubric) !== 100) {
+      setError(t("weightMust100"))
+      return
+    }
     const body: LabChallengeInput = {
       title: title.trim(),
       prompt: prompt.trim(),
@@ -172,6 +181,7 @@ export function ChallengeForm({
       source,
       hints: hints.map((item) => item.trim()).filter((item) => item.length > 0),
       allowed_blocks: activity === "build" && limitBlocks ? blocks : [],
+      weights: rubric,
     }
     setSaving(true)
     try {
@@ -221,7 +231,14 @@ export function ChallengeForm({
         </label>
         <label>
           {t("kindWord")}
-          <select value={activity} onChange={(event) => setActivity(event.target.value)}>
+          <select
+            value={activity}
+            onChange={(event) => {
+              const next = event.target.value
+              setActivity(next)
+              setWeights(defaultWeights(next))
+            }}
+          >
             {ACTIVITIES.map((item) => (
               <option key={item.id} value={item.id}>
                 {t(item.label)}
@@ -264,6 +281,7 @@ export function ChallengeForm({
           />
         </label>
       </div>
+      <WeightFields activity={activity} weights={weights} onChange={setWeights} />
       {activity === "classify" ? (
         <>
           <label>

@@ -324,6 +324,15 @@ export type LabMemberWork = {
   } | null
 }
 
+export type LabWeights = {
+  comprension: number
+  diseno: number
+  correccion: number
+  lenguaje: number
+  explicacion: number
+  autonomia: number
+}
+
 export type LabCatalogChallenge = {
   id: string
   title: string
@@ -333,6 +342,8 @@ export type LabCatalogChallenge = {
   difficulty: number
   position?: number
   owned?: boolean
+  weights?: LabWeights
+  challenge_weights?: LabWeights
 }
 
 export type LabBankCase = {
@@ -408,6 +419,7 @@ export type LabChallengeDraft = {
   hint: string
   hints: string[]
   allowed_blocks: string[]
+  weights?: LabWeights
 }
 
 export type LabChallengeInput = {
@@ -429,6 +441,7 @@ export type LabChallengeInput = {
   source: string
   hints: string[]
   allowed_blocks: string[]
+  weights?: LabWeights
 }
 
 export type LabAuthoredChallenge = LabCatalogChallenge & {
@@ -1034,7 +1047,7 @@ export const api = {
   setLabSchedule: (
     pathId: string,
     challengeId: string,
-    body: { opens_at?: string | null; closes_at?: string | null; withdrawn?: boolean },
+    body: { opens_at?: string | null; closes_at?: string | null; withdrawn?: boolean; weights?: LabWeights },
   ) =>
     request<LabAuthoredPath>(`/api/v1/learning/authored/${pathId}/challenges/${challengeId}/`, {
       method: "PATCH",

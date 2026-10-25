@@ -28,6 +28,7 @@ from apps.learning.models import (
     PathAssignment,
     PathEntry,
 )
+from apps.learning.rubric import parse_weights, resolved_weights
 from config.errors import DomainError
 from language_core.block_adapter import adapt_workspace
 from language_core.block_import import workspace_from_source
@@ -81,6 +82,8 @@ def _challenge_row(
     }
     if position is not None:
         row["position"] = position
+    row["weights"] = resolved_weights(challenge, entry)
+    row["challenge_weights"] = resolved_weights(challenge)
     if entry is not None:
         row["opens_at"] = _iso(entry.opens_at)
         row["closes_at"] = _iso(entry.closes_at)
@@ -439,13 +442,13 @@ def set_challenges(teacher, path_id, challenge_ids: object) -> dict[str, object]
     if set(ids) != allowed:
         raise DomainError(_MISSING_CHALLENGE)
     kept = {
-        entry.challenge_id: (entry.opens_at, entry.closes_at, entry.withdrawn)
+        entry.challenge_id: (entry.opens_at, entry.closes_at, entry.withdrawn, entry.weights)
         for entry in path.entries.all()
     }
     path.entries.all().delete()
     rows = []
     for index, challenge_id in enumerate(ids, start=1):
-        opens_at, closes_at, withdrawn = kept.get(challenge_id, (None, None, False))
+        opens_at, closes_at, withdrawn, weights = kept.get(challenge_id, (None, None, False, {}))
         rows.append(
             PathEntry(
                 path=path,
@@ -454,6 +457,7 @@ def set_challenges(teacher, path_id, challenge_ids: object) -> dict[str, object]
                 opens_at=opens_at,
                 closes_at=closes_at,
                 withdrawn=withdrawn,
+                weights=weights if isinstance(weights, dict) else {},
             )
         )
     PathEntry.objects.bulk_create(rows)
@@ -477,7 +481,7 @@ def _moment(value: object, field: str):
 def update_entry(teacher, path_id, challenge_id, data: dict) -> dict[str, object]:
     path = LearningPath.objects.select_for_update().get(pk=_owned(teacher, path_id).pk)
     try:
-        entry = path.entries.get(challenge_id=challenge_id)
+        entry = path.entries.select_related("challenge").get(challenge_id=challenge_id)
     except (PathEntry.DoesNotExist, ValueError, TypeError, ValidationError) as exc:
         raise DomainError(_MISSING_CHALLENGE, code=NOT_FOUND, status_code=404) from exc
     if "opens_at" in data:
@@ -489,6 +493,11 @@ def update_entry(teacher, path_id, challenge_id, data: dict) -> dict[str, object
         if not isinstance(withdrawn, bool):
             raise DomainError("Indica si el reto está retirado.")
         entry.withdrawn = withdrawn
+    if "weights" in data:
+        entry.weights = parse_weights(
+            data.get("weights"),
+            allow_language=entry.challenge.activity_type == Challenge.BUILD,
+        )
     if (
         entry.opens_at is not None
         and entry.closes_at is not None
@@ -926,6 +935,7 @@ def _draft(challenge: Challenge) -> dict[str, object]:
         "hint": hints[0] if hints else "",
         "hints": hints,
         "allowed_blocks": list(challenge.allowed_blocks),
+        "weights": resolved_weights(challenge),
     }
 
 
@@ -982,6 +992,11 @@ def _fill(
     challenge.points = points
     challenge.time_limit_seconds = limit
     challenge.is_published = True
+    activity = _activity(data.get("activity_type"))
+    challenge.weights = parse_weights(
+        data.get("weights"),
+        allow_language=activity == Challenge.BUILD,
+    )
 
 
 @transaction.atomic

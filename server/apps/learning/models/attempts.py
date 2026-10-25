@@ -21,6 +21,13 @@ class ChallengeAttempt(models.Model):
         on_delete=models.PROTECT,
         related_name="attempts",
     )
+    path = models.ForeignKey(
+        "learning.LearningPath",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="attempts",
+    )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,

@@ -29,6 +29,7 @@ from apps.learning.models import (
     Reflection,
     WorkspaceSnapshot,
 )
+from apps.learning.rubric import DEFAULT_WEIGHTS, LANGUAGE_WEIGHTS, resolved_weights
 from apps.learning.services import load_workspace
 from config.errors import DomainError
 from language_core.ast_nodes import dump
@@ -38,21 +39,8 @@ from language_core.grammar import STRICT
 from language_core.interpreter import Interpreter
 from language_core.runtime import Cancellation, Limits
 
-_WEIGHTS = {
-    "comprension": 20,
-    "diseno": 25,
-    "correccion": 30,
-    "explicacion": 15,
-    "autonomia": 10,
-}
-_LANGUAGE_WEIGHTS = {
-    "comprension": 15,
-    "diseno": 20,
-    "correccion": 20,
-    "lenguaje": 20,
-    "explicacion": 15,
-    "autonomia": 10,
-}
+_WEIGHTS = DEFAULT_WEIGHTS
+_LANGUAGE_WEIGHTS = LANGUAGE_WEIGHTS
 _SOLUTION_MARK = "Esta es la solución explicada"
 
 
@@ -179,7 +167,11 @@ def start_attempt(user, challenge_id, path_id: object = None) -> dict[str, objec
             _abandon(current)
             current = None
         if current is None:
-            current = ChallengeAttempt.objects.create(user=user, challenge=challenge)
+            current = ChallengeAttempt.objects.create(user=user, challenge=challenge, path=path)
+        elif current.status == ChallengeAttempt.OPEN and current.path_id != path.id:
+            current.path = path
+            current.save(update_fields=["path"])
+            _record_progress(current)
     return _bundle(current)
 
 
@@ -564,7 +556,7 @@ def _ensure_unlocked(user, challenge: Challenge, path: LearningPath | None = Non
 def _owned_attempt(user, attempt_id) -> ChallengeAttempt:
     try:
         return ChallengeAttempt.objects.select_related(
-            "challenge__unit__concept", "challenge__unit__path"
+            "challenge__unit__concept", "challenge__unit__path", "path"
         ).get(pk=attempt_id, user=user)
     except ChallengeAttempt.DoesNotExist as exc:
         raise DomainError("No se encontró el intento.", code="not_found", status_code=404) from exc
@@ -1186,9 +1178,14 @@ def _save_tree(attempt: ChallengeAttempt, workspace: dict[str, Any], adapted) ->
 
 
 def _weights(attempt: ChallengeAttempt) -> dict[str, int]:
-    if _language_weighted(attempt):
-        return dict(_LANGUAGE_WEIGHTS)
-    return dict(_WEIGHTS)
+    entry = None
+    if attempt.path_id:
+        entry = (
+            PathEntry.objects.filter(path_id=attempt.path_id, challenge_id=attempt.challenge_id)
+            .only("weights")
+            .first()
+        )
+    return resolved_weights(attempt.challenge, entry)
 
 
 def _language_weighted(attempt: ChallengeAttempt) -> bool:
@@ -1245,10 +1242,11 @@ def _language_points(attempt: ChallengeAttempt, weight: int) -> int:
 def _score_parts(attempt: ChallengeAttempt, reflection: str) -> dict[str, int]:
     weights = _weights(attempt)
     levels = list(attempt.hint_usages.values_list("hint__level", flat=True))
+    base = weights["autonomia"]
     if any(level >= 5 for level in levels):
         autonomy = 0
     else:
-        autonomy = {0: 10, 1: 6, 2: 3}.get(len(levels), 0)
+        autonomy = {0: base, 1: (base * 6) // 10, 2: (base * 3) // 10}.get(len(levels), 0)
     understood = _has(attempt, "comprender")
     parts = {
         "comprension": weights["comprension"] if understood else 0,

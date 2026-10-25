@@ -14,6 +14,8 @@ import {
 } from "../api"
 import { translatedMessage, useT, type MessageKey } from "../i18n"
 import { ChallengeForm } from "./ChallengeForm"
+import { WeightFields } from "./WeightFields"
+import { parseWeights, weightTotal, type LabWeights } from "./weights"
 
 const ACTIVITY: Record<string, MessageKey> = {
   classify: "classify",
@@ -69,22 +71,30 @@ function ChallengeSchedule({
   const t = useT()
   const [opens, setOpens] = useState(toLocalInput(item.opens_at))
   const [closes, setCloses] = useState(toLocalInput(item.closes_at))
+  const [weights, setWeights] = useState<LabWeights>(() => parseWeights(item.weights, item.activity_type))
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     setOpens(toLocalInput(item.opens_at))
     setCloses(toLocalInput(item.closes_at))
-  }, [item.opens_at, item.closes_at])
+    setWeights(parseWeights(item.weights, item.activity_type))
+  }, [item.opens_at, item.closes_at, item.weights, item.activity_type])
 
   async function save(event: FormEvent) {
     event.preventDefault()
     onError("")
+    const rubric = item.activity_type === "build" ? weights : { ...weights, lenguaje: 0 }
+    if (weightTotal(rubric) !== 100) {
+      onError(t("weightMust100"))
+      return
+    }
     setSaving(true)
     try {
       onSaved(
         await api.setLabSchedule(pathId, item.id, {
           opens_at: fromLocalInput(opens),
           closes_at: fromLocalInput(closes),
+          weights: rubric,
         }),
       )
     } catch (caught) {
@@ -107,23 +117,26 @@ function ChallengeSchedule({
   }
 
   return (
-    <form className="schedule-grid" onSubmit={(event) => void save(event)}>
-      <label>
-        {t("starts")}
-        <input type="datetime-local" value={opens} onChange={(event) => setOpens(event.target.value)} />
-      </label>
-      <label>
-        {t("ends")}
-        <input type="datetime-local" value={closes} onChange={(event) => setCloses(event.target.value)} />
-      </label>
-      <div className="practice-actions">
-        <button type="submit" disabled={busy || saving}>
-          {t("saveSchedule")}
-        </button>
-        <button type="button" onClick={() => void toggleWithdrawn()} disabled={busy || saving}>
-          {item.withdrawn ? t("offer") : t("withdrawAction")}
-        </button>
+    <form className="entry-settings" onSubmit={(event) => void save(event)}>
+      <div className="schedule-grid">
+        <label>
+          {t("starts")}
+          <input type="datetime-local" value={opens} onChange={(event) => setOpens(event.target.value)} />
+        </label>
+        <label>
+          {t("ends")}
+          <input type="datetime-local" value={closes} onChange={(event) => setCloses(event.target.value)} />
+        </label>
+        <div className="practice-actions">
+          <button type="submit" disabled={busy || saving}>
+            {t("saveSchedule")}
+          </button>
+          <button type="button" onClick={() => void toggleWithdrawn()} disabled={busy || saving}>
+            {item.withdrawn ? t("offer") : t("withdrawAction")}
+          </button>
+        </div>
       </div>
+      <WeightFields activity={item.activity_type} weights={weights} onChange={setWeights} note={t("pathWeightsNote")} />
     </form>
   )
 }
