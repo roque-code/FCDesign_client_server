@@ -62,4 +62,4 @@ Hay una tercera forma de abrir la interfaz: la ventana de `desktop/`. En depurac
 cd desktop && npm install && npm run dev
 ```
 
-En un paquete publicado, las llamadas que empiezan por `/api/` pasan por `server_fetch` hacia `TRAZA_API_ORIGIN`. Si esa variable no está, el origen es `http://18.118.112.206:18080`. `TRAZA_UPDATE_URL`, si existe, apunta a un manifiesto `version` y `url` para descargar un paquete más nuevo. El detalle del lanzador está en [arquitectura.md](arquitectura.md).
+En un paquete publicado, las llamadas que empiezan por `/api/` pasan por `server_fetch` hacia `TRAZA_API_ORIGIN`. Si esa variable no está, el origen es `http://3.17.151.210:18080`. `TRAZA_UPDATE_URL`, si existe, apunta a un manifiesto `version` y `url` para descargar un paquete más nuevo. El detalle del lanzador está en [arquitectura.md](arquitectura.md).

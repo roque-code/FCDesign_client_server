@@ -1,6 +1,6 @@
 # Arquitectura
 
-Estado: el editor, el laboratorio, el correo de confirmación, el idioma español o inglés, la traducción a otros lenguajes, la aplicación de escritorio, los niveles de suscripción, el bloqueo de pegar y las altas que define el administrador están en el código de desarrollo. Fecha de referencia: 2026-10-25. `DEBUG` sigue en verdadero. `config.settings.production` no lo carga el compose.
+Estado: el editor, el laboratorio, el correo de confirmación, el idioma español o inglés, la traducción a otros lenguajes, la aplicación de escritorio, los niveles de suscripción, el bloqueo de pegar y las altas que define el administrador están en el código de desarrollo. Fecha de referencia: 2026-10-26. `DEBUG` sigue en verdadero. `config.settings.production` no lo carga el compose.
 
 Este documento describe el sistema que corre hoy. La gramática está en [gramatica.md](gramatica.md), el árbol en [ast.md](ast.md), las tablas en [modelo-de-datos.md](modelo-de-datos.md) y el aislamiento del intérprete en [ejecucion.md](ejecucion.md).
 
@@ -178,7 +178,7 @@ Armar diagrama es distinto: el modelo de figuras vive en el navegador (`frontend
 
 Validar, traducir, el diagrama, ejecutar, depurar y las pasadas del laboratorio van a ese proceso. Usan el mismo `language_core` que el runner. No pasan por Redis ni por Gunicorn.
 
-La cuenta, los proyectos y el resto de `/api/v1/` siguen en Django. En un paquete publicado, `__TRAZA_DESKTOP_PROXY__` es verdadero y el comando `server_fetch` reenvía solo rutas que empiezan por `/api/` a `POST /local/v1/proxy`. El origen de esa API es `TRAZA_API_ORIGIN`. Si no está definida, el lanzador usa `http://18.118.112.206:18080`. En depuración el proxy queda apagado y Vite, en el puerto `5174`, habla con la API como el navegador.
+La cuenta, los proyectos y el resto de `/api/v1/` siguen en Django. En un paquete publicado, `__TRAZA_DESKTOP_PROXY__` es verdadero y el comando `server_fetch` reenvía solo rutas que empiezan por `/api/` a `POST /local/v1/proxy`. El origen de esa API es `TRAZA_API_ORIGIN`. Si no está definida, el lanzador usa `http://3.17.151.210:18080`. En depuración el proxy queda apagado y Vite, en el puerto `5174`, habla con la API como el navegador.
 
 Descargar un archivo en la aplicación abre el diálogo de guardar del sistema. En Windows y en Linux un enlace de descarga sobre un blob no deja el archivo. El comando es `save_download`, en `desktop/src-tauri/src/save.rs`, y admite hasta 25 MB. Cancelar el diálogo no guarda nada. Si no se puede escribir, la pantalla dice que no se pudo guardar el archivo. En el navegador la descarga sigue siendo la del propio navegador.
 

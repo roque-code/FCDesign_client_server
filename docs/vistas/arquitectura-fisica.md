@@ -48,6 +48,6 @@ El runner usa sistema de archivos de solo lectura, `/tmp` en memoria, sin capaci
 
 En la misma máquina puede seguir el contenedor anterior `traza-pg` en `5433`. El compose no lo usa.
 
-La ventana Tauri no entra en este compose. Lleva la interfaz y `local_host` en `127.0.0.1`. En un paquete publicado, el proxy de `/api/` usa `TRAZA_API_ORIGIN` y, si falta, `http://18.118.112.206:18080`. Validar, traducir, ejecutar y depurar no salen de esa máquina.
+La ventana Tauri no entra en este compose. Lleva la interfaz y `local_host` en `127.0.0.1`. En un paquete publicado, el proxy de `/api/` usa `TRAZA_API_ORIGIN` y, si falta, `http://3.17.151.210:18080`. Validar, traducir, ejecutar y depurar no salen de esa máquina.
 
 Volver al [índice](indice.md).

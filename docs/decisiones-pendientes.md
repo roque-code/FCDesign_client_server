@@ -163,4 +163,4 @@ La ruta **Práctica de concurso** trae cincuenta problemas de creación de códi
 
 ### Aplicación de escritorio
 
-La ventana es Tauri. El intérprete corre en `local_host`, en la máquina, con el mismo núcleo. La cuenta y los proyectos siguen en la API. En un paquete publicado el proxy local reenvía solo `/api/`. El origen es `TRAZA_API_ORIGIN` y, si falta, `http://18.118.112.206:18080`. El empaquetado manual está en `.github/workflows/desktop.yml`.
+La ventana es Tauri. El intérprete corre en `local_host`, en la máquina, con el mismo núcleo. La cuenta y los proyectos siguen en la API. En un paquete publicado el proxy local reenvía solo `/api/`. El origen es `TRAZA_API_ORIGIN` y, si falta, `http://3.17.151.210:18080`. El empaquetado manual está en `.github/workflows/desktop.yml`.

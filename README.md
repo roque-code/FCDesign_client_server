@@ -18,7 +18,7 @@ El banco de trabajo tiene proyectos y algoritmos por cuenta, autoguardado, valid
 
 La pantalla avisa, cuando el ejecutor es el del mismo proceso, que la ejecución ocurre ahí y con límites lógicos. Los contenedores usan el runner aislado. `config.settings.production` no arranca con el ejecutor en proceso: al importarse lanza `ImproperlyConfigured`. Ese módulo no lo carga el compose actual.
 
-La aplicación de escritorio, en `desktop/`, abre la misma interfaz en una ventana de Tauri. El intérprete corre en la máquina, en `local_host`. La cuenta, los proyectos y el laboratorio siguen en la API. En un paquete publicado, esas llamadas pasan por un proxy local hacia `TRAZA_API_ORIGIN`. Si la variable no está definida, el origen es `http://18.118.112.206:18080`. Validar, traducir, ejecutar y depurar no salen de la máquina.
+La aplicación de escritorio, en `desktop/`, abre la misma interfaz en una ventana de Tauri. El intérprete corre en la máquina, en `local_host`. La cuenta, los proyectos y el laboratorio siguen en la API. En un paquete publicado, esas llamadas pasan por un proxy local hacia `TRAZA_API_ORIGIN`. Si la variable no está definida, el origen es `http://3.17.151.210:18080`. Validar, traducir, ejecutar y depurar no salen de la máquina.
 
 El mapa del sistema que corre hoy está en [arquitectura](docs/arquitectura.md).
 

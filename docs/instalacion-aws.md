@@ -22,8 +22,8 @@ Datos tomados de la consola de EC2 el 21 de octubre de 2026.
 | IMDSv2 | Obligatorio |
 | VPC | vpc-0877ce6fabe7f919f |
 | Subred | subnet-0065e8a11b4f527d8 |
-| IP pública | 18.118.112.206, asignada automáticamente |
-| DNS público | ec2-18-118-112-206.us-east-2.compute.amazonaws.com |
+| IP pública | 3.17.151.210, asignada automáticamente. El 21 de octubre de 2026 era 18.118.112.206 |
+| DNS público | el que muestre la consola; cambia con la IP |
 | IP privada | 172.31.24.67 |
 | IP elástica | ninguna |
 | Par de claves | cfdesign |
@@ -44,7 +44,7 @@ El grupo `default` (sg-03438b97b419876e4) también tiene una regla del puerto 18
 
 En una instancia nueva bastan el 22 y el 18080.
 
-`t3.micro` tiene unos 913 MiB de memoria. Mientras Docker construye las imágenes, la sesión SSH puede cortarse con `Broken pipe`. Se vuelve a entrar y se repite el comando que quedó a medias. Una `t3.small` deja más margen.
+`t3.micro` tiene unos 913 MiB de memoria. Mientras Docker construye las imágenes, la sesión SSH puede cortarse con `Broken pipe`. Se vuelve a entrar y se repite el comando que quedó a medias. En esta instancia hizo falta un archivo de intercambio de 2 GB antes de que la construcción terminara. Los comandos están en la sección 6. Una `t3.small` deja más margen.
 
 ## 2. Crear la instancia
 
@@ -65,7 +65,7 @@ Desde el Mac, con el `.pem` en la carpeta desde la que se trabaja:
 
 ```bash
 chmod 400 cfdesign.pem
-ssh -i "cfdesign.pem" ec2-user@ec2-18-118-112-206.us-east-2.compute.amazonaws.com
+ssh -i "cfdesign.pem" ec2-user@3.17.151.210
 ```
 
 Si la IP cambió, se usa la IP pública o el DNS que muestre la consola en ese momento. El usuario es `ec2-user`.
@@ -125,14 +125,28 @@ En `~/fcdesign/FCDesign_client_server/.env`:
 ```bash
 DJANGO_SECRET_KEY=una-clave-larga-distinta-de-la-de-desarrollo
 EMAIL_HOST_PASSWORD=clave-de-aplicacion-de-gmail
-DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,web,nginx,18.118.112.206
-DJANGO_CSRF_ORIGINS=http://18.118.112.206:18080,http://127.0.0.1:18080,http://localhost:18080
-TRAZA_PUBLIC_ORIGIN=http://18.118.112.206:18080
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,web,nginx,3.17.151.210
+DJANGO_CSRF_ORIGINS=http://3.17.151.210:18080,http://127.0.0.1:18080,http://localhost:18080
+TRAZA_PUBLIC_ORIGIN=http://3.17.151.210:18080
 ```
 
-Si la IP pública es otra, se sustituye `18.118.112.206` en esas tres líneas. `.env` no se sube a Git.
+Si la IP pública es otra, se sustituye `3.17.151.210` en esas tres líneas. `.env` no se sube a Git. Si esas variables no están en el archivo, `compose.servidor.yaml` sigue usando `18.118.112.206`. La aplicación de escritorio, si no tiene `TRAZA_API_ORIGIN`, llama a `http://3.17.151.210:18080`.
 
 ## 6. Primera vez
+
+El archivo que se usa es `compose.servidor.yaml`. `docker compose up` sin `-f` lee `compose.yaml`, que es el de desarrollo: levanta Vite y Mailpit y no es este servidor.
+
+Antes de construir, en esta `t3.micro`, se deja un intercambio de 2 GB. Sin él, el build se queda sin memoria. La línea de `fstab` lo conserva al reiniciar:
+
+```bash
+sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+`swapon --show` tiene que listar `/swapfile`. Si el archivo ya existe, no se vuelve a crear.
 
 Desde `~/fcdesign/FCDesign_client_server`:
 
@@ -143,7 +157,9 @@ docker compose -f compose.servidor.yaml build nginx
 docker compose -f compose.servidor.yaml up -d --remove-orphans
 ```
 
-La primera construcción tarda varios minutos. Nginx incluye la página ya construida: en el servidor no queda Vite. Al terminar tienen que estar en marcha `db`, `redis`, `runner`, `web` y `nginx`. Postgres y Redis no publican puertos hacia internet.
+No se construye `frontend`. Ese servicio era el Vite de desarrollo. Nginx incluye la página ya construida. `--remove-orphans` apaga un contenedor `frontend` que hubiera quedado de un arranque anterior.
+
+La primera construcción tarda varios minutos. Al terminar tienen que estar en marcha `db`, `redis`, `runner`, `web` y `nginx`. Postgres y Redis no publican puertos hacia internet.
 
 Comprobación dentro de la EC2:
 
@@ -151,7 +167,7 @@ Comprobación dentro de la EC2:
 curl -sS -m 10 http://127.0.0.1:18080/api/v1/auth/csrf/
 ```
 
-Tiene que responder `{"ok":true}`. En el navegador se abre `http://18.118.112.206:18080`.
+Tiene que responder `{"ok":true}`. En el navegador se abre `http://3.17.151.210:18080`.
 
 La cuenta que administra niveles no sale del alta pública:
 
@@ -175,6 +191,8 @@ docker compose -f compose.servidor.yaml up -d --remove-orphans
 
 `down` para los contenedores y conserva los volúmenes `traza-db` y `traza-redis`. Las cuentas y los algoritmos siguen ahí. `down -v` los borra.
 
+Si el disco se llena, `df -h` lo muestra y `docker system df` dice qué ocupa Docker. `docker builder prune -f` borra la caché de construcción y deja las imágenes en uso. `docker system prune -af` borra además las imágenes que no están en marcha: el siguiente `build` empieza de cero. No borra los volúmenes `traza-db` y `traza-redis`.
+
 Si `git pull` dice que un archivo local impide el merge, ese cambio de la EC2 se descarta y se vuelve a jalar. El ejemplo que ya ocurrió fue `frontend/src/api.ts`:
 
 ```bash
@@ -186,7 +204,8 @@ El código que vale es el de `origin/main`.
 
 ## 8. Si el sitio no abre
 
-- La dirección lleva el puerto: `http://18.118.112.206:18080`. El 8080 no está abierto y el navegador se queda esperando.
+- La dirección lleva el puerto: `http://3.17.151.210:18080`. El 8080 no está abierto y el navegador se queda esperando.
 - La IP `172.31.24.67` es privada. Desde fuera se usa la pública.
 - El grupo de la instancia tiene que ser `launch-wizard-1`, con el TCP 18080 desde `0.0.0.0/0`.
 - `docker compose -f compose.servidor.yaml ps` tiene que mostrar `nginx` en ejecución y el puerto `0.0.0.0:18080->80/tcp`.
+- Si `df -h` deja el disco casi lleno, se aplica la limpieza de la sección 7 y se repite el build.
