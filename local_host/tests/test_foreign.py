@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import tarfile
 import threading
 import urllib.error
 import urllib.request
@@ -15,6 +16,7 @@ from typing import Any
 from local_host.engine import HostError
 from local_host.foreign_run import (
     _decode_output,
+    _extract,
     java_file_name,
     load_manifest,
     open_session,
@@ -105,6 +107,36 @@ def test_python_se_detiene_para_leer_un_dato() -> None:
         if session:
             _call(origin, "/local/v1/foreign/close", {"session": session})
         server.shutdown()
+
+
+def _tar_gz(members: list[tarfile.TarInfo], payloads: list[bytes]) -> bytes:
+    raw = io.BytesIO()
+    with tarfile.open(fileobj=raw, mode="w:gz") as archive:
+        for info, payload in zip(members, payloads, strict=True):
+            archive.addfile(info, io.BytesIO(payload) if payload else None)
+    return raw.getvalue()
+
+
+def test_un_enlace_interno_no_invalida_el_runtime(tmp_path: Path) -> None:
+    body = b"hola\n"
+    real = tarfile.TarInfo("tool/bin/real")
+    real.size = len(body)
+    link = tarfile.TarInfo("tool/bin/node")
+    link.type = tarfile.SYMTYPE
+    link.linkname = "real"
+    _extract(_tar_gz([real, link], [body, b""]), tmp_path / "out", "tar.gz")
+    assert (tmp_path / "out" / "tool" / "bin" / "node").is_file()
+
+
+def test_un_enlace_que_sale_de_la_carpeta_se_rechaza(tmp_path: Path) -> None:
+    link = tarfile.TarInfo("tool/node")
+    link.type = tarfile.SYMTYPE
+    link.linkname = "/etc/passwd"
+    try:
+        _extract(_tar_gz([link], [b""]), tmp_path / "out", "tar.gz")
+    except (ValueError, tarfile.FilterError):
+        return
+    raise AssertionError("un enlace externo debía rechazarse")
 
 
 def test_sin_terminal_python_igual_escribe(monkeypatch) -> None:

@@ -25,6 +25,7 @@ import tarfile
 import tempfile
 import threading
 import time
+import urllib.error
 import urllib.request
 import zipfile
 from collections.abc import Callable
@@ -65,7 +66,7 @@ SYSTEM: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
     "javascript": (("node", ("node",)),),
     "typescript": (("node", ("node",)),),
     "java": (("javac", ("javac",)), ("java", ("java",))),
-    "c": (("cc", ("cc",)),),
+    "c": (("cc", ("cc", "gcc")),),
     "cpp": (("cxx", ("c++", "g++", "clang++")),),
     "csharp": (("dotnet", ("dotnet",)),),
 }
@@ -315,6 +316,8 @@ def _prepare(
     finder: Finder,
     fetch: Fetch,
 ) -> _Prepared | None:
+    if language in {"c", "cpp"} and finder is shutil.which:
+        _install_c_toolchain()
     system = _system_commands(language, finder)
     if system is not None:
         return _Prepared("system", system)
@@ -372,13 +375,13 @@ def _cached_or_download(
             return ready
         try:
             payload = fetch(entry["url"])
-        except OSError as exc:
+        except (OSError, urllib.error.URLError) as exc:
             raise _RuntimeProblem("No se pudo descargar el runtime.") from exc
         if not _matches(payload, digest):
             raise _RuntimeProblem("La suma del runtime no coincide.")
         try:
             _extract(payload, folder, entry["archive"])
-        except (OSError, tarfile.TarError, zipfile.BadZipFile, ValueError) as exc:
+        except (OSError, tarfile.TarError, tarfile.FilterError, zipfile.BadZipFile, ValueError) as exc:
             shutil.rmtree(folder, ignore_errors=True)
             raise _RuntimeProblem("El archivo del runtime no es válido.") from exc
         mapped = _command_map(language, folder, entry["bins"], "")
@@ -492,11 +495,10 @@ def _extract_zip(payload: bytes, folder: Path) -> None:
 
 
 def _extract_tar(payload: bytes, folder: Path) -> None:
+    """Node, Java y .NET traen enlaces internos. filter=data rechaza los que salen de la carpeta."""
     with tarfile.open(fileobj=io.BytesIO(payload), mode="r:*") as archive:
         for member in archive.getmembers():
             _safe_name(member.name)
-            if member.issym() or member.islnk():
-                raise ValueError(member.name)
         archive.extractall(folder, filter="data")
 
 
@@ -536,6 +538,24 @@ def _mark_exec(path: Path) -> None:
     if os.name == "nt" or not path.is_file():
         return
     path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+
+def _install_c_toolchain() -> None:
+    """C y C++ no se descargan. En el servidor se instala el compilador del sistema."""
+    if os.name == "nt" or os.geteuid() != 0:
+        return
+    if shutil.which("cc") and (shutil.which("c++") or shutil.which("g++")):
+        return
+    apt = shutil.which("apt-get")
+    if apt is None:
+        return
+    subprocess.run([apt, "update"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(
+        [apt, "install", "-y", "--no-install-recommends", "gcc", "g++", "ca-certificates"],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
 
 def _install_lock(key: str) -> threading.Lock:
@@ -1169,7 +1189,7 @@ def _read_manifest(location: str) -> dict[str, Any]:
 
 def _fetch_url(url: str) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": "Aulivana-FCDdesign"})
-    with urllib.request.urlopen(request, timeout=120, context=ssl_context()) as response:
+    with urllib.request.urlopen(request, timeout=600, context=ssl_context()) as response:
         return _read_limited(response)
 
 
