@@ -95,7 +95,9 @@ export function LearningLab({
           </button>
         </div>
       </header>
-      {mode === "practice" ? <PracticeLab key={reloadToken} /> : null}
+      {mode === "practice" ? (
+        <PracticeLab key={reloadToken} account={account} onAccount={onAccount} />
+      ) : null}
       {mode === "challenge" && challengeId ? (
         <ChallengePlay
           key={`${challengeId}-${reloadToken}`}

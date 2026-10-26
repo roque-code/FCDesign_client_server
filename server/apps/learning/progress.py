@@ -15,6 +15,7 @@ from django.utils import timezone
 
 from apps.accounts.models import Profile
 from apps.accounts.services import standing_of
+from apps.billing.services import consume_execution
 from apps.classroom.models import Membership
 from apps.language.services import diagnostic_payload
 from apps.learning.models import (
@@ -248,6 +249,7 @@ def check_attempt(user, attempt_id, data: dict[str, Any]) -> dict[str, object]:
         _record_progress(attempt)
         return _bundle(attempt, passed=False, diagnostics=_named(concept, adapted.diagnostics))
     missing = _missing_blocks(workspace, _required(attempt.challenge))
+    consume_execution(user)
     cases = _grade_cases(adapted.program, adapted.source, attempt.challenge)
     passed = _every_case_passed(cases) and not missing
     outputs = [str(item["output"]) for item in cases]
@@ -291,6 +293,7 @@ def submit_language(user, attempt_id, data: dict[str, Any]) -> dict[str, object]
     cases = list(attempt.challenge.test_cases.order_by("position"))
     supplied = data.get("outputs", None)
     if supplied is None:
+        consume_execution(user)
         outputs = _execute_language(language, source, cases)
     elif (
         not isinstance(supplied, list)

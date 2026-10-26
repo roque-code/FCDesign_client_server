@@ -10,6 +10,7 @@ from apps.billing.models import Plan
 from apps.billing.services import (
     assign_plan,
     catalog_payload,
+    consume_execution,
     create_plan,
     plan_payload,
     update_plan,
@@ -102,3 +103,8 @@ class SubscriberDetailView(APIView):
             ) from exc
         assign_plan(person, object_body(request.data))
         return Response(user_row(person))
+
+
+class ConsumeExecutionView(APIView):
+    def post(self, request: Request) -> Response:
+        return Response(consume_execution(current_user(request)))

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from django.conf import settings
 
+from apps.billing.services import consume_execution
 from apps.executions.live import advance, feed, publish, replace_session, signal_pause, signal_stop
 from apps.language.services import diagnostic_payload
 from apps.learning.live import LabRun, begin, peek_run
@@ -22,6 +23,7 @@ def start_run(user, data: dict[str, object]) -> dict[str, object]:
     adapted = adapt_workspace(workspace)
     if adapted.program is None or any(item.severity == "error" for item in adapted.diagnostics):
         return _refused(adapted)
+    consume_execution(user)
     if settings.EXECUTION_RUNNER == "redis":
         return _launch_lab(user.pk, adapted)
     session = open_program(adapted.program, adapted.source, adapted.diagnostics)

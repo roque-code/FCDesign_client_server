@@ -4,6 +4,9 @@ import {
   accessOf,
   api,
   ApiError,
+  bumpRunUsage,
+  canExecuteToday,
+  withRunUsage,
   type Account,
   type Algorithm,
   type ClassroomStudent,
@@ -203,7 +206,8 @@ export function Workbench({
             JSON.stringify(accessOf(next).features) === JSON.stringify(access.features) &&
             JSON.stringify(accessOf(next).limits) === JSON.stringify(access.limits) &&
             next.usage?.projects === account.usage?.projects &&
-            next.usage?.algorithms === account.usage?.algorithms)
+            next.usage?.algorithms === account.usage?.algorithms &&
+            next.usage?.executions_today === account.usage?.executions_today)
         ) {
           return
         }
@@ -733,6 +737,9 @@ export function Workbench({
   const algorithmsLeft = access.limits.max_algorithms
   const canCreateProject = projectsLeft === null || (account.usage?.projects ?? 0) < projectsLeft
   const canCreateAlgorithm = algorithmsLeft === null || (account.usage?.algorithms ?? 0) < algorithmsLeft
+  const canRunToday = canExecuteToday(account)
+  const runsLeft = access.limits.max_executions_per_day
+  const runsToday = account.usage.executions_today ?? 0
 
   async function translate() {
     if (!translationOn) return
@@ -771,8 +778,13 @@ export function Workbench({
     try {
       await flushSource()
       const result = inInstalledApp()
-        ? await localExecute(source, currentProfile())
+        ? await (async () => {
+            const quota = await api.consumeExecution()
+            onAccount(withRunUsage(account, quota.used))
+            return localExecute(source, currentProfile())
+          })()
         : await api.execute(algorithmId)
+      if (!inInstalledApp()) onAccount(bumpRunUsage(account))
       remember(result)
       if (result.status === "paused") {
         await openStream(result.id)
@@ -1469,7 +1481,13 @@ export function Workbench({
               </button>
               )}
               {can("execute") && (
-              <button className="primary" type="button" onClick={() => void execute()} disabled={!algorithmId || playing}>
+              <button
+                className="primary"
+                type="button"
+                onClick={() => void execute()}
+                disabled={!algorithmId || playing || !canRunToday}
+                title={!canRunToday ? t("executionsGone") : undefined}
+              >
                 {t("run")}
               </button>
               )}
@@ -1511,6 +1529,15 @@ export function Workbench({
             <button className="tool-save" type="button" onClick={() => void saveVersion()} disabled={!algorithmId || reviewing}>
               {t("saveVersion")}
             </button>
+            {can("execute") && runsLeft != null ? (
+              <p className="note">
+                {!canRunToday
+                  ? t("executionsGone")
+                  : runsLeft - runsToday === 1
+                    ? t("executionsLeftOne")
+                    : t("executionsLeft", { count: runsLeft - runsToday })}
+              </p>
+            ) : null}
           </div>
           <CodeEditor
             source={source}

@@ -9,7 +9,17 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react"
 
-import { ApiError, api, type LabPractice, type LabPreview, type LabRun } from "../api"
+import {
+  ApiError,
+  api,
+  bumpRunUsage,
+  canExecuteToday,
+  withRunUsage,
+  type Account,
+  type LabPractice,
+  type LabPreview,
+  type LabRun,
+} from "../api"
 import { applyConsoleOutput } from "../console/output"
 import { editorKeywords, spellText } from "../dialect"
 import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
@@ -114,7 +124,13 @@ function fileStem(name: string): string {
   return cut.replace(/[\\/:*?"<>|]+/g, " ").trim().slice(0, 120)
 }
 
-export function PracticeLab() {
+export function PracticeLab({
+  account,
+  onAccount,
+}: {
+  account?: Account
+  onAccount?: (account: Account) => void
+}) {
   const t = useT()
   const locale = useLocale()
   const [count, setCount] = useState(0)
@@ -362,7 +378,14 @@ export function PracticeLab() {
     const key = JSON.stringify(workspace)
     setFrozen(key)
     try {
-      const result = inInstalledApp() ? await localStartLab(workspace) : await api.startLab(workspace)
+      const result = inInstalledApp()
+        ? await (async () => {
+            const quota = await api.consumeExecution()
+            if (account && onAccount) onAccount(withRunUsage(account, quota.used))
+            return localStartLab(workspace)
+          })()
+        : await api.startLab(workspace)
+      if (!inInstalledApp() && account && onAccount) onAccount(bumpRunUsage(account))
       remember(result)
       if (result.status === "paused" && result.id) {
         await openStream(result.id)
@@ -645,6 +668,7 @@ export function PracticeLab() {
                 busy ||
                 playing ||
                 blocked ||
+                (account != null && !canExecuteToday(account)) ||
                 (sameCanvas && (run?.status === "paused" || run?.status === "waiting_input"))
               }
             >

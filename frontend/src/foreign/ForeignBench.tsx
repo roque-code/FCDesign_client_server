@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from "react"
 
-import { ApiError, api, type Account, type LabPath } from "../api"
+import {
+  ApiError,
+  api,
+  bumpRunUsage,
+  canExecuteToday,
+  withRunUsage,
+  type Account,
+  type LabPath,
+} from "../api"
 import { translatedMessage, useT } from "../i18n"
 import {
   installedLocal,
@@ -233,7 +241,12 @@ export function ForeignBench({
     setResult(null)
     setStdin("")
     try {
+      if (onThisMachine) {
+        const quota = await api.consumeExecution()
+        onAccount(withRunUsage(account, quota.used))
+      }
       show(await localForeignOpen(language, source))
+      if (!onThisMachine) onAccount(bumpRunUsage(account))
     } catch (caught) {
       setFailure(caught instanceof ApiError ? translatedMessage(caught.message) : t("foreignFailed"))
     } finally {
@@ -324,7 +337,13 @@ export function ForeignBench({
           <button type="button" onClick={() => void showAttach()}>
             {t("languageAttach")}
           </button>
-          <button className="primary" type="button" onClick={() => void run()} disabled={busy}>
+          <button
+            className="primary"
+            type="button"
+            onClick={() => void run()}
+            disabled={busy || !canExecuteToday(account)}
+            title={!canExecuteToday(account) ? t("executionsGone") : undefined}
+          >
             {busy && !waiting ? t("foreignRunning") : t("run")}
           </button>
           {runtimeNote && <p>{runtimeNote}</p>}

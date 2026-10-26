@@ -23,6 +23,7 @@ class Plan(models.Model):
     browser_allowed = models.BooleanField(default=False)
     max_projects = models.PositiveIntegerField(null=True, blank=True)
     max_algorithms = models.PositiveIntegerField(null=True, blank=True)
+    max_executions_per_day = models.PositiveIntegerField(null=True, blank=True, default=3)
     features = models.JSONField(default=dict)
     is_default = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -62,3 +63,21 @@ class Subscription(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id} → {self.plan_id}"
+
+
+class DailyExecution(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="daily_executions",
+    )
+    day = models.DateField()
+    count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "day"], name="uniq_daily_execution"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id} {self.day} ×{self.count}"

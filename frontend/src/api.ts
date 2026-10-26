@@ -23,7 +23,11 @@ export type AccountPlan = {
 export type AccountAccess = {
   browser_app: boolean
   features: Record<string, boolean>
-  limits: { max_projects: number | null; max_algorithms: number | null }
+  limits: {
+    max_projects: number | null
+    max_algorithms: number | null
+    max_executions_per_day: number | null
+  }
 }
 
 export type Account = {
@@ -39,13 +43,17 @@ export type Account = {
   avatar: string | null
   plan: AccountPlan | null
   access: AccountAccess
-  usage: { projects: number; algorithms: number }
+  usage: { projects: number; algorithms: number; executions_today: number }
 }
 
 export function accessOf(account: { access?: AccountAccess | null } | null | undefined): AccountAccess {
   const access = account?.access
   if (!access || typeof access !== "object") {
-    return { browser_app: false, features: {}, limits: { max_projects: null, max_algorithms: null } }
+    return {
+      browser_app: false,
+      features: {},
+      limits: { max_projects: null, max_algorithms: null, max_executions_per_day: null },
+    }
   }
   const features = access.features && typeof access.features === "object" ? access.features : {}
   const limits = access.limits
@@ -55,6 +63,8 @@ export function accessOf(account: { access?: AccountAccess | null } | null | und
     limits: {
       max_projects: typeof limits?.max_projects === "number" ? limits.max_projects : null,
       max_algorithms: typeof limits?.max_algorithms === "number" ? limits.max_algorithms : null,
+      max_executions_per_day:
+        typeof limits?.max_executions_per_day === "number" ? limits.max_executions_per_day : null,
     },
   }
 }
@@ -63,8 +73,27 @@ export function asAccount(value: Account): Account {
   return {
     ...value,
     access: accessOf(value),
-    usage: value.usage ?? { projects: 0, algorithms: 0 },
+    usage: {
+      projects: value.usage?.projects ?? 0,
+      algorithms: value.usage?.algorithms ?? 0,
+      executions_today: value.usage?.executions_today ?? 0,
+    },
   }
+}
+
+export function canExecuteToday(account: Account | null | undefined): boolean {
+  if (!account) return true
+  const limit = accessOf(account).limits.max_executions_per_day
+  if (limit == null) return true
+  return (account.usage.executions_today ?? 0) < limit
+}
+
+export function withRunUsage(account: Account, used: number): Account {
+  return { ...account, usage: { ...account.usage, executions_today: used } }
+}
+
+export function bumpRunUsage(account: Account): Account {
+  return withRunUsage(account, (account.usage.executions_today ?? 0) + 1)
 }
 
 export type PlanFeature = {
@@ -84,6 +113,7 @@ export type BillingPlan = {
   browser_allowed: boolean
   max_projects: number | null
   max_algorithms: number | null
+  max_executions_per_day: number | null
   features: Record<string, boolean>
   is_default: boolean
   is_active: boolean
@@ -100,6 +130,7 @@ export type BillingPlanInput = {
   browser_allowed: boolean
   max_projects: number | null
   max_algorithms: number | null
+  max_executions_per_day: number | null
   features: Record<string, boolean>
   is_active?: boolean
 }
@@ -1106,6 +1137,10 @@ export const api = {
     request<LabSession>(`/api/v1/learning/attempts/${attemptId}/language/`, {
       method: "POST",
       body: JSON.stringify(body),
+    }),
+  consumeExecution: () =>
+    request<{ limit: number | null; used: number; remaining: number | null }>("/api/v1/usage/execution/", {
+      method: "POST",
     }),
   planCatalog: () => request<{ results: PlanFeature[] }>("/api/v1/billing/catalog/"),
   plans: () => request<{ results: BillingPlan[] }>("/api/v1/billing/plans/"),

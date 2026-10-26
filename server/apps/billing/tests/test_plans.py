@@ -4,6 +4,7 @@ from datetime import timedelta
 
 import pytest
 from django.core.management import call_command
+from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -30,6 +31,8 @@ def test_el_plan_gratis_limita_proyectos_y_abre_el_navegador(settings):
     assert body["access"]["features"]["execute"] is True
     assert body["access"]["features"]["translate"] is False
     assert body["access"]["features"]["languages"] is False
+    assert body["access"]["limits"]["max_executions_per_day"] == 3
+    assert body["usage"]["executions_today"] == 0
     assert browser.get("/api/v1/auth/me/").status_code == 200
     opened = browser.get("/api/v1/projects/")
     assert opened.status_code == 200
@@ -113,6 +116,7 @@ def test_el_administrador_define_un_nivel_y_lo_asigna(client):
         format="json",
     )
     assert created.status_code == 201, created.content
+    assert created.json()["max_executions_per_day"] == 3
     plan_id = created.json()["id"]
     people = admin.get("/api/v1/billing/users/?q=luz")
     assert people.status_code == 200
@@ -280,3 +284,88 @@ def test_la_cuenta_incluye_access_si_no_hay_niveles(client):
     body = current.json()
     assert body["access"]["browser_app"] is False
     assert "features" in body["access"]
+
+
+def test_el_admin_pone_el_tope_diario_o_lo_deja_sin_limite(client):
+    call_command("create_admin", email="admin-cupo@ejemplo.test", password=PASSWORD, name="Ada")
+    admin = APIClient(enforce_csrf_checks=True, HTTP_X_AULIVANA_FCDDESIGN_CLIENT="")
+    refresh_csrf(admin)
+    entered = admin.post(
+        "/api/v1/auth/login/",
+        {"email": "admin-cupo@ejemplo.test", "password": PASSWORD},
+        format="json",
+    )
+    assert entered.status_code == 200, entered.content
+    refresh_csrf(admin)
+    listed = admin.get("/api/v1/billing/plans/")
+    gratis = next(
+        item
+        for item in listed.json()["results"]
+        if item["code"] == "gratis" and item["audience"] == "student"
+    )
+    assert gratis["max_executions_per_day"] == 3
+    refused = admin.patch(
+        f"/api/v1/billing/plans/{gratis['id']}/",
+        {"max_executions_per_day": 2},
+        format="json",
+    )
+    assert refused.status_code == 400
+    opened = admin.patch(
+        f"/api/v1/billing/plans/{gratis['id']}/",
+        {"max_executions_per_day": None},
+        format="json",
+    )
+    assert opened.status_code == 200, opened.content
+    assert opened.json()["max_executions_per_day"] is None
+    capped = admin.patch(
+        f"/api/v1/billing/plans/{gratis['id']}/",
+        {"max_executions_per_day": 5},
+        format="json",
+    )
+    assert capped.status_code == 200
+    assert capped.json()["max_executions_per_day"] == 5
+
+
+@override_settings(RATE_LIMITS={"execution.start": (30, 60)})
+def test_el_nivel_limita_las_ejecuciones_del_dia(client, settings):
+    settings.TRAZA_SIGNUP_PLAN = "gratis"
+    created = register(client, email="cupo-run@ejemplo.test")
+    assert created.status_code == 201, created.content
+    from apps.accounts.models import User
+
+    user = User.objects.get(email="cupo-run@ejemplo.test")
+    plan = user.subscription.plan
+    plan.max_executions_per_day = 3
+    plan.features = {**plan.features, "languages": True}
+    plan.save(update_fields=["max_executions_per_day", "features"])
+
+    rows = client.get("/api/v1/algorithms/?page_size=100").json()["results"]
+    algorithm_id = next(row["id"] for row in rows if row["name"] == "Hola mundo")
+    first = client.post(f"/api/v1/algorithms/{algorithm_id}/execute/")
+    second = client.post(f"/api/v1/algorithms/{algorithm_id}/execute/")
+    language = client.post(
+        "/api/v1/languages/open/",
+        {"language": "python", "source": 'print("hola")\n'},
+        format="json",
+    )
+    blocked = client.post(f"/api/v1/algorithms/{algorithm_id}/execute/")
+    assert first.status_code == 201, first.content
+    assert second.status_code == 201, second.content
+    assert language.status_code == 200, language.content
+    assert blocked.status_code == 403
+    assert blocked.json()["error"]["code"] == "plan_limit"
+    me = client.get("/api/v1/auth/me/").json()
+    assert me["access"]["limits"]["max_executions_per_day"] == 3
+    assert me["usage"]["executions_today"] == 3
+
+
+@override_settings(RATE_LIMITS={"execution.start": (30, 60)})
+def test_sin_tope_el_nivel_deja_seguir_ejecutando(client):
+    created = register(client, email="cupo-libre@ejemplo.test")
+    assert created.status_code == 201, created.content
+    assert created.json()["access"]["limits"]["max_executions_per_day"] is None
+    rows = client.get("/api/v1/algorithms/?page_size=100").json()["results"]
+    algorithm_id = next(row["id"] for row in rows if row["name"] == "Hola mundo")
+    for _index in range(4):
+        ran = client.post(f"/api/v1/algorithms/{algorithm_id}/execute/")
+        assert ran.status_code == 201, ran.content

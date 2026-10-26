@@ -8,15 +8,18 @@ from datetime import timedelta
 from typing import Any
 
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from apps.accounts.models import Profile, User
 from apps.billing.catalog import FEATURES, features_for, known_key
-from apps.billing.models import Plan, Subscription
+from apps.billing.models import DailyExecution, Plan, Subscription
 from apps.projects.models import Algorithm, Project
 from config.errors import DomainError
+
+MIN_DAILY_RUNS = 3
 
 DESKTOP_CLIENT = "desktop"
 _CODE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -192,7 +195,16 @@ def _usage(user: User) -> dict[str, int]:
         .exclude(project__name="Ejemplos", project__description="Algoritmos de ejemplo")
         .count()
     )
-    return {"projects": projects, "algorithms": algorithms}
+    return {
+        "projects": projects,
+        "algorithms": algorithms,
+        "executions_today": _runs_today(user),
+    }
+
+
+def _runs_today(user: User) -> int:
+    row = DailyExecution.objects.filter(user=user, day=timezone.localdate()).first()
+    return 0 if row is None else row.count
 
 
 def _features_of(plan: Plan) -> dict[str, bool]:
@@ -211,9 +223,13 @@ def account_access(user: User) -> dict[str, object]:
             "access": {
                 "browser_app": True,
                 "features": {item.key: False for item in FEATURES},
-                "limits": {"max_projects": 0, "max_algorithms": 0},
+                "limits": {
+                    "max_projects": 0,
+                    "max_algorithms": 0,
+                    "max_executions_per_day": 0,
+                },
             },
-            "usage": {"projects": 0, "algorithms": 0},
+            "usage": {"projects": 0, "algorithms": 0, "executions_today": 0},
         }
     try:
         subscription = user.subscription
@@ -228,7 +244,11 @@ def account_access(user: User) -> dict[str, object]:
             "access": {
                 "browser_app": False,
                 "features": {item.key: False for item in FEATURES},
-                "limits": {"max_projects": None, "max_algorithms": None},
+                "limits": {
+                    "max_projects": None,
+                    "max_algorithms": None,
+                    "max_executions_per_day": None,
+                },
             },
             "usage": _usage(user),
         }
@@ -260,6 +280,7 @@ def account_access(user: User) -> dict[str, object]:
             "limits": {
                 "max_projects": effective.max_projects,
                 "max_algorithms": effective.max_algorithms,
+                "max_executions_per_day": effective.max_executions_per_day,
             },
         },
         "usage": _usage(user),
@@ -291,6 +312,31 @@ def ensure_quota(user: User, kind: str) -> None:
     limit = limits["max_algorithms"]
     if limit is not None and int(usage["algorithms"]) >= int(limit):
         raise DomainError("Tu nivel no permite más algoritmos.", code="plan_limit", status_code=403)
+
+
+def consume_execution(user: User) -> dict[str, int | None]:
+    """Cobra una ejecución del día. Vacío en el nivel = sin tope."""
+    if user.profile.role == Profile.ADMIN:
+        raise DomainError(
+            "Esta cuenta administra los niveles.", code="admin_account", status_code=403
+        )
+    access = account_access(user)
+    limits = access["access"]["limits"]
+    assert isinstance(limits, dict)
+    limit = limits.get("max_executions_per_day")
+    day = timezone.localdate()
+    with transaction.atomic():
+        row, _created = DailyExecution.objects.select_for_update().get_or_create(
+            user=user, day=day, defaults={"count": 0}
+        )
+        if limit is not None and int(row.count) >= int(limit):
+            raise DomainError(
+                "Ya usaste las ejecuciones de hoy.", code="plan_limit", status_code=403
+            )
+        row.count += 1
+        row.save(update_fields=["count"])
+    remaining = None if limit is None else max(0, int(limit) - int(row.count))
+    return {"limit": None if limit is None else int(limit), "used": row.count, "remaining": remaining}
 
 
 def gate_request(request) -> None:
@@ -338,6 +384,8 @@ def _feature_for(path: str) -> tuple[str, ...] | None:
         return ("translate",)
     if "/debug/" in path:
         return ("debug",)
+    if path.startswith("/api/v1/usage/"):
+        return ("execute", "languages")
     if "/execute/" in path:
         return ("execute",)
     if path.startswith("/api/v1/languages/"):
@@ -394,6 +442,7 @@ def plan_payload(plan: Plan) -> dict[str, object]:
         "browser_allowed": plan.browser_allowed,
         "max_projects": plan.max_projects,
         "max_algorithms": plan.max_algorithms,
+        "max_executions_per_day": plan.max_executions_per_day,
         "features": _features_of(plan),
         "is_default": plan.is_default,
         "is_active": plan.is_active,
@@ -406,6 +455,14 @@ def _optional_limit(value: object, field: str) -> int | None:
         return None
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise DomainError(f"{field} no es válido.")
+    return value
+
+
+def _execution_limit(value: object) -> int | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value < MIN_DAILY_RUNS:
+        raise DomainError("El tope de ejecuciones es 3 o más, o sin límite.")
     return value
 
 
@@ -458,6 +515,11 @@ def create_plan(data: dict) -> Plan:
         browser_allowed=data.get("browser_allowed") is True,
         max_projects=_optional_limit(data.get("max_projects"), "El tope de proyectos"),
         max_algorithms=_optional_limit(data.get("max_algorithms"), "El tope de algoritmos"),
+        max_executions_per_day=(
+            _execution_limit(data.get("max_executions_per_day"))
+            if "max_executions_per_day" in data
+            else MIN_DAILY_RUNS
+        ),
         features=normalize_features(audience, data.get("features", {})),
         is_default=False,
         is_active=data.get("is_active", True) is not False,
@@ -484,6 +546,8 @@ def update_plan(plan: Plan, data: dict) -> Plan:
         plan.max_projects = _optional_limit(data.get("max_projects"), "El tope de proyectos")
     if "max_algorithms" in data:
         plan.max_algorithms = _optional_limit(data.get("max_algorithms"), "El tope de algoritmos")
+    if "max_executions_per_day" in data:
+        plan.max_executions_per_day = _execution_limit(data.get("max_executions_per_day"))
     if "features" in data:
         plan.features = normalize_features(plan.audience, data.get("features"))
     if "is_active" in data:

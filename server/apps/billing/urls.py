@@ -2,6 +2,7 @@ from django.urls import path
 
 from apps.billing.views import (
     CatalogView,
+    ConsumeExecutionView,
     PlanDetailView,
     PlanListView,
     SubscriberDetailView,
@@ -9,6 +10,7 @@ from apps.billing.views import (
 )
 
 urlpatterns = [
+    path("usage/execution/", ConsumeExecutionView.as_view(), name="usage-execution"),
     path("billing/catalog/", CatalogView.as_view(), name="billing-catalog"),
     path("billing/plans/", PlanListView.as_view(), name="billing-plans"),
     path("billing/plans/<uuid:plan_id>/", PlanDetailView.as_view(), name="billing-plan"),

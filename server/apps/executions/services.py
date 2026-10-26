@@ -7,6 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.audit.services import record
+from apps.billing.services import consume_execution
 from apps.executions.live import (
     advance,
     feed,
@@ -115,6 +116,7 @@ def start_execution(user, algorithm_id, ip_address: str | None) -> tuple[Executi
     únicamente el último fotograma.
     """
     allow("execution.start", str(user.pk))
+    consume_execution(user)
     _forget(user.pk, "editor")
     with transaction.atomic():
         algorithm, profile, config, version_number = _prepare_run(user, algorithm_id, "Ejecución")

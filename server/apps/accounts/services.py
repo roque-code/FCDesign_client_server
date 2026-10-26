@@ -180,9 +180,13 @@ def user_payload(user: User) -> dict[str, object]:
             "access": {
                 "browser_app": False,
                 "features": {},
-                "limits": {"max_projects": None, "max_algorithms": None},
+                "limits": {
+                    "max_projects": None,
+                    "max_algorithms": None,
+                    "max_executions_per_day": None,
+                },
             },
-            "usage": {"projects": 0, "algorithms": 0},
+            "usage": {"projects": 0, "algorithms": 0, "executions_today": 0},
         }
     return {
         "id": user.pk,

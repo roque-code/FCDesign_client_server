@@ -16,6 +16,7 @@ type Draft = {
   browser_allowed: boolean
   max_projects: string
   max_algorithms: string
+  max_executions: string
   features: Record<string, boolean>
   is_active: boolean
   is_default: boolean
@@ -81,6 +82,7 @@ export function AdminHome({
       browser_allowed: false,
       max_projects: "",
       max_algorithms: "",
+      max_executions: "3",
       features,
       is_active: true,
       is_default: false,
@@ -101,6 +103,7 @@ export function AdminHome({
       browser_allowed: plan.browser_allowed,
       max_projects: plan.max_projects === null ? "" : String(plan.max_projects),
       max_algorithms: plan.max_algorithms === null ? "" : String(plan.max_algorithms),
+      max_executions: plan.max_executions_per_day === null ? "" : String(plan.max_executions_per_day),
       features: { ...plan.features },
       is_active: plan.is_active,
       is_default: plan.is_default,
@@ -117,6 +120,11 @@ export function AdminHome({
       setError(t("planInvalid"))
       return
     }
+    const executions = draft.max_executions === "" ? null : Number(draft.max_executions)
+    if (executions !== null && (!Number.isInteger(executions) || executions < 3)) {
+      setError(t("planExecutionsInvalid"))
+      return
+    }
     const body = {
       name: draft.name.trim(),
       price_cents: price,
@@ -125,6 +133,7 @@ export function AdminHome({
       browser_allowed: draft.browser_allowed,
       max_projects: draft.max_projects === "" ? null : Number(draft.max_projects),
       max_algorithms: draft.max_algorithms === "" ? null : Number(draft.max_algorithms),
+      max_executions_per_day: executions,
       features: draft.features,
       is_active: draft.is_active,
     }
@@ -314,6 +323,15 @@ export function AdminHome({
                   placeholder={t("unlimited")}
                   onChange={(event) => setDraft({ ...draft, max_algorithms: event.target.value })}
                 />
+              </label>
+              <label>
+                {t("maxExecutions")}
+                <input
+                  value={draft.max_executions}
+                  placeholder={t("unlimited")}
+                  onChange={(event) => setDraft({ ...draft, max_executions: event.target.value })}
+                />
+                <span className="note">{t("maxExecutionsHint")}</span>
               </label>
             </div>
             <label className="check-row">

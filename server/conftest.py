@@ -2,6 +2,7 @@ import pytest
 from django.core.cache import cache
 from rest_framework.test import APIClient
 
+from apps.billing.models import Plan
 from apps.tests.helpers import refresh_csrf
 
 
@@ -22,6 +23,12 @@ def _desktop_client(monkeypatch):
         original(self, enforce_csrf_checks=enforce_csrf_checks, **defaults)
 
     monkeypatch.setattr(APIClient, "__init__", patched)
+
+
+@pytest.fixture(autouse=True)
+def _paid_plans_keep_unlimited_runs(db):
+    """La suite de ejecución usa premium. El tope diario se prueba a propósito."""
+    Plan.objects.filter(is_default=False).update(max_executions_per_day=None)
 
 
 @pytest.fixture

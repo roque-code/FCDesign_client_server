@@ -2,7 +2,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.http import object_body
+from apps.billing.services import consume_execution
+from apps.http import current_user, object_body
 from apps.languages.bridge import dispatch
 
 
@@ -13,11 +14,13 @@ class LanguageStatusView(APIView):
 
 class LanguageRunView(APIView):
     def post(self, request: Request) -> Response:
+        consume_execution(current_user(request))
         return Response(dispatch("run", object_body(request.data)))
 
 
 class LanguageOpenView(APIView):
     def post(self, request: Request) -> Response:
+        consume_execution(current_user(request))
         return Response(dispatch("open", object_body(request.data)))
 
 

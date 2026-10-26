@@ -1,4 +1,5 @@
-import { localForeignRun } from "../runtime"
+import { api } from "../api"
+import { installedLocal, localForeignRun } from "../runtime"
 
 /** Corre cada caso en esta máquina y devuelve la salida que hay que comparar. */
 export async function runLanguageCases(
@@ -6,6 +7,7 @@ export async function runLanguageCases(
   source: string,
   cases: { inputs: string[] }[],
 ): Promise<string[]> {
+  if (installedLocal()) await api.consumeExecution()
   const outputs: string[] = []
   for (const item of cases) {
     const stdin = item.inputs.length > 0 ? `${item.inputs.join("\n")}\n` : ""
