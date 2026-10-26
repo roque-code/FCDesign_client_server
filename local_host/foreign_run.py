@@ -7,6 +7,7 @@ C y C++ usan el cc de la máquina; si no hay, descargan Zig.
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import hmac
 import io
@@ -375,17 +376,17 @@ def _cached_or_download(
         ready = _command_map(language, folder, entry["bins"], digest)
         if ready is not None:
             return ready
+        blob = folder.parent / f".{folder.name}.download"
         try:
-            payload = fetch(entry["url"])
-        except (OSError, urllib.error.URLError) as exc:
-            raise _RuntimeProblem("No se pudo descargar el runtime.") from exc
-        if not _matches(payload, digest):
-            raise _RuntimeProblem("La suma del runtime no coincide.")
-        try:
-            _extract(payload, folder, entry["archive"])
-        except (OSError, tarfile.TarError, tarfile.FilterError, zipfile.BadZipFile, ValueError) as exc:
+            _install_runtime(entry, folder, blob, fetch)
+        except _RuntimeProblem:
             shutil.rmtree(folder, ignore_errors=True)
-            raise _RuntimeProblem("El archivo del runtime no es válido.") from exc
+            blob.unlink(missing_ok=True)
+            raise
+        except Exception as exc:
+            shutil.rmtree(folder, ignore_errors=True)
+            blob.unlink(missing_ok=True)
+            raise _RuntimeProblem(_install_message(exc)) from exc
         mapped = _command_map(language, folder, entry["bins"], "")
         if mapped is None:
             shutil.rmtree(folder, ignore_errors=True)
@@ -476,6 +477,34 @@ def _bin_path(folder: Path, relative: str) -> Path | None:
     return None
 
 
+def _install_runtime(
+    entry: dict[str, Any], folder: Path, blob: Path, fetch: Fetch
+) -> None:
+    """El archivo se escribe en disco. En un t3.micro no cabe el JDK entero en memoria."""
+    digest = _sum(entry)
+    try:
+        if fetch is _fetch_url:
+            _fetch_to_path(entry["url"], blob)
+            if not _file_matches(blob, digest):
+                raise _RuntimeProblem("La suma del runtime no coincide.")
+            _extract_path(blob, folder, entry["archive"])
+            return
+        payload = fetch(entry["url"])
+        if not _matches(payload, digest):
+            raise _RuntimeProblem("La suma del runtime no coincide.")
+        _extract(payload, folder, entry["archive"])
+    finally:
+        blob.unlink(missing_ok=True)
+
+
+def _install_message(exc: BaseException) -> str:
+    if isinstance(exc, OSError) and exc.errno == errno.ENOSPC:
+        return "No hay espacio en el disco para instalar el runtime."
+    if isinstance(exc, (tarfile.TarError, tarfile.FilterError, zipfile.BadZipFile, ValueError)):
+        return "El archivo del runtime no es válido."
+    return "No se pudo descargar el runtime."
+
+
 def _extract(payload: bytes, folder: Path, archive: str) -> None:
     if folder.exists():
         shutil.rmtree(folder)
@@ -489,19 +518,42 @@ def _extract(payload: bytes, folder: Path, archive: str) -> None:
     raise ValueError(archive)
 
 
+def _extract_path(archive_path: Path, folder: Path, archive: str) -> None:
+    if folder.exists():
+        shutil.rmtree(folder)
+    folder.mkdir(parents=True)
+    if archive == "zip":
+        with zipfile.ZipFile(archive_path) as opened:
+            _unpack_zip(opened, folder)
+        return
+    if archive in {"tar.gz", "tar.xz", "tar.bz2", "tar"}:
+        with tarfile.open(archive_path, mode="r:*") as opened:
+            _unpack_tar(opened, folder)
+        return
+    raise ValueError(archive)
+
+
 def _extract_zip(payload: bytes, folder: Path) -> None:
     with zipfile.ZipFile(io.BytesIO(payload)) as archive:
-        for info in archive.infolist():
-            _safe_name(info.filename)
-        archive.extractall(folder)
+        _unpack_zip(archive, folder)
+
+
+def _unpack_zip(archive: zipfile.ZipFile, folder: Path) -> None:
+    for info in archive.infolist():
+        _safe_name(info.filename)
+    archive.extractall(folder)
 
 
 def _extract_tar(payload: bytes, folder: Path) -> None:
     """Node, Java y .NET traen enlaces internos. filter=data rechaza los que salen de la carpeta."""
     with tarfile.open(fileobj=io.BytesIO(payload), mode="r:*") as archive:
-        for member in archive.getmembers():
-            _safe_name(member.name)
-        archive.extractall(folder, filter="data")
+        _unpack_tar(archive, folder)
+
+
+def _unpack_tar(archive: tarfile.TarFile, folder: Path) -> None:
+    for member in archive.getmembers():
+        _safe_name(member.name)
+    archive.extractall(folder, filter="data")
 
 
 def _safe_name(name: str) -> None:
@@ -1184,6 +1236,56 @@ def _fetch_url(url: str) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": "Aulivana-FCDdesign"})
     with urllib.request.urlopen(request, timeout=600, context=ssl_context()) as response:
         return _read_limited(response)
+
+
+def _fetch_to_path(url: str, destination: Path) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    request = urllib.request.Request(url, headers={"User-Agent": "Aulivana-FCDdesign"})
+    temporary = destination.with_name(destination.name + ".part")
+    try:
+        with urllib.request.urlopen(request, timeout=600, context=ssl_context()) as response:
+            announced = response.headers.get("Content-Length", "").strip()
+            if announced.isdigit():
+                _need_disk(destination.parent, int(announced))
+            with temporary.open("wb") as handle:
+                total = 0
+                while True:
+                    block = response.read(1024 * 1024)
+                    if not block:
+                        break
+                    if not isinstance(block, bytes):
+                        raise OSError("La descarga no es binaria.")
+                    total += len(block)
+                    if total > MAX_ARCHIVE:
+                        raise OSError("El runtime supera el tamaño admitido.")
+                    handle.write(block)
+        temporary.replace(destination)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
+def _need_disk(folder: Path, needed: int) -> None:
+    free = shutil.disk_usage(folder).free
+    if free < needed + max(needed * 2, 256 * 1024 * 1024):
+        raise _RuntimeProblem("No hay espacio en el disco para instalar el runtime.")
+
+
+def _file_matches(path: Path, expected: str) -> bool:
+    wanted = expected.strip().lower()
+    if len(wanted) == 64:
+        digest = hashlib.sha256()
+    elif len(wanted) == 128:
+        digest = hashlib.sha512()
+    else:
+        return False
+    with path.open("rb") as handle:
+        while True:
+            block = handle.read(1024 * 1024)
+            if not block:
+                break
+            digest.update(block)
+    return hmac.compare_digest(digest.hexdigest(), wanted)
 
 
 def _read_limited(response: Any) -> bytes:

@@ -9,6 +9,7 @@ from __future__ import annotations
 import hmac
 import json
 import os
+import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -86,6 +87,11 @@ class LanguageHandler(BaseHTTPRequestHandler):
             detail = exc.strerror or str(exc)
             message = f"No se pudo ejecutar. {detail}" if detail else "No se pudo ejecutar."
             self._error(500, "invalid", message)
+            return
+        except Exception as exc:
+            sys.stderr.write(f"lenguajes: {exc}\n")
+            detail = str(exc).strip()
+            self._error(500, "invalid", detail or "No se pudo ejecutar.")
             return
         self._error(404, "not_found", "No existe esa orden local.")
 

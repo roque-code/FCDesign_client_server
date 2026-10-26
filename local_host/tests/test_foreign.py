@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import io
 import json
@@ -10,6 +11,7 @@ import threading
 import urllib.error
 import urllib.request
 import zipfile
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
@@ -222,6 +224,57 @@ def test_c_no_descarga_aunque_el_manifiesto_tenga_url(tmp_path: Path) -> None:
     assert result["status"] == "missing"
     assert result["message"] == "Falta el runtime en esta máquina."
     assert called is False
+
+
+def test_el_runtime_se_baja_a_disco(tmp_path: Path) -> None:
+    payload = _zip_script()
+    digest = hashlib.sha256(payload).hexdigest()
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:  # noqa: N802
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def log_message(self, fmt: str, *args: object) -> None:
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    host, port = server.server_address
+    manifest = _manifest(payload, digest)
+    files = manifest["runtimes"]["python"]["files"][platform_key()]
+    files["url"] = f"http://{host}:{port}/python.zip"
+    try:
+        result = run_source(
+            "python",
+            "print(1)\n",
+            root=tmp_path,
+            manifest=manifest,
+            finder=_none,
+        )
+    finally:
+        server.shutdown()
+    assert result["status"] == "ok", result
+    assert result["stdout"] == "cached\n"
+
+
+def test_sin_espacio_lo_dice(tmp_path: Path) -> None:
+    payload = _zip_script()
+
+    def fetch(_url: str) -> bytes:
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+    result = run_source(
+        "python",
+        "print(1)\n",
+        root=tmp_path,
+        manifest=_manifest(payload, hashlib.sha256(payload).hexdigest()),
+        finder=_none,
+        fetch=fetch,
+    )
+    assert result["message"] == "No hay espacio en el disco para instalar el runtime."
 
 
 def test_la_suma_incorrecta_no_instala(tmp_path: Path) -> None:
