@@ -71,6 +71,8 @@ Canal: **SSE** desde `GET /api/v1/executions/{id}/events/`. Las órdenes del est
 
 En la aplicación de escritorio el canal es `GET /local/v1/sessions/{id}/events/`, servido por `local_host`. El laboratorio usa `GET /local/v1/lab/runs/{id}/events/`. El sobre de eventos es el mismo. Ese proceso no escribe `executions.Execution`: la cuenta y el fuente siguen en la API.
 
+Un ciclo se corta al pasar de 100 000 instrucciones o de 5 segundos. **Detener** lo corta antes y deja el estado `cancelled`. En Lenguajes, **Detener** cierra el programa. Si se acaba el tiempo, el aviso es que el programa superó el tiempo de ejecución. No corren más de 6 programas de lenguaje a la vez, y una sesión sin cerrar se abandona a los 3 minutos.
+
 Un `Leer` aceptado también emite `output`, con el texto guardado y un salto de línea, antes de seguir. La consola y el campo `execution.output` lo muestran en ese orden, junto a lo que escriba `Escribir`. Un texto rechazado emite `input_rejected`, no `output`, y la petición se repite. El eco cuenta para `max_output_chars`.
 
 Los eventos de depuración no requieren WebSocket. Si más adelante el retardo o el número de conexiones lo pide, el mismo sobre JSON se puede mudar a WebSocket sin cambiar el intérprete.

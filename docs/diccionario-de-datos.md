@@ -1,6 +1,6 @@
 # Diccionario de datos
 
-Fecha de referencia: 2026-10-21. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. Los niveles viven en `billing_plan` y `billing_subscription`. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
+Fecha de referencia: 2026-10-26. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. Los niveles viven en `billing_plan` y `billing_subscription`. El cupo del día vive en `billing_dailyexecution`. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
 
 La base se llama `traza` y, con los contenedores levantados, escucha en `127.0.0.1:5434`. El usuario de desarrollo es `traza`. No es la base del contenedor anterior `traza-pg` del puerto `5433`.
 
@@ -153,11 +153,23 @@ Un nivel de suscripción. Hay filas distintas para alumno y para docente. El alt
 | `browser_allowed` | `boolean` | NO | Si el navegador abre la aplicación. Falso en la semilla |
 | `max_projects` | `integer` | SÍ | Tope de proyectos propios. Nulo es sin límite. El proyecto Ejemplos no cuenta |
 | `max_algorithms` | `integer` | SÍ | Tope de algoritmos propios. Nulo es sin límite |
+| `max_executions_per_day` | `integer` | SÍ | Ejecuciones de ese día. Nulo es sin límite. El mínimo, si hay tope, es 3. La migración es `billing.0003` |
 | `features` | `jsonb` | NO | Mapa de funciones encendidas. Las claves salen de `apps.billing.catalog` |
 | `is_default` | `boolean` | NO | Una sola fila por tipo. Es el nivel del alta y el respaldo si otro vence |
 | `is_active` | `boolean` | NO | Si se puede asignar. El nivel por defecto no se desactiva |
 | `sort_order` | `smallint` | NO | Orden en la pantalla de administrador |
 | `created_at`, `updated_at` | `timestamptz` | NO | |
+
+### `billing_dailyexecution`
+
+Cuántas veces esa cuenta ejecutó en un día. Una fila por cuenta y por fecha.
+
+| Campo | Tipo | Nulo | Descripción |
+| --- | --- | --- | --- |
+| `id` | `bigint` | NO | Clave |
+| `user_id` | `bigint` | NO | Cuenta. Único junto con `day` |
+| `day` | `date` | NO | Día local |
+| `count` | `integer` | NO | Ejecuciones ya cobradas. Empieza en 0 |
 
 ### `billing_subscription`
 

@@ -1,6 +1,6 @@
 # Arquitectura funcional
 
-Fecha de referencia: 2026-10-25. Las funciones están agrupadas por lo que la persona hace, no por el archivo que las implementa.
+Fecha de referencia: 2026-10-26. Las funciones están agrupadas por lo que la persona hace, no por el archivo que las implementa.
 
 ```mermaid
 flowchart TB
@@ -48,7 +48,7 @@ flowchart TB
 | Validar | Diagnósticos con línea, columna y sugerencia. No crea una ejecución |
 | Traducir | El mismo árbol, emitido en Python, JavaScript, TypeScript, Java, C, C++ y C#. No crea una ejecución |
 | Actualizar | Vuelve a pedir proyectos, algoritmos, comunidades o el laboratorio. En el editor suelta el borrador local |
-| Ejecutar | Consola con `Escribir` y con cada `Leer` aceptado |
+| Ejecutar | Consola con `Escribir` y con cada `Leer` aceptado. El nivel cuenta las ejecuciones del día. Detener corta el programa. Un ciclo se corta a 100 000 instrucciones o a 5 segundos |
 | Depurar | Paso, entrar, salir, continuar, pausa, detener, reiniciar y puntos de interrupción |
 | Diagrama | Figuras desde el AST, descarga SVG, PNG y PDF, e impresión |
 | Lenguajes | Aparece si el nivel lo incluye. En el navegador, Ejecutar corre en el servidor. En la aplicación de escritorio corre en la máquina. El código se puede pasar a un reto de construir |
