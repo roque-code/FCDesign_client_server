@@ -2,7 +2,7 @@
 
 Primero busca el programa en el PATH. Si no está, y el manifiesto trae url y
 suma para este sistema, descarga ese archivo a la carpeta de datos y lo usa.
-C y C++ no se descargan: usan el cc de la máquina.
+C y C++ usan el cc de la máquina; si no hay, descargan Zig.
 """
 
 from __future__ import annotations
@@ -58,6 +58,8 @@ RUNTIME_OF: dict[str, str] = {
     "javascript": "node",
     "typescript": "node",
     "java": "java",
+    "c": "zig",
+    "cpp": "zig",
     "csharp": "dotnet",
 }
 
@@ -76,6 +78,8 @@ NEEDED: dict[str, tuple[str, ...]] = {
     "javascript": ("node",),
     "typescript": ("node",),
     "java": ("javac", "java"),
+    "c": ("cc",),
+    "cpp": ("cxx",),
     "csharp": ("dotnet",),
 }
 
@@ -316,8 +320,6 @@ def _prepare(
     finder: Finder,
     fetch: Fetch,
 ) -> _Prepared | None:
-    if language in {"c", "cpp"} and finder is shutil.which:
-        _install_c_toolchain()
     system = _system_commands(language, finder)
     if system is not None:
         return _Prepared("system", system)
@@ -534,28 +536,19 @@ def ssl_context() -> ssl.SSLContext:
     return ssl.create_default_context()
 
 
+def _compile_argv(compiler: str, language: str, binary: Path, source: Path) -> list[str]:
+    """Zig se invoca como `zig cc` o `zig c++`. gcc recibe los mismos argumentos de siempre."""
+    standard = "-std=c11" if language == "c" else "-std=c++17"
+    head = [compiler]
+    if Path(compiler).name.lower() in {"zig", "zig.exe"}:
+        head.append("cc" if language == "c" else "c++")
+    return [*head, standard, "-o", str(binary), str(source), "-lm"]
+
+
 def _mark_exec(path: Path) -> None:
     if os.name == "nt" or not path.is_file():
         return
     path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-
-
-def _install_c_toolchain() -> None:
-    """C y C++ no se descargan. En el servidor se instala el compilador del sistema."""
-    if os.name == "nt" or os.geteuid() != 0:
-        return
-    if shutil.which("cc") and (shutil.which("c++") or shutil.which("g++")):
-        return
-    apt = shutil.which("apt-get")
-    if apt is None:
-        return
-    subprocess.run([apt, "update"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    subprocess.run(
-        [apt, "install", "-y", "--no-install-recommends", "gcc", "g++", "ca-certificates"],
-        check=False,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
 
 
 def _install_lock(key: str) -> threading.Lock:
@@ -677,11 +670,11 @@ def _program_command(
     if language in {"c", "cpp"}:
         filename = "programa.c" if language == "c" else "programa.cpp"
         compiler = prepared.commands["cc" if language == "c" else "cxx"]
-        standard = "-std=c11" if language == "c" else "-std=c++17"
         binary = folder / ("programa.exe" if os.name == "nt" else "programa")
-        (folder / filename).write_text(source, encoding="utf-8")
+        source_path = folder / filename
+        source_path.write_text(source, encoding="utf-8")
         compiled = _spawn(
-            [compiler, standard, "-o", str(binary), str(folder / filename), "-lm"],
+            _compile_argv(compiler, language, binary, source_path),
             "",
             folder,
             env,

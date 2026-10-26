@@ -2,7 +2,7 @@
 
 No descarga nada. Las direcciones apuntan a los archivos oficiales y la suma
 queda fija: la aplicación no busca una versión más nueva al ejecutar.
-C y C++ no entran: usan el cc de la máquina.
+C y C++ usan el cc de la máquina; si no hay, el manifiesto publica Zig.
 """
 
 from __future__ import annotations
@@ -46,6 +46,15 @@ JAVA_QUERY = {
     "linux-arm64": ("linux", "aarch64"),
 }
 
+ZIG_TARGET = {
+    "darwin-arm64": "aarch64-macos",
+    "darwin-x86_64": "x86_64-macos",
+    "windows-x86_64": "x86_64-windows",
+    "windows-arm64": "aarch64-windows",
+    "linux-x86_64": "x86_64-linux",
+    "linux-arm64": "aarch64-linux",
+}
+
 DOTNET_RID = {
     "darwin-arm64": "osx-arm64",
     "darwin-x86_64": "osx-x64",
@@ -61,6 +70,8 @@ def archive_of(name: str) -> str:
         return "zip"
     if name.endswith(".tar.gz"):
         return "tar.gz"
+    if name.endswith(".tar.xz"):
+        return "tar.xz"
     raise ValueError(name)
 
 
@@ -154,6 +165,26 @@ def dotnet_files(version: str, published: list[dict[str, str]]) -> dict[str, dic
     return files
 
 
+def zig_files(version: str, sums: dict[str, str]) -> dict[str, dict[str, Any]]:
+    files: dict[str, dict[str, Any]] = {}
+    for platform, target in ZIG_TARGET.items():
+        windows = platform.startswith("windows-")
+        suffix = "zip" if windows else "tar.xz"
+        name = f"zig-{target}-{version}.{suffix}"
+        digest = sums.get(platform, "")
+        if not digest:
+            raise ValueError(f"Falta la suma de {name}.")
+        folder = name[: -len(suffix) - 1]
+        binary = f"{folder}/zig.exe" if windows else f"{folder}/zig"
+        files[platform] = {
+            "url": f"https://ziglang.org/download/{version}/{name}",
+            "sha256": digest,
+            "archive": archive_of(name),
+            "bins": {"cc": binary, "cxx": binary},
+        }
+    return files
+
+
 def build_manifest(
     *,
     python_version: str,
@@ -164,12 +195,15 @@ def build_manifest(
     java_files_map: dict[str, dict[str, Any]],
     dotnet_version: str,
     dotnet_files_map: dict[str, dict[str, Any]],
+    zig_version: str,
+    zig_files_map: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
     return {
         "version": 1,
         "note": (
             "Manifiesto fijo. Python es un CPython reubicable, Node sale de nodejs.org, "
-            "Java de Eclipse Temurin 21 y C# del SDK 8 de Microsoft. C y C++ no se descargan. "
+            "Java de Eclipse Temurin 21 y C# del SDK 8 de Microsoft. "
+            "C y C++ usan Zig si la máquina no tiene compilador. "
             "La aplicación guarda cada archivo en su carpeta de datos, no dentro del paquete."
         ),
         "runtimes": {
@@ -177,5 +211,6 @@ def build_manifest(
             "node": {"version": node_version, "files": node_files_map},
             "java": {"version": java_version, "files": java_files_map},
             "dotnet": {"version": dotnet_version, "files": dotnet_files_map},
+            "zig": {"version": zig_version, "files": zig_files_map},
         },
     }

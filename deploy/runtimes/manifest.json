@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Manifiesto fijo. Python es un CPython reubicable, Node sale de nodejs.org, Java de Eclipse Temurin 21 y C# del SDK 8 de Microsoft. C y C++ no se descargan. La aplicación guarda cada archivo en su carpeta de datos, no dentro del paquete.",
+  "note": "Manifiesto fijo. Python es un CPython reubicable, Node sale de nodejs.org, Java de Eclipse Temurin 21 y C# del SDK 8 de Microsoft. C y C++ usan Zig si la máquina no tiene compilador. La aplicación guarda cada archivo en su carpeta de datos, no dentro del paquete.",
   "runtimes": {
     "python": {
       "version": "3.13.17",
@@ -220,8 +220,67 @@
           "sha256": "",
           "sha512": "8a49694501bb67f35be0d345fec4ec660b7e311e6d31cde48e2699cc94cbd901d71dc5aef61a42bc35883e0175883cc2599f7f6ff4af3525381b7d7b8342bef5",
           "archive": "tar.gz",
-          "bins": {
+            "bins": {
             "dotnet": "dotnet"
+          }
+        }
+      }
+    },
+    "zig": {
+      "version": "0.17.0",
+      "files": {
+        "darwin-arm64": {
+          "url": "https://ziglang.org/download/0.17.0/zig-aarch64-macos-0.17.0.tar.xz",
+          "sha256": "b607e9b9234790a008116ae5bdb71c6243b84b9fb42a53a9e70fde41c06c536a",
+          "archive": "tar.xz",
+          "bins": {
+            "cc": "zig-aarch64-macos-0.17.0/zig",
+            "cxx": "zig-aarch64-macos-0.17.0/zig"
+          }
+        },
+        "darwin-x86_64": {
+          "url": "https://ziglang.org/download/0.17.0/zig-x86_64-macos-0.17.0.tar.xz",
+          "sha256": "4f9a1c5269aa17ebda5e6d3c2b89d6cbf36f7d2b22a0306e9ab98f25f95529c6",
+          "archive": "tar.xz",
+          "bins": {
+            "cc": "zig-x86_64-macos-0.17.0/zig",
+            "cxx": "zig-x86_64-macos-0.17.0/zig"
+          }
+        },
+        "windows-x86_64": {
+          "url": "https://ziglang.org/download/0.17.0/zig-x86_64-windows-0.17.0.zip",
+          "sha256": "b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428",
+          "archive": "zip",
+          "bins": {
+            "cc": "zig-x86_64-windows-0.17.0/zig.exe",
+            "cxx": "zig-x86_64-windows-0.17.0/zig.exe"
+          }
+        },
+        "windows-arm64": {
+          "url": "https://ziglang.org/download/0.17.0/zig-aarch64-windows-0.17.0.zip",
+          "sha256": "0a59d91fa1cb40cf068e9b0954434ce973500c7a2ea749f1e01af62cdab52d26",
+          "archive": "zip",
+          "bins": {
+            "cc": "zig-aarch64-windows-0.17.0/zig.exe",
+            "cxx": "zig-aarch64-windows-0.17.0/zig.exe"
+          }
+        },
+        "linux-x86_64": {
+          "url": "https://ziglang.org/download/0.17.0/zig-x86_64-linux-0.17.0.tar.xz",
+          "sha256": "1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026",
+          "archive": "tar.xz",
+          "bins": {
+            "cc": "zig-x86_64-linux-0.17.0/zig",
+            "cxx": "zig-x86_64-linux-0.17.0/zig"
+          }
+        },
+        "linux-arm64": {
+          "url": "https://ziglang.org/download/0.17.0/zig-aarch64-linux-0.17.0.tar.xz",
+          "sha256": "9e8d11661d4ae3bd57702a3832781e23ad151dde5798e16a5ccd503f65234ff8",
+          "archive": "tar.xz",
+          "bins": {
+            "cc": "zig-aarch64-linux-0.17.0/zig",
+            "cxx": "zig-aarch64-linux-0.17.0/zig"
           }
         }
       }

@@ -18,11 +18,13 @@ from typing import Any
 from local_host.foreign_run import app_support, ssl_context
 from local_host.runtime_catalog import (
     JAVA_QUERY,
+    ZIG_TARGET,
     build_manifest,
     dotnet_files,
     java_file,
     node_files,
     python_files,
+    zig_files,
 )
 
 _NODE_CHANNEL = "v22."
@@ -53,6 +55,7 @@ def generate() -> dict[str, Any]:
     node_version, node_sums = _node()
     java_version, java_map = _java()
     dotnet_version, dotnet_published = _dotnet()
+    zig_version, zig_sums = _zig()
     return build_manifest(
         python_version=python_version,
         python_files_map=python_files(python_tag, python_version, python_sums),
@@ -62,6 +65,8 @@ def generate() -> dict[str, Any]:
         java_files_map=java_map,
         dotnet_version=dotnet_version,
         dotnet_files_map=dotnet_files(dotnet_version, dotnet_published),
+        zig_version=zig_version,
+        zig_files_map=zig_files(zig_version, zig_sums),
     )
 
 
@@ -150,6 +155,16 @@ def _dotnet() -> tuple[str, list[dict[str, str]]]:
             }
         )
     return str(sdk["version"]), published
+
+
+def _zig() -> tuple[str, dict[str, str]]:
+    index = _json("https://ziglang.org/download/index.json")
+    version = next(key for key in index if key != "master")
+    row = index[version]
+    sums: dict[str, str] = {}
+    for platform, target in ZIG_TARGET.items():
+        sums[platform] = str(row[target]["shasum"]).strip().lower()
+    return str(version), sums
 
 
 def _sums(text: str) -> dict[str, str]:

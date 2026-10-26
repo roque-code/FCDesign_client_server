@@ -15,6 +15,7 @@ from typing import Any
 
 from local_host.engine import HostError
 from local_host.foreign_run import (
+    _compile_argv,
     _decode_output,
     _extract,
     java_file_name,
@@ -137,6 +138,15 @@ def test_un_enlace_que_sale_de_la_carpeta_se_rechaza(tmp_path: Path) -> None:
     except (ValueError, tarfile.FilterError):
         return
     raise AssertionError("un enlace externo debía rechazarse")
+
+
+def test_zig_compila_con_su_subcomando() -> None:
+    c_argv = _compile_argv("/opt/zig", "c", Path("programa"), Path("programa.c"))
+    cpp_argv = _compile_argv("/opt/zig.exe", "cpp", Path("programa"), Path("programa.cpp"))
+    gcc_argv = _compile_argv("/usr/bin/gcc", "c", Path("programa"), Path("programa.c"))
+    assert c_argv[:3] == ["/opt/zig", "cc", "-std=c11"]
+    assert cpp_argv[:3] == ["/opt/zig.exe", "c++", "-std=c++17"]
+    assert gcc_argv[:2] == ["/usr/bin/gcc", "-std=c11"]
 
 
 def test_sin_terminal_python_igual_escribe(monkeypatch) -> None:

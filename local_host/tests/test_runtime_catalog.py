@@ -10,6 +10,7 @@ from local_host.runtime_catalog import (
     java_file,
     node_files,
     python_files,
+    zig_files,
 )
 
 
@@ -116,8 +117,9 @@ def test_dotnet_prefiere_el_tar_y_guarda_sha512() -> None:
     assert files["linux-x86_64"]["bins"] == {"dotnet": "dotnet"}
 
 
-def test_el_manifiesto_no_incluye_c() -> None:
+def test_el_manifiesto_publica_zig_para_c() -> None:
     empty = {platform: {} for platform in PLATFORMS}
+    zig = zig_files("0.17.0", {platform: "ab" * 32 for platform in PLATFORMS})
     payload = build_manifest(
         python_version="3.13.17",
         python_files_map=empty,
@@ -127,6 +129,11 @@ def test_el_manifiesto_no_incluye_c() -> None:
         java_files_map=empty,
         dotnet_version="8.0.426",
         dotnet_files_map=empty,
+        zig_version="0.17.0",
+        zig_files_map=zig,
     )
-    assert set(payload["runtimes"]) == {"python", "node", "java", "dotnet"}
-    assert "C y C++ no se descargan" in payload["note"]
+    assert set(payload["runtimes"]) == {"python", "node", "java", "dotnet", "zig"}
+    assert "Zig" in payload["note"]
+    assert zig["linux-x86_64"]["archive"] == "tar.xz"
+    assert zig["linux-x86_64"]["bins"]["cc"].endswith("/zig")
+    assert zig["windows-x86_64"]["bins"]["cxx"].endswith("/zig.exe")

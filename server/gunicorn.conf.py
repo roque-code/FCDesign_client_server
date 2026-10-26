@@ -35,7 +35,7 @@ def on_starting(server):
         server.log.exception("No se pudo arrancar el host de lenguajes.")
         return
     port = int(os.environ.get("TRAZA_LANGUAGE_PORT", "8766"))
-    for _ in range(900):
+    for _ in range(50):
         try:
             with socket.create_connection(("127.0.0.1", port), 0.2):
                 server.log.info("El host de lenguajes escucha en 127.0.0.1:%s.", port)
