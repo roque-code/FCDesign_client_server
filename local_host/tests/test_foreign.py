@@ -20,6 +20,7 @@ from local_host.foreign_run import (
     _compile_argv,
     _decode_output,
     _extract,
+    _isolated_env,
     java_file_name,
     load_manifest,
     open_session,
@@ -379,6 +380,12 @@ def test_un_manifiesto_ausente_deja_el_vacio(tmp_path: Path, monkeypatch: Any) -
 def test_la_salida_oculta_los_codigos_de_pantalla() -> None:
     raw = b"\x1b[?1h\x1b=\x1b[?1h\x1b=hola\n\x1b[?1h\x1b="
     assert _decode_output(raw) == "hola\n"
+
+
+def test_csharp_arranca_sin_icu() -> None:
+    env = _isolated_env("csharp", {"dotnet": "/tmp/dotnet"}, "cached")
+    assert env["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"] == "1"
+    assert env["DOTNET_NOLOGO"] == "1"
 
 
 def test_el_nombre_de_la_clase_java_sale_del_fuente() -> None:

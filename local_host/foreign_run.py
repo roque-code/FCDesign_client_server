@@ -275,9 +275,7 @@ def open_session(
         job = _start_job(argv, folder, Path(folder.name), env, prepared.via, float(timeout))
     except OSError as exc:
         folder.cleanup()
-        return _with_session(
-            _result("error", prepared.via, None, "", "", _could_not_run(exc)), ""
-        )
+        return _with_session(_result("error", prepared.via, None, "", "", _could_not_run(exc)), "")
     return _advance(job, job.limit, enforce=True)
 
 
@@ -477,9 +475,7 @@ def _bin_path(folder: Path, relative: str) -> Path | None:
     return None
 
 
-def _install_runtime(
-    entry: dict[str, Any], folder: Path, blob: Path, fetch: Fetch
-) -> None:
+def _install_runtime(entry: dict[str, Any], folder: Path, blob: Path, fetch: Fetch) -> None:
     """El archivo se escribe en disco. En un t3.micro no cabe el JDK entero en memoria."""
     digest = _sum(entry)
     try:
@@ -744,13 +740,13 @@ def _program_command(
         f"    <TargetFramework>{framework}</TargetFramework>\n"
         "    <ImplicitUsings>enable</ImplicitUsings>\n"
         "    <Nullable>disable</Nullable>\n"
+        "    <InvariantGlobalization>true</InvariantGlobalization>\n"
         "  </PropertyGroup>\n"
         "</Project>\n"
     )
     (folder / "Programa.csproj").write_text(project, encoding="utf-8")
     (folder / "Programa.cs").write_text(source, encoding="utf-8")
-    env["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"
-    env["DOTNET_NOLOGO"] = "1"
+    _dotnet_flags(env)
     return (
         [prepared.commands["dotnet"], "run", "--project", str(folder), "--nologo"],
         None,
@@ -846,9 +842,7 @@ def _start_pty(
     return proc, master
 
 
-def _start_pipes(
-    argv: list[str], cwd: Path, env: dict[str, str]
-) -> subprocess.Popen[bytes]:
+def _start_pipes(argv: list[str], cwd: Path, env: dict[str, str]) -> subprocess.Popen[bytes]:
     """Sin terminal: el contenedor del servidor a veces no tiene /dev/pts."""
     return subprocess.Popen(
         argv,
@@ -1101,6 +1095,13 @@ def _node_strips_types(node: str) -> bool:
     return (int(parts[0]), int(parts[1])) >= (22, 6)
 
 
+def _dotnet_flags(env: dict[str, str]) -> None:
+    """Sin ICU el CLI de .NET no arranca. El programa del alumno no necesita culturas."""
+    env["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"
+    env["DOTNET_NOLOGO"] = "1"
+    env["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"] = "1"
+
+
 def _isolated_env(language: str, commands: dict[str, str], via: str) -> dict[str, str]:
     """Entorno mínimo para correr un programa que no es de esta máquina."""
     path = os.environ.get("PATH", "")
@@ -1128,7 +1129,7 @@ def _isolated_env(language: str, commands: dict[str, str], via: str) -> dict[str
         env["DOTNET_ROOT"] = str(Path(commands["dotnet"]).parent)
         env["DOTNET_MULTILEVEL_LOOKUP"] = "0"
         env["DOTNET_CLI_HOME"] = tempfile.gettempdir()
-        env["DOTNET_NOLOGO"] = "1"
+        _dotnet_flags(env)
     return env
 
 
@@ -1149,6 +1150,7 @@ def _child_env(language: str, commands: dict[str, str], via: str) -> dict[str, s
     if language == "csharp":
         env["DOTNET_ROOT"] = str(Path(commands["dotnet"]).parent)
         env["DOTNET_MULTILEVEL_LOOKUP"] = "0"
+        _dotnet_flags(env)
     return env
 
 

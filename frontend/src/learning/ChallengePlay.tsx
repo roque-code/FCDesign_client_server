@@ -342,20 +342,22 @@ export function ChallengePlay({
       </section>
       <div className="lab-main path-play">
         <section className="stage-column">
-          {!finished && !timedOut && attempt.score != null ? (
-            <p className="note">{t("currentScore", { score: attempt.score })}</p>
-          ) : null}
-          <div className="stage-pills" aria-label={t("stages")}>
-            {stages.map((stage) => {
-              const index = stages.indexOf(stage)
-              const currentIndex = stages.indexOf(current as StageName)
-              const state = finished || index < currentIndex ? "done" : index === currentIndex ? "current" : "ahead"
-              return (
-                <span key={stage} className={`stage-pill stage-${state}`}>
-                  {t(STAGE[stage])}
-                </span>
-              )
-            })}
+          <div className="stage-head">
+            {!finished && !timedOut && attempt.score != null ? (
+              <p className="note">{t("currentScore", { score: attempt.score })}</p>
+            ) : null}
+            <div className="stage-pills" aria-label={t("stages")}>
+              {stages.map((stage) => {
+                const index = stages.indexOf(stage)
+                const currentIndex = stages.indexOf(current as StageName)
+                const state = finished || index < currentIndex ? "done" : index === currentIndex ? "current" : "ahead"
+                return (
+                  <span key={stage} className={`stage-pill stage-${state}`}>
+                    {t(STAGE[stage])}
+                  </span>
+                )
+              })}
+            </div>
           </div>
           <div className="stage-panel">
             {timedOut ? (
