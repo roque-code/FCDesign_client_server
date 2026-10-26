@@ -43,7 +43,7 @@ Los volúmenes `traza-db` y `traza-redis` conservan los datos. `docker compose d
 - `GET http://127.0.0.1:18080/api/health/` devuelve `{"status":"ok",...}`.
 - `GET http://127.0.0.1:18080/api/schema/` publica el esquema OpenAPI de la API.
 - Un alta en la pantalla crea la cuenta en la base del compose, no en la de `traza-pg`, y deja el mensaje de confirmación en Mailpit.
-- `compose.servidor.yaml` no levanta Mailpit. El mismo Django envía la confirmación por SMTP a Gmail, con las claves del `.env`, y sigue en `config.settings.development`.
+- `compose.servidor.yaml` no levanta Mailpit ni Vite. Nginx incluye la página ya construida. El mismo Django envía la confirmación por SMTP a Gmail, con las claves del `.env`, y sigue en `config.settings.development`. Gunicorn arranca el host de lenguajes en `127.0.0.1:8766`, sin publicar ese puerto.
 - Nginx publica `/runtimes/manifest.json`. Lenguajes lo usa para descargar un compilador que no esté en la máquina. C y C++ siguen usando el compilador local.
 
 Para volcar el esquema a un archivo, con el entorno del servidor y la base accesible:

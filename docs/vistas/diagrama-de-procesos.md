@@ -1,18 +1,16 @@
 # Diagrama de procesos
 
-Fecha de referencia: 2026-10-21. Son los procesos de negocio que el sistema sostiene, de punta a punta.
+Fecha de referencia: 2026-10-25. Son los procesos de negocio que el sistema sostiene, de punta a punta.
 
 ## Alta
 
 ```mermaid
 flowchart TD
     inicio([Inicio]) --> datos[Escribe correo, contraseña y perfil]
-    datos --> existe{El correo ya está confirmado?}
+    datos --> existe{El correo ya existe?}
     existe -->|sí| rechazo[Avisa que ya está registrado]
-    existe -->|no, pendiente| reenvia[Actualiza la contraseña y reenvía el enlace]
-    existe -->|no existe| crea[Crea la cuenta y envía el enlace]
+    existe -->|no| crea[Crea la cuenta y envía el enlace]
     crea --> buzon[La persona abre Mailpit]
-    reenvia --> buzon
     buzon --> enlace{El enlace sigue vigente?}
     enlace -->|sí| activa[Marca el correo. Abre la sesión si ese navegador no tiene otra]
     enlace -->|ya confirmado| entrar[Pide entrar con la contraseña]

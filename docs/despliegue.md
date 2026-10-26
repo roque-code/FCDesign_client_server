@@ -17,7 +17,7 @@ Este paso no está activo. El compose del repositorio es de desarrollo. Cuando h
 
 1. Secreto de Django, contraseñas de PostgreSQL y usuarios ACL de Redis distintos, fuera del repositorio.
 2. `DJANGO_SETTINGS_MODULE=config.settings.production`, `TRAZA_RUNNER=redis`, `EMAIL_HOST` de un SMTP real, `TRAZA_EMAIL_CONFIRMATION=1` y `TRAZA_PUBLIC_ORIGIN` con el origen HTTPS. Mailpit no sirve en ese puesto.
-3. TLS delante de Nginx. Quitar Vite y servir el resultado de `npm run build`.
+3. TLS delante de Nginx. `compose.servidor.yaml` ya sirve el resultado de `npm run build` y no levanta Vite. El compose de desarrollo sigue con Vite.
 4. Dejar PostgreSQL, Redis y el runner sin puertos públicos. El runner sigue sin credenciales de la base y sin salida a internet.
 5. Conservar `proxy_buffering off` en el canal SSE.
 6. Sustituir el volumen de código fuente por la imagen construida, sin montar el árbol.

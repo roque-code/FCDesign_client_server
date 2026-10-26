@@ -134,7 +134,7 @@ Hecha. `flowchart.py`, API, React Flow, posiciones en el cliente, sincronizació
 - Renombrar proyecto y algoritmo. Descargar el fuente y eliminar un algoritmo.
 - Tabulador para indentar. Selección visible en una sola línea.
 - Al escribir una instrucción, el editor ofrece su estructura. Tab recorre los huecos. La prueba está en `frontend/src/editor/snippets.test.ts`.
-- Lenguajes ejecuta Python, JavaScript, TypeScript, Java, C, C++ y C# en la máquina. Si falta el runtime, se descarga del manifiesto. Un construir con casos no se cierra hasta que ese código pasa todos los casos.
+- Lenguajes aparece si el nivel lo incluye. En el navegador corre en el servidor; en la aplicación de escritorio, en la máquina. Si falta el runtime, se descarga del manifiesto y se escribe en disco. Un construir con casos no se cierra hasta que ese código pasa todos los casos. Repetir el alta con un correo existente responde que ya está registrado.
 - Menú **Configuración** y menú **Funciones**. El idioma de la cuenta cambia los textos y la grafía de las palabras reservadas, y no reescribe el fuente guardado.
 - **Traducir** muestra el algoritmo en los siete lenguajes sin ejecutarlo. **Actualizar** vuelve a cargar la cuenta y suelta el borrador local.
 - La consola hace eco del dato aceptado y se desplaza hasta el final.

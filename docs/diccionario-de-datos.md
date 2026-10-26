@@ -106,7 +106,7 @@ La cuenta. El identificador para entrar es `email`, no hay columna `username`. L
 | `is_staff` | `boolean` | NO | Puede abrir `/admin/` |
 | `is_active` | `boolean` | NO | Cuenta activa para Django. La confirmación del correo es `email_confirmed`, no esta columna |
 | `date_joined` | `timestamptz` | NO | Alta de la fila |
-| `email` | `varchar(254)` | NO | Único. Correo normalizado, es el usuario |
+| `email` | `varchar(254)` | NO | Único, también sin distinguir mayúsculas (`accounts.0008`). Correo normalizado, es el usuario |
 | `email_confirmed` | `boolean` | NO | En los contenedores nace en falso hasta abrir el enlace. Las cuentas anteriores y las de la máquina nacen en verdadero |
 | `session_key` | `varchar(40)` | NO | Clave de la única sesión abierta. Vacío si no hay sesión. La migración es `accounts.0006` |
 

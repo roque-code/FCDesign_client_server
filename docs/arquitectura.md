@@ -1,6 +1,6 @@
 # Arquitectura
 
-Estado: el editor, el laboratorio, el correo de confirmación, el idioma español o inglés, la traducción a otros lenguajes, la aplicación de escritorio, los niveles de suscripción, el bloqueo de pegar y las altas que define el administrador están en el código de desarrollo. Fecha de referencia: 2026-10-24. `DEBUG` sigue en verdadero. `config.settings.production` no lo carga el compose.
+Estado: el editor, el laboratorio, el correo de confirmación, el idioma español o inglés, la traducción a otros lenguajes, la aplicación de escritorio, los niveles de suscripción, el bloqueo de pegar y las altas que define el administrador están en el código de desarrollo. Fecha de referencia: 2026-10-25. `DEBUG` sigue en verdadero. `config.settings.production` no lo carga el compose.
 
 Este documento describe el sistema que corre hoy. La gramática está en [gramatica.md](gramatica.md), el árbol en [ast.md](ast.md), las tablas en [modelo-de-datos.md](modelo-de-datos.md) y el aislamiento del intérprete en [ejecucion.md](ejecucion.md).
 
@@ -158,7 +158,7 @@ El parser y el intérprete no son aplicaciones Django. [ADR 0002](adr/0002-nucle
 
 `App` pide la cookie CSRF y después `GET /api/v1/auth/me/`. Sin sesión muestra `AuthScreen`. Con sesión elige banco de trabajo, laboratorio o armar diagrama. Las tres pantallas comparten la cuenta. Volver al editor conserva el algoritmo que estaba abierto.
 
-**Lenguajes**, entre Actualizar y Laboratorio, abre otra ventana. No usa el pseudocódigo. Cada lenguaje trae sus palabras en inglés. Ejecutar corre en esta máquina, por `local_host`: si el compilador ya está, se usa; si no, se descarga el que publica `/runtimes/manifest.json`. C y C++ usan el compilador de la máquina. Una lectura detiene el programa hasta que se envía el dato. El borrador no se guarda en la cuenta. Desde esa ventana se puede pasar el código a un reto de construir abierto. En la aplicación de escritorio el botón depende de la función `languages` del nivel. En el navegador de desarrollo, en localhost, el anfitrión es `127.0.0.1:8766`. La semilla deja `languages` apagado: el administrador lo enciende. Pegar en ese editor sigue el bloqueo del docente y la función `paste` del nivel.
+**Lenguajes** aparece, entre Actualizar y Laboratorio, solo si el nivel incluye la función `languages`. La semilla la deja apagada y el administrador la enciende. La ventana no usa el pseudocódigo. Cada lenguaje trae sus palabras en inglés. En el navegador, Ejecutar corre en el servidor: `POST /api/v1/languages/` exige esa función y Django llama a un proceso en `127.0.0.1:8766`, el de `local_host.browser_host`, que Gunicorn arranca y que no se publica. En la aplicación de escritorio corre en la máquina. Si el compilador ya está, se usa; si no, se descarga el que publica `/runtimes/manifest.json` y se escribe en disco. Si no hay espacio, responde que no se pudo instalar. C y C++ usan el compilador de la máquina; si no está, el manifiesto publica Zig. Una lectura detiene el programa hasta que se envía el dato. El borrador no se guarda en la cuenta. Desde esa ventana se puede pasar el código a un reto de construir abierto. Pegar en ese editor sigue el bloqueo del docente y la función `paste` del nivel.
 
 El pie de todas las pantallas dice «© {año} R&J Integra Soluciones Tecnológicas. Todos los derechos reservados.»
 
@@ -216,11 +216,11 @@ sequenceDiagram
     W-->>U: Redirige a la aplicación
 ```
 
-El enlace del correo es `GET /api/v1/auth/confirm-email/open/` en `TRAZA_PUBLIC_ORIGIN`, con `confirmar` y `token`. Confirmar en otro equipo deja `email_confirmed` en verdadero: la cuenta entra desde cualquiera. Si ese navegador ya tiene otra sesión, no la sustituye. El token deja de servir cuando el correo pasa a confirmado. Entrar antes de eso responde `email_unconfirmed`. La aplicación también acepta `POST /api/v1/auth/confirm-email/` al abrir `/?confirmar=`. Reenviar usa `POST /api/v1/auth/confirm-email/resend/` y, si la cuenta sigue pendiente, manda otro mensaje. Repetir el alta con el mismo correo pendiente actualiza la contraseña y reenvía. Un correo ya confirmado responde que ya está registrado.
+El enlace del correo es `GET /api/v1/auth/confirm-email/open/` en `TRAZA_PUBLIC_ORIGIN`, con `confirmar` y `token`. Confirmar en otro equipo deja `email_confirmed` en verdadero: la cuenta entra desde cualquiera. Si ese navegador ya tiene otra sesión, no la sustituye. El token deja de servir cuando el correo pasa a confirmado. Entrar antes de eso responde `email_unconfirmed`. La aplicación también acepta `POST /api/v1/auth/confirm-email/` al abrir `/?confirmar=`. Reenviar usa `POST /api/v1/auth/confirm-email/resend/` y, si la cuenta sigue pendiente, manda otro mensaje. Repetir el alta con un correo que ya existe responde «Ese correo ya está registrado.», esté o no confirmado, y no cambia la contraseña. `accounts.0008` impide dos correos que solo se distingan por mayúsculas.
 
 Las cuentas creadas antes de esta columna, y las de la máquina sin la variable, quedan confirmadas. El restablecimiento de contraseña usa el mismo SMTP. En las pruebas el buzón es el de memoria y la confirmación está apagada, así el alta de la suite sigue entrando al momento.
 
-`compose.servidor.yaml` es el mismo arreglo sin Mailpit. Django envía la confirmación por SMTP a Gmail. Las claves salen del `.env` de la carpeta. Sigue en `config.settings.development`: con HTTP, `production` marcaría las cookies `Secure` y el navegador no guardaría la sesión.
+`compose.servidor.yaml` es el mismo arreglo sin Mailpit y sin Vite. Nginx sirve la página ya construida. Django envía la confirmación por SMTP a Gmail. Las claves salen del `.env` de la carpeta. Sigue en `config.settings.development`: con HTTP, `production` marcaría las cookies `Secure` y el navegador no guardaría la sesión.
 
 `accounts.SignupPolicy` es una sola fila. El administrador elige si el alta muestra alumno, docente o los dos. `GET /api/v1/auth/signup/` es público. `PATCH` es solo del administrador. Si un tipo está apagado, el formulario no lo ofrece y `POST /api/v1/auth/register/` lo rechaza. Los dos nacen encendidos.
 
