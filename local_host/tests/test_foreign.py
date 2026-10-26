@@ -6,8 +6,10 @@ import errno
 import hashlib
 import io
 import json
+import os
 import tarfile
 import threading
+import time
 import urllib.error
 import urllib.request
 import zipfile
@@ -15,12 +17,17 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from local_host.engine import HostError
 from local_host.foreign_run import (
     _compile_argv,
     _decode_output,
     _extract,
     _isolated_env,
+    _spawn,
+    _sweep_sessions,
+    _take_run_slot,
     java_file_name,
     load_manifest,
     open_session,
@@ -391,3 +398,45 @@ def test_csharp_arranca_sin_icu() -> None:
 def test_el_nombre_de_la_clase_java_sale_del_fuente() -> None:
     assert java_file_name("public class Saludo { }\n") == "Saludo.java"
     assert java_file_name("class Interna { }\n") == "Interna.java"
+
+
+def test_sin_cupo_no_arranca_otro_proceso() -> None:
+    import local_host.foreign_run as foreign_run
+
+    taken = 0
+    try:
+        while foreign_run._run_slots.acquire(blocking=False):
+            taken += 1
+        with pytest.raises(HostError) as caught:
+            _take_run_slot()
+        assert caught.value.status == 429
+        assert caught.value.message == foreign_run.BUSY_MESSAGE
+        result = _spawn(["true"], "", Path("."), os.environ.copy(), "system")
+        assert result["status"] == "error"
+        assert result["message"] == foreign_run.BUSY_MESSAGE
+    finally:
+        for _ in range(taken):
+            foreign_run._run_slots.release()
+
+
+def test_un_programa_vencido_se_cierra(monkeypatch: Any) -> None:
+    import local_host.foreign_run as foreign_run
+
+    session = "a" * 32
+    closed: list[str] = []
+
+    class Fake:
+        deadline = time.monotonic() - 1
+        started = time.monotonic() - 100
+
+    Fake.session = session
+
+    monkeypatch.setattr(foreign_run, "close_session", lambda item: closed.append(item))
+    with foreign_run._sessions_guard:
+        foreign_run._sessions[session] = Fake()  # type: ignore[assignment]
+    try:
+        _sweep_sessions()
+        assert closed == [session]
+    finally:
+        with foreign_run._sessions_guard:
+            foreign_run._sessions.pop(session, None)

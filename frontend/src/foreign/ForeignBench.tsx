@@ -82,6 +82,7 @@ export function ForeignBench({
   const outputRef = useRef<HTMLPreElement>(null)
   const sessionRef = useRef("")
   const busyRef = useRef(false)
+  const runTicket = useRef(0)
   const onThisMachine = installedLocal() !== null
   const pasteBlocked = pasteBlockedFor(account)
 
@@ -139,6 +140,7 @@ export function ForeignBench({
 
   useEffect(() => {
     return () => {
+      runTicket.current += 1
       const current = sessionRef.current
       sessionRef.current = ""
       if (current) void localForeignClose(current)
@@ -161,9 +163,34 @@ export function ForeignBench({
     if (current) void localForeignClose(current)
   }
 
+  function cancelRun() {
+    runTicket.current += 1
+    dropSession()
+    busyRef.current = false
+    setBusy(false)
+  }
+
+  function stopRun() {
+    cancelRun()
+    setFailure("")
+    setResult((current) =>
+      current
+        ? { ...current, status: "error", session: "", message: t("runStopped") }
+        : {
+            status: "error",
+            via: "system",
+            exit_code: null,
+            stdout: "",
+            stderr: "",
+            message: t("runStopped"),
+            session: "",
+          },
+    )
+  }
+
   function choose(next: ForeignLanguage) {
     drafts.set(language, source)
-    dropSession()
+    cancelRun()
     setLanguage(next)
     setSource(draftOf(next))
     setCopied(false)
@@ -234,6 +261,7 @@ export function ForeignBench({
   }
 
   async function run() {
+    const ticket = ++runTicket.current
     dropSession()
     setBusy(true)
     busyRef.current = true
@@ -245,13 +273,21 @@ export function ForeignBench({
         const quota = await api.consumeExecution()
         onAccount(withRunUsage(account, quota.used))
       }
-      show(await localForeignOpen(language, source))
+      const payload = await localForeignOpen(language, source)
+      if (runTicket.current !== ticket) {
+        if (payload.session) void localForeignClose(payload.session)
+        return
+      }
+      show(payload)
       if (!onThisMachine) onAccount(bumpRunUsage(account))
     } catch (caught) {
+      if (runTicket.current !== ticket) return
       setFailure(caught instanceof ApiError ? translatedMessage(caught.message) : t("foreignFailed"))
     } finally {
-      busyRef.current = false
-      setBusy(false)
+      if (runTicket.current === ticket) {
+        busyRef.current = false
+        setBusy(false)
+      }
     }
   }
 
@@ -345,6 +381,14 @@ export function ForeignBench({
             title={!canExecuteToday(account) ? t("executionsGone") : undefined}
           >
             {busy && !waiting ? t("foreignRunning") : t("run")}
+          </button>
+          <button
+            type="button"
+            title={t("stopTitle")}
+            onClick={stopRun}
+            disabled={!busy && !waiting && !sessionRef.current}
+          >
+            {t("stop")}
           </button>
           {runtimeNote && <p>{runtimeNote}</p>}
           {pasteBlocked ? <p>{t("pasteBlockedNote")}</p> : null}

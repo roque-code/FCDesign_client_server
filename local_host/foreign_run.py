@@ -41,8 +41,11 @@ MAX_SOURCE = 256 * 1024
 MAX_STDIN = 64 * 1024
 MAX_ARCHIVE = 450 * 1024 * 1024
 MAX_OUTPUT = 100_000
+MAX_LIVE_JOBS = 6
 RUN_TIMEOUT = 15
 COMPILE_TIMEOUT = 30
+BUSY_MESSAGE = "Hay demasiados programas en ejecución. Espera o detén uno."
+TIME_MESSAGE = "El programa superó el tiempo de ejecución."
 
 LABELS: dict[str, str] = {
     "python": "Python",
@@ -89,6 +92,7 @@ Fetch = Callable[[str], bytes]
 
 _install_guard = threading.Lock()
 _install_locks: dict[str, threading.Lock] = {}
+_run_slots = threading.BoundedSemaphore(MAX_LIVE_JOBS)
 
 
 class _RuntimeProblem(Exception):
@@ -292,8 +296,12 @@ def feed_session(session_id: str, text: str) -> dict[str, object]:
 
 
 def poll_session(session_id: str) -> dict[str, object]:
-    job = _lookup_session(session_id)
-    return _advance(job, 0.25, enforce=False)
+    _sweep_sessions()
+    try:
+        job = _lookup_session(session_id)
+    except HostError:
+        return _result("error", "system", 124, "", "", TIME_MESSAGE)
+    return _advance(job, 0.25, enforce=True)
 
 
 def close_session(session_id: str) -> None:
@@ -777,6 +785,7 @@ class _Job:
         self.exit_code: int | None = None
         self.finished = False
         self.closed = False
+        self.held_slot = False
         self.chunks = bytearray()
         self.lock = threading.Lock()
         self.cv = threading.Condition()
@@ -786,7 +795,19 @@ _SESSION_ID = re.compile(r"^[0-9a-f]{32}$")
 _sessions: dict[str, _Job] = {}
 _sessions_guard = threading.Lock()
 _IDLE_SECONDS = 0.2
-_ABANDON_SECONDS = 10 * 60
+_ABANDON_SECONDS = 3 * 60
+
+
+def _take_run_slot() -> None:
+    if not _run_slots.acquire(blocking=False):
+        raise HostError(BUSY_MESSAGE, code="busy", status=429)
+
+
+def _give_run_slot() -> None:
+    try:
+        _run_slots.release()
+    except ValueError:
+        return
 
 
 def _start_job(
@@ -797,21 +818,29 @@ def _start_job(
     via: str,
     limit: float,
 ) -> _Job:
-    if os.name == "nt":
-        proc = _start_pipes(argv, cwd, env)
-        master: int | None = None
-    else:
-        try:
-            proc, master = _start_pty(argv, cwd, env)
-        except OSError:
+    _take_run_slot()
+    held = True
+    try:
+        if os.name == "nt":
             proc = _start_pipes(argv, cwd, env)
-            master = None
-    job = _Job(secrets.token_hex(16), proc, master, folder, via, limit)
-    target = _read_pipe if master is None else _read_master
-    threading.Thread(target=target, args=(job,), daemon=True).start()
-    with _sessions_guard:
-        _sessions[job.session] = job
-    return job
+            master: int | None = None
+        else:
+            try:
+                proc, master = _start_pty(argv, cwd, env)
+            except OSError:
+                proc = _start_pipes(argv, cwd, env)
+                master = None
+        job = _Job(secrets.token_hex(16), proc, master, folder, via, limit)
+        job.held_slot = True
+        held = False
+        target = _read_pipe if master is None else _read_master
+        threading.Thread(target=target, args=(job,), daemon=True).start()
+        with _sessions_guard:
+            _sessions[job.session] = job
+        return job
+    finally:
+        if held:
+            _give_run_slot()
 
 
 def _start_pty(
@@ -851,6 +880,7 @@ def _start_pipes(argv: list[str], cwd: Path, env: dict[str, str]) -> subprocess.
         stderr=subprocess.STDOUT,
         cwd=cwd,
         env=env,
+        start_new_session=os.name != "nt",
     )
 
 
@@ -975,7 +1005,7 @@ def _session_view(job: _Job, state: str) -> dict[str, object]:
                 124,
                 job.text,
                 "",
-                "El programa superó el tiempo de ejecución.",
+                TIME_MESSAGE,
             ),
             "",
         )
@@ -988,32 +1018,37 @@ def _shutdown(job: _Job) -> None:
     if job.finished:
         return
     job.finished = True
-    if job.proc.poll() is None:
-        if os.name != "nt":
-            try:
-                os.killpg(job.proc.pid, signal.SIGKILL)
-            except OSError:
+    try:
+        if job.proc.poll() is None:
+            if os.name != "nt":
+                try:
+                    os.killpg(job.proc.pid, signal.SIGKILL)
+                except OSError:
+                    job.proc.kill()
+            else:
                 job.proc.kill()
-        else:
-            job.proc.kill()
+            try:
+                job.proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                pass
+        if job.exit_code is None:
+            job.exit_code = job.proc.poll()
+        if job.master is not None:
+            os.close(job.master)
+            job.master = None
+        if job.proc.stdin is not None:
+            try:
+                job.proc.stdin.close()
+            except OSError:
+                pass
         try:
-            job.proc.wait(timeout=2)
-        except subprocess.TimeoutExpired:
-            pass
-    if job.exit_code is None:
-        job.exit_code = job.proc.poll()
-    if job.master is not None:
-        os.close(job.master)
-        job.master = None
-    if job.proc.stdin is not None:
-        try:
-            job.proc.stdin.close()
+            job.folder.cleanup()
         except OSError:
             pass
-    try:
-        job.folder.cleanup()
-    except OSError:
-        pass
+    finally:
+        if job.held_slot:
+            job.held_slot = False
+            _give_run_slot()
 
 
 def _lookup_session(session_id: str) -> _Job:
@@ -1034,7 +1069,11 @@ def _pop_session(session_id: str) -> _Job | None:
 def _sweep_sessions() -> None:
     now = time.monotonic()
     with _sessions_guard:
-        stale = [job.session for job in _sessions.values() if now - job.started > _ABANDON_SECONDS]
+        stale = [
+            job.session
+            for job in _sessions.values()
+            if now >= job.deadline or now - job.started > _ABANDON_SECONDS
+        ]
     for session_id in stale:
         close_session(session_id)
 
@@ -1162,6 +1201,8 @@ def _spawn(
     via: str,
     timeout: int = RUN_TIMEOUT,
 ) -> dict[str, object]:
+    if not _run_slots.acquire(blocking=False):
+        return _result("error", via, None, "", "", BUSY_MESSAGE)
     try:
         completed = subprocess.run(
             argv,
@@ -1176,11 +1217,11 @@ def _spawn(
     except subprocess.TimeoutExpired as exc:
         stdout = exc.stdout if isinstance(exc.stdout, str) else ""
         stderr = exc.stderr if isinstance(exc.stderr, str) else ""
-        return _result(
-            "error", via, 124, stdout, stderr, "El programa superó el tiempo de ejecución."
-        )
+        return _result("error", via, 124, stdout, stderr, TIME_MESSAGE)
     except OSError as exc:
         return _result("error", via, None, "", "", _could_not_run(exc))
+    finally:
+        _give_run_slot()
     state = "ok" if completed.returncode == 0 else "error"
     return _result(state, via, completed.returncode, completed.stdout, completed.stderr, "")
 

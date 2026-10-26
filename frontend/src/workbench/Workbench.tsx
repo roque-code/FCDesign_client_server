@@ -155,6 +155,7 @@ export function Workbench({
   const consoleRef = useRef<HTMLPreElement>(null)
   const settingsRef = useRef<HTMLDivElement>(null)
   const functionsRef = useRef<HTMLDivElement>(null)
+  const haltRef = useRef(false)
   const workspaceRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<HTMLElement>(null)
   const insightRef = useRef<HTMLDivElement>(null)
@@ -774,9 +775,11 @@ export function Workbench({
   async function execute() {
     setError("")
     setInput("")
+    haltRef.current = false
     setPlaying(true)
     try {
       await flushSource()
+      if (haltRef.current) return
       const result = inInstalledApp()
         ? await (async () => {
             const quota = await api.consumeExecution()
@@ -786,6 +789,13 @@ export function Workbench({
         : await api.execute(algorithmId)
       if (!inInstalledApp()) onAccount(bumpRunUsage(account))
       remember(result)
+      if (haltRef.current) {
+        const stopped = inInstalledApp()
+          ? await localControl(result.id, "stop")
+          : await api.control(result.id, "stop")
+        remember(stopped)
+        return
+      }
       if (result.status === "paused") {
         await openStream(result.id)
         const finished = inInstalledApp()
@@ -817,6 +827,7 @@ export function Workbench({
   }
 
   async function control(action: string) {
+    if (action === "stop") haltRef.current = true
     if (!execution) return
     setError("")
     try {
@@ -1031,6 +1042,13 @@ export function Workbench({
     handle.addEventListener("pointerup", stop)
     handle.addEventListener("pointercancel", stop)
   }
+
+  const canHalt =
+    playing ||
+    (Boolean(execution?.id) &&
+      (execution?.status === "running" ||
+        execution?.status === "paused" ||
+        execution?.status === "waiting_input"))
 
   return (
     <div className="shell">
@@ -1491,6 +1509,16 @@ export function Workbench({
                 {t("run")}
               </button>
               )}
+              {(can("execute") || can("debug")) && (
+              <button
+                type="button"
+                title={t("stopTitle")}
+                onClick={() => void control("stop")}
+                disabled={!canHalt}
+              >
+                {t("stop")}
+              </button>
+              )}
               {can("debug") && (
               <button className="tool-debug" type="button" onClick={() => void debug()} disabled={!algorithmId || playing}>
                 {t("debug")}
@@ -1516,9 +1544,6 @@ export function Workbench({
             <div className="tool-group">
               <button type="button" onClick={() => void control("pause")} disabled={!execution?.debug}>
                 {t("pause")}
-              </button>
-              <button type="button" onClick={() => void control("stop")} disabled={!playing && !execution?.debug}>
-                {t("stop")}
               </button>
               <button type="button" onClick={() => void control("restart")} disabled={!execution?.debug}>
                 {t("restart")}
