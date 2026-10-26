@@ -139,11 +139,11 @@ Desde `~/fcdesign/FCDesign_client_server`:
 ```bash
 docker compose -f compose.servidor.yaml build web
 docker compose -f compose.servidor.yaml build runner
-docker compose -f compose.servidor.yaml build frontend
-docker compose -f compose.servidor.yaml up -d
+docker compose -f compose.servidor.yaml build nginx
+docker compose -f compose.servidor.yaml up -d --remove-orphans
 ```
 
-La primera construcción tarda varios minutos. Al terminar, los siete servicios tienen que estar en marcha: `db`, `redis`, `runner`, `web`, `frontend` y `nginx`. Postgres y Redis no publican puertos hacia internet.
+La primera construcción tarda varios minutos. Nginx incluye la página ya construida: en el servidor no queda Vite. Al terminar tienen que estar en marcha `db`, `redis`, `runner`, `web` y `nginx`. Postgres y Redis no publican puertos hacia internet.
 
 Comprobación dentro de la EC2:
 
@@ -169,8 +169,8 @@ git pull origin main
 docker compose -f compose.servidor.yaml down
 docker compose -f compose.servidor.yaml build web
 docker compose -f compose.servidor.yaml build runner
-docker compose -f compose.servidor.yaml build frontend
-docker compose -f compose.servidor.yaml up -d
+docker compose -f compose.servidor.yaml build nginx
+docker compose -f compose.servidor.yaml up -d --remove-orphans
 ```
 
 `down` para los contenedores y conserva los volúmenes `traza-db` y `traza-redis`. Las cuentas y los algoritmos siguen ahí. `down -v` los borra.
