@@ -498,36 +498,28 @@ a.manual-download:hover, button.manual-download:hover { background: var(--hover)
 .communities-list > ul { overflow: auto; min-height: 0; align-content: start; }
 
 .communities-detail {
-  overflow: hidden;
-  align-content: stretch;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  overflow: auto;
+  align-content: start;
+  grid-template-rows: none;
 }
 
 .community-head,
 .community-add,
-.community-switches { display: grid; gap: 0.55rem; }
+.community-roster,
+.community-teachers,
+.community-switches { display: grid; gap: 0.55rem; min-width: 0; }
 
-.community-add .people-results { max-height: 11rem; overflow: auto; align-content: start; }
-
-.community-roster {
-  min-height: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 0.45rem;
+.community-add .people-results {
+  align-content: start;
+  container-type: inline-size;
 }
 
-.member-scroll { min-height: 0; overflow: auto; }
+.member-scroll,
+.community-teachers { min-width: 0; container-type: inline-size; }
 
-.roster-tools {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
+.roster-tools { display: grid; gap: 0.35rem; }
 
-.roster-tools input { width: min(18rem, 100%); }
-
-.community-roster .member-list { overflow: auto; min-height: 0; align-content: start; }
+.roster-tools input { width: 100%; }
 
 .member-pager {
   display: flex;
@@ -537,8 +529,6 @@ a.manual-download:hover, button.manual-download:hover { background: var(--hover)
 }
 
 .member-pager span { color: var(--muted); font-size: 0.82rem; font-variant-numeric: tabular-nums; }
-
-.community-teachers { display: grid; gap: 0.45rem; max-height: 11rem; overflow: auto; }
 
 .communities-list ul,
 .member-list,
@@ -565,21 +555,55 @@ a.manual-download:hover, button.manual-download:hover { background: var(--hover)
 .member-list small,
 .people-results small { color: var(--muted); font-size: 0.8rem; }
 
-.communities-title,
-.member-list li,
-.people-results li {
+.communities-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.6rem;
 }
 
-.member-list span,
-.people-results span { display: grid; min-width: 0; }
+.member-list li,
+.people-results li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.55rem;
+  min-width: 0;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--accent) 5%, var(--sheet));
+}
+
+.member-list li > span:not(.member-actions),
+.people-results li > span:not(.member-actions) { display: grid; min-width: 0; }
 .member-list strong,
 .people-results strong { overflow: hidden; text-overflow: ellipsis; }
 
-.member-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 0.45rem; flex: none; }
+.member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.45rem 0.7rem;
+  min-width: 0;
+}
+
+.member-list,
+.people-results { gap: 0.65rem; }
+
+.member-list li button,
+.people-results li button { flex: none; justify-self: start; white-space: nowrap; }
+
+@container (min-width: 36rem) {
+  .member-list li,
+  .people-results li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .member-actions { flex-wrap: nowrap; justify-content: flex-end; min-width: max-content; }
+  .member-actions > * { flex: none; }
+}
 
 .translation-switch {
   display: flex;
@@ -600,10 +624,7 @@ a.manual-download:hover, button.manual-download:hover { background: var(--hover)
     overflow: auto;
     grid-template-rows: auto auto auto;
   }
-  .communities-detail { overflow: visible; grid-template-rows: none; }
-  .member-scroll { max-height: 24rem; }
-  .roster-tools { align-items: stretch; flex-direction: column; }
-  .roster-tools input { width: 100%; }
+  .communities-detail { overflow: visible; }
 }
 
 .settings-menu {

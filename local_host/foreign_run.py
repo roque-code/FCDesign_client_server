@@ -754,7 +754,7 @@ def _program_command(
     )
     (folder / "Programa.csproj").write_text(project, encoding="utf-8")
     (folder / "Programa.cs").write_text(source, encoding="utf-8")
-    _dotnet_flags(env)
+    _dotnet_workspace(folder, env)
     return (
         [prepared.commands["dotnet"], "run", "--project", str(folder), "--nologo"],
         None,
@@ -1139,6 +1139,28 @@ def _dotnet_flags(env: dict[str, str]) -> None:
     env["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"
     env["DOTNET_NOLOGO"] = "1"
     env["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"] = "1"
+    # En un disco de solo lectura el aviso de workloads se mezcla con la salida.
+    env["DOTNET_SKIP_WORKLOAD_INTEGRITY_CHECK"] = "1"
+    env["DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE"] = "1"
+
+
+def _dotnet_workspace(folder: Path, env: dict[str, str]) -> None:
+    """El cerrojo de NuGet no se puede crear con la raíz de solo lectura.
+
+    Si el archivo de la migración ya existe, el SDK no abre ese cerrojo.
+    La carpeta es la del programa: se borra al terminar.
+    """
+    home = folder / ".dotnet-home"
+    share = home / "share"
+    migrations = share / "NuGet" / "Migrations"
+    migrations.mkdir(parents=True, exist_ok=True)
+    marker = migrations / "1"
+    if not marker.is_file():
+        marker.write_text("", encoding="utf-8")
+    env["HOME"] = str(home)
+    env["DOTNET_CLI_HOME"] = str(home)
+    env["XDG_DATA_HOME"] = str(share)
+    _dotnet_flags(env)
 
 
 def _isolated_env(language: str, commands: dict[str, str], via: str) -> dict[str, str]:

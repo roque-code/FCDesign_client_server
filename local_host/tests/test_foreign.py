@@ -395,6 +395,23 @@ def test_csharp_arranca_sin_icu() -> None:
     assert env["DOTNET_NOLOGO"] == "1"
 
 
+def test_csharp_no_abre_el_cerrojo_de_nuget(tmp_path: Path) -> None:
+    from local_host.foreign_run import _Prepared, _program_command
+
+    env = _isolated_env("csharp", {"dotnet": str(tmp_path / "dotnet")}, "cached")
+    argv, failed, _timeout = _program_command(
+        "csharp",
+        'System.Console.Write("hola");\n',
+        tmp_path,
+        env,
+        _Prepared("cached", {"dotnet": str(tmp_path / "dotnet")}),
+    )
+    marker = tmp_path / ".dotnet-home" / "share" / "NuGet" / "Migrations" / "1"
+    assert failed is None and argv is not None
+    assert marker.is_file()
+    assert env["XDG_DATA_HOME"] == str(tmp_path / ".dotnet-home" / "share")
+
+
 def test_el_nombre_de_la_clase_java_sale_del_fuente() -> None:
     assert java_file_name("public class Saludo { }\n") == "Saludo.java"
     assert java_file_name("class Interna { }\n") == "Interna.java"
