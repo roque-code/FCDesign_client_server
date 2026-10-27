@@ -29,7 +29,13 @@ class RosterView(APIView):
 class RosterProgressView(APIView):
     def get(self, request: Request, path_id) -> HttpResponse:
         lang = request.query_params.get("lang", "es")
-        filename, body = gradebook_csv(current_user(request), path_id, str(lang))
+        community = request.query_params.get("community", "")
+        filename, body = gradebook_csv(
+            current_user(request),
+            path_id,
+            str(lang),
+            community if isinstance(community, str) else "",
+        )
         response = HttpResponse(body, content_type="text/csv; charset=utf-8")
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response

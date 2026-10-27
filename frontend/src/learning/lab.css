@@ -959,6 +959,30 @@
   padding: 1.1rem;
 }
 
+.community-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 0.7rem;
+}
+
+.community-picker button {
+  display: grid;
+  justify-items: start;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0.95rem 1rem;
+  text-align: left;
+  color: var(--ink);
+  border-radius: 0.9rem;
+  box-shadow: none;
+}
+
+.community-picker button span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 550;
+}
+
 .teacher-board {
   display: grid;
   gap: 0.9rem;

@@ -165,3 +165,40 @@ def test_la_libreta_tiene_una_fila_por_alumno_y_la_nota_del_intento():
         "",
         "50",
     ]
+
+
+def test_la_libreta_de_una_comunidad_no_mezcla_alumnos():
+    teacher = _teacher("comunidad-profe@ejemplo.test", "Profe Comunidad")
+    ana = APIClient()
+    created = register(ana, email="comunidad-ana@ejemplo.test", display_name="Ana Comunidad")
+    beto = APIClient()
+    other = register(beto, email="comunidad-beto@ejemplo.test", display_name="Beto Comunidad")
+    ana_id = created.json()["id"]
+    beto_id = other.json()["id"]
+    group_a = teacher.post("/api/v1/communities/", {"name": "Grupo Alfa"}, format="json")
+    group_b = teacher.post("/api/v1/communities/", {"name": "Grupo Beta"}, format="json")
+    assert group_a.status_code == 201, group_a.content
+    assert group_b.status_code == 201, group_b.content
+    added_a = teacher.post(
+        f"/api/v1/communities/{group_a.json()['id']}/members/",
+        {"user_id": ana_id},
+        format="json",
+    )
+    added_b = teacher.post(
+        f"/api/v1/communities/{group_b.json()['id']}/members/",
+        {"user_id": beto_id},
+        format="json",
+    )
+    assert added_a.status_code == 201, added_a.content
+    assert added_b.status_code == 201, added_b.content
+
+    roster = teacher.get("/api/v1/learning/roster/")
+    assert roster.status_code == 200, roster.content
+    path_id = next(item["id"] for item in roster.json()["routes"] if item["name"] == "Fundamentos")
+    limited = teacher.get(f"/api/v1/learning/roster/{path_id}/progress/?community=Grupo Alfa")
+    assert limited.status_code == 200, limited.content
+    rows = list(csv.reader(io.StringIO(limited.content.decode("utf-8").lstrip("\ufeff"))))
+    assert [row[0] for row in rows[1:]] == ["Ana Comunidad"]
+    assert rows[1][2] == "Grupo Alfa"
+    missing = teacher.get(f"/api/v1/learning/roster/{path_id}/progress/?community=No existe")
+    assert missing.status_code == 404

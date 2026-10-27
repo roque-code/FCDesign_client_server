@@ -310,6 +310,12 @@ export type LabRosterStudent = {
   last_activity: string | null
 }
 
+export type LabRosterCommunity = {
+  id: string
+  name: string
+  student_count: number
+}
+
 export type LabRosterRoute = {
   id: string
   name: string
@@ -1099,9 +1105,14 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ community_ids: communityIds, student_ids: studentIds }),
     }),
-  labRoster: () => request<{ routes: LabRosterRoute[] }>("/api/v1/learning/roster/"),
-  labProgressCsv: (pathId: string, lang: "es" | "en") =>
-    requestText(`/api/v1/learning/roster/${pathId}/progress/?lang=${lang}`),
+  labRoster: () =>
+    request<{ routes: LabRosterRoute[]; communities: LabRosterCommunity[] }>("/api/v1/learning/roster/"),
+  labProgressCsv: (pathId: string, lang: "es" | "en", community = "") =>
+    requestText(
+      `/api/v1/learning/roster/${pathId}/progress/?lang=${lang}${
+        community === "" ? "" : `&community=${encodeURIComponent(community)}`
+      }`,
+    ),
   labMember: (userId: number) => request<LabMemberProgress>(`/api/v1/learning/roster/${userId}/`),
   labMemberWork: (userId: number, challengeId: string) =>
     request<LabMemberWork>(`/api/v1/learning/roster/${userId}/challenges/${challengeId}/`),

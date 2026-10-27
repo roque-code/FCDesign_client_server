@@ -7,6 +7,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import Profile
 from apps.learning.bank_data import ROUTE_NAME
+from apps.learning.contest_data import CONTEST_ROUTE_NAME
 from apps.learning.models import Challenge, ChallengeAttempt, Reflection, WorkspaceSnapshot
 from apps.tests.helpers import register
 
@@ -87,7 +88,7 @@ def test_el_docente_ve_solo_a_quien_ya_puede_ver():
     done = next(item for item in fundamentos["challenges"] if item["id"] == str(challenge.id))
     assert done["state"] == "completed"
     assert done["score"] == 80
-    assert [item["name"] for item in routes] == ["Fundamentos", ROUTE_NAME]
+    assert [item["name"] for item in routes] == ["Fundamentos", ROUTE_NAME, CONTEST_ROUTE_NAME]
     assert body["person"]["rank"] >= 1
     leaked = detail.content.decode()
     assert "workspace" not in leaked
@@ -135,6 +136,8 @@ def test_el_docente_ve_solo_a_quien_ya_puede_ver():
     assert other_added.status_code == 201, other_added.content
 
     grouped = teacher.get("/api/v1/learning/roster/").json()
+    assert [item["name"] for item in grouped["communities"]] == ["Grupo A", "Grupo B"]
+    assert next(item["student_count"] for item in grouped["communities"] if item["name"] == "Grupo A") == 1
     by_name = {item["name"]: item for item in grouped["routes"]}
     assert "Sin asignar" not in by_name
     assert [item["id"] for item in by_name["Repaso grupo"]["students"]] == [student_id]
@@ -146,7 +149,7 @@ def test_el_docente_ve_solo_a_quien_ya_puede_ver():
 
     again = teacher.get(f"/api/v1/learning/roster/{student_id}/").json()
     names = [item["name"] for item in again["paths"]]
-    assert names == ["Fundamentos", ROUTE_NAME, "Repaso grupo"]
+    assert names == ["Fundamentos", ROUTE_NAME, CONTEST_ROUTE_NAME, "Repaso grupo"]
     custom = next(item for item in again["paths"] if item["name"] == "Repaso grupo")
     assert custom["completed"] == 1
     assert custom["total"] == 1

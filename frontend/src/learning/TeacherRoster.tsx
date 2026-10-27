@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react"
 
-import { ApiError, api, type LabMemberProgress, type LabMemberWork, type LabRosterRoute } from "../api"
+import {
+  ApiError,
+  api,
+  type LabMemberProgress,
+  type LabMemberWork,
+  type LabRosterCommunity,
+  type LabRosterRoute,
+} from "../api"
 import { spellText } from "../dialect"
 import { LANGUAGE_LABELS, type ForeignLanguage } from "../foreign/keywords"
 import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
@@ -40,6 +47,17 @@ function messageOf(error: unknown, fallback: string): string {
 function percent(completed: number, total: number): number {
   if (total <= 0) return 0
   return Math.min(100, Math.round((completed / total) * 100))
+}
+
+function routesOf(routes: LabRosterRoute[], community: string): LabRosterRoute[] {
+  return routes
+    .map((route) => ({
+      ...route,
+      students: route.students
+        .filter((student) => student.communities.includes(community))
+        .map((student) => ({ ...student, communities: [community] })),
+    }))
+    .filter((route) => route.students.length > 0)
 }
 
 function StudentWork({
@@ -171,6 +189,8 @@ export function TeacherRoster() {
   const t = useT()
   const locale = useLocale()
   const [routes, setRoutes] = useState<LabRosterRoute[] | null>(null)
+  const [communities, setCommunities] = useState<LabRosterCommunity[] | null>(null)
+  const [communityId, setCommunityId] = useState<string | null>(null)
   const [opened, setOpened] = useState<{ routeId: string; detail: LabMemberProgress } | null>(null)
   const [review, setReview] = useState<LabMemberWork | null>(null)
   const [error, setError] = useState("")
@@ -179,8 +199,10 @@ export function TeacherRoster() {
   useEffect(() => {
     let cancelled = false
     void api.labRoster().then(
-      (result) => {
-        if (!cancelled) setRoutes(result.routes)
+      (roster) => {
+        if (cancelled) return
+        setRoutes(roster.routes)
+        setCommunities(roster.communities)
       },
       (caught: unknown) => {
         if (!cancelled) setError(messageOf(caught, t("rosterLoadError")))
@@ -191,11 +213,11 @@ export function TeacherRoster() {
     }
   }, [])
 
-  async function downloadProgress(route: LabRosterRoute) {
+  async function downloadProgress(route: LabRosterRoute, community: string) {
     setBusy(true)
     setError("")
     try {
-      const csv = await api.labProgressCsv(route.id, locale)
+      const csv = await api.labProgressCsv(route.id, locale, community)
       const body = csv.charCodeAt(0) === 0xfeff ? csv : `\ufeff${csv}`
       await saveDownload(progressFilename(route.name), new Blob([body], { type: "text/csv;charset=utf-8" }))
     } catch (caught) {
@@ -350,29 +372,82 @@ export function TeacherRoster() {
     )
   }
 
+  const selected = communities?.find((item) => item.id === communityId) ?? null
+  const visible = routes && selected ? routesOf(routes, selected.name) : null
+  const orderedCommunities = communities
+    ? [...communities].sort((left, right) => left.name.localeCompare(right.name, locale))
+    : null
+
+  if (!selected) {
+    return (
+      <>
+        <section className="enunciado path-intro">
+          <div>
+            <p className="enunciado-kicker">{t("progress")}</p>
+            <h2>{t("pickCommunityShort")}</h2>
+            <p className="roster-meta">{t("chooseCommunityNote")}</p>
+          </div>
+          {orderedCommunities ? (
+            <p className="path-count">
+              <strong>{orderedCommunities.length}</strong>
+              <span>{orderedCommunities.length === 1 ? t("communityWord") : t("communities")}</span>
+            </p>
+          ) : null}
+        </section>
+        <main className="lab-main roster-routes">
+          {error ? <p className="error">{error}</p> : null}
+          {orderedCommunities && orderedCommunities.length > 0 ? (
+            <div className="community-picker">
+              {orderedCommunities.map((community) => (
+                <button key={community.id} type="button" onClick={() => setCommunityId(community.id)}>
+                  <strong>{community.name}</strong>
+                  <span>
+                    {t(community.student_count === 1 ? "countStudent" : "countStudents", {
+                      count: community.student_count,
+                    })}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {orderedCommunities && orderedCommunities.length === 0 ? (
+            <p className="roster-empty">{t("communityEmpty")}</p>
+          ) : null}
+        </main>
+      </>
+    )
+  }
+
   return (
     <>
       <section className="enunciado path-intro">
         <div>
-          <p className="enunciado-kicker">{t("progress")}</p>
+          <p className="enunciado-kicker">{t("progress")} · {selected.name}</p>
           <h2>{t("assignedPaths")}</h2>
         </div>
-        {routes ? (
-          <p className="path-count">
-            <strong>{routes.length}</strong>
-            <span>{routes.length === 1 ? t("routeOne") : t("routeMany")}</span>
-          </p>
-        ) : null}
+        <div className="roster-heading-side">
+          <button type="button" onClick={() => setCommunityId(null)}>
+            {t("backToCommunities")}
+          </button>
+          {visible ? (
+            <p className="path-count">
+              <strong>{visible.length}</strong>
+              <span>{visible.length === 1 ? t("routeOne") : t("routeMany")}</span>
+            </p>
+          ) : null}
+        </div>
       </section>
       <main className="lab-main roster-routes">
         {error ? <p className="error">{error}</p> : null}
-        {routes && routes.length > 0 ? (
-          <TeacherBoard routes={routes} busy={busy} onOpen={(userId, routeId) => void openPerson(userId, routeId)} />
+        {visible && visible.length > 0 ? (
+          <TeacherBoard routes={visible} busy={busy} onOpen={(userId, routeId) => void openPerson(userId, routeId)} />
         ) : null}
-        {routes && routes.length === 0 ? (
-          <p className="roster-empty">{t("noStudentsOnPath")}</p>
+        {visible && visible.length === 0 ? (
+          <p className="roster-empty">
+            {selected.student_count === 0 ? t("communityHasNoStudents") : t("noStudentsOnPath")}
+          </p>
         ) : null}
-        {routes?.map((route) => {
+        {visible?.map((route) => {
           const completed = route.students.reduce((sum, student) => sum + student.completed, 0)
           const total = route.students.reduce((sum, student) => sum + student.total, 0)
           const done = percent(completed, total)
@@ -387,7 +462,7 @@ export function TeacherRoster() {
                   <button
                     type="button"
                     title={t("studentProgressNote")}
-                    onClick={() => void downloadProgress(route)}
+                    onClick={() => void downloadProgress(route, selected.name)}
                     disabled={busy}
                   >
                     {t("studentProgress")}

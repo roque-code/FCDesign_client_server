@@ -187,7 +187,22 @@ def roster_payload(teacher) -> dict[str, object]:
             student["total"] = row.get("total", 0)
             student["last_activity"] = row.get("last_activity")
         routes.append(bucket)
-    return {"routes": routes}
+    return {"routes": routes, "communities": _community_choices(teacher)}
+
+
+def _community_choices(teacher) -> list[dict[str, object]]:
+    choices: list[dict[str, object]] = []
+    owned = teacher.communities.order_by("name")
+    for community in owned:
+        students = community.memberships.exclude(user__profile__role=Profile.TEACHER).count()
+        choices.append(
+            {
+                "id": str(community.id),
+                "name": community.name,
+                "student_count": students,
+            }
+        )
+    return choices
 
 
 def _scored_path(member, path, scores: dict[str, int | None]) -> dict[str, object]:

@@ -10,6 +10,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from apps.accounts.models import Profile
+from apps.classroom.models import Community
 from apps.learning.models import Challenge, ChallengeAttempt, LearningPath, PathEntry
 from apps.learning.progress import visible_paths
 from apps.learning.roster import _communities_of, _member_ids, _require_teacher
@@ -36,15 +37,17 @@ _LABELS = {
 }
 
 
-def gradebook_csv(teacher, path_id, lang: str) -> tuple[str, str]:
+def gradebook_csv(teacher, path_id, lang: str, community: str = "") -> tuple[str, str]:
     _require_teacher(teacher)
     labels = _LABELS["en" if lang == "en" else "es"]
     path, on_path = _cohort(teacher, path_id)
     if path is None:
         raise DomainError("No se encontró la ruta.", code=NOT_FOUND, status_code=404)
+    on_path = _only_community(teacher, on_path, community)
     activities = _activities(path, [student.pk for student in on_path])
     scores = _scores([student.pk for student in on_path], [item[0].pk for item in activities])
     communities = _communities_of(teacher)
+    chosen = community.strip()
     headers = [
         labels["name"],
         labels["email"],
@@ -62,12 +65,30 @@ def gradebook_csv(teacher, path_id, lang: str) -> tuple[str, str]:
             [
                 student.profile.display_name,
                 student.email,
-                " | ".join(communities.get(student.pk, [])),
+                " | ".join(
+                    name
+                    for name in communities.get(student.pk, [])
+                    if chosen == "" or name == chosen
+                ),
                 _grade(earned),
                 *[_cell(score) for score in earned],
             ]
         )
     return _filename(path.name), buffer.getvalue()
+
+
+def _only_community(teacher, students: list, community: str) -> list:
+    name = community.strip()
+    if name == "":
+        return students
+    if not Community.objects.filter(owner=teacher, name=name).exists():
+        raise DomainError("No se encontró la comunidad.", code=NOT_FOUND, status_code=404)
+    allowed = {
+        user_id
+        for user_id, names in _communities_of(teacher).items()
+        if name in names
+    }
+    return [student for student in students if student.pk in allowed]
 
 
 def _students(teacher) -> list:
