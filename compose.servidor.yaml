@@ -84,7 +84,9 @@ services:
       TRAZA_RUNTIME_MANIFEST: /opt/traza/deploy/runtimes/manifest.json
     read_only: true
     tmpfs:
-      - /tmp:size=128m,mode=1777
+      # exec: C y C++ se compilan en /tmp y luego se lanzan. Sin esto, el
+      # kernel responde Permission denied.
+      - /tmp:size=256m,mode=1777,exec
     cap_drop:
       - ALL
     security_opt:
