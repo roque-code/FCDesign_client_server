@@ -753,6 +753,14 @@ button.avatar-button:hover { background: var(--accent); filter: brightness(1.06)
   clip: rect(0 0 0 0);
 }
 
+.who-line {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  max-width: 11rem;
+  min-width: 0;
+}
+
 .who-name {
   max-width: 8.5rem;
   overflow: hidden;
@@ -761,6 +769,88 @@ button.avatar-button:hover { background: var(--accent); filter: brightness(1.06)
   font-size: 0.78rem;
   font-weight: 750;
   line-height: 1.15;
+}
+
+.notice-bell { position: relative; flex: none; }
+
+.notice-bell > button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.notice-bell > button.has-notices { color: var(--danger); }
+
+.notice-bell > button:hover { background: var(--hover); color: var(--ink); }
+
+.notice-bell svg { width: 1rem; height: 1rem; display: block; }
+.notice-bell svg path { fill: currentColor; }
+
+.notice-badge {
+  position: absolute;
+  top: -0.18rem;
+  right: -0.22rem;
+  min-width: 0.85rem;
+  height: 0.85rem;
+  padding: 0 0.18rem;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 750;
+  line-height: 0.85rem;
+  text-align: center;
+}
+
+.notice-panel {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + 0.45rem);
+  left: 50%;
+  transform: translateX(-70%);
+  width: 16rem;
+  padding: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--sheet);
+  box-shadow: var(--shadow);
+  text-align: left;
+}
+
+.notice-panel p,
+.notice-panel li { margin: 0; }
+
+.notice-panel ul {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notice-panel li {
+  display: grid;
+  gap: 0.08rem;
+}
+
+.notice-panel li strong { font-size: 0.82rem; }
+
+.notice-panel li span {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.notice-panel > button {
+  margin-top: 0.65rem;
+  width: 100%;
 }
 
 .who-role {

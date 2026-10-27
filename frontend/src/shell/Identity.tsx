@@ -2,6 +2,7 @@ import { useRef, useState } from "react"
 
 import { accessOf, ApiError, api, type Account } from "../api"
 import { useT } from "../i18n"
+import { ChallengeBell } from "./ChallengeBell"
 
 export function AccountIdentity({
   account,
@@ -34,7 +35,10 @@ export function AccountIdentity({
         >
           {account.avatar ? <img src={account.avatar} alt="" /> : initials(account.display_name)}
         </button>
-        <span className="who-name">{account.display_name}</span>
+        <span className="who-line">
+          <span className="who-name">{account.display_name}</span>
+          {account.role === "student" ? <ChallengeBell userId={account.id} /> : null}
+        </span>
         <span className="who-role">
           {account.role === "teacher" ? t("teacher") : account.role === "admin" ? t("administrator") : t("student")}
           {account.plan ? ` · ${account.plan.name}` : ""}
