@@ -768,6 +768,8 @@ const es = {
   saveData: "Guardar datos",
   scheduleNote:
     "El inicio, el término y las ponderaciones son opcionales. Si dejas las fechas vacías, el reto se puede hacer en cualquier momento. Las ponderaciones de esta ruta se pueden cambiar sin editar el reto.",
+  repeatChallengeNote:
+    "Puedes agregar otra vez un reto que ya está en la ruta. La copia nueva tiene su propio horario y los intentos de la anterior se conservan.",
   fromCatalog: "Del catálogo",
   yourChallenges: "Tus retos",
   catalog: "Catálogo",
@@ -1651,6 +1653,8 @@ const en: { [Key in keyof typeof es]: string } = {
   saveData: "Save details",
   scheduleNote:
     "Start, end, and weights are optional. If you leave the dates empty, the challenge can be done at any time. Path weights can change without editing the challenge.",
+  repeatChallengeNote:
+    "You can add a challenge that is already on the path. The new copy has its own schedule and the earlier attempts stay.",
   fromCatalog: "From the catalog",
   yourChallenges: "Your challenges",
   catalog: "Catalog",

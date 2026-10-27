@@ -283,6 +283,7 @@ export type LabRun = {
 
 export type LabPathChallenge = {
   id: string
+  entry_id?: string | null
   title: string
   activity_type: string
   difficulty: number
@@ -492,6 +493,7 @@ export type LabChallengeInput = {
 }
 
 export type LabAuthoredChallenge = LabCatalogChallenge & {
+  entry_id: string
   position: number
   opens_at: string | null
   closes_at: string | null
@@ -1086,15 +1088,24 @@ export const api = {
       body: JSON.stringify(body),
     }),
   deleteLabPath: (id: string) => request<void>(`/api/v1/learning/authored/${id}/`, { method: "DELETE" }),
-  setLabChallenges: (id: string, challengeIds: string[]) =>
+  setLabChallenges: (id: string, challengeIds: string[], entryIds?: (string | null)[]) =>
     request<LabAuthoredPath>(`/api/v1/learning/authored/${id}/challenges/`, {
       method: "PUT",
-      body: JSON.stringify({ challenge_ids: challengeIds }),
+      body: JSON.stringify({
+        challenge_ids: challengeIds,
+        ...(entryIds ? { entry_ids: entryIds } : {}),
+      }),
     }),
   setLabSchedule: (
     pathId: string,
     challengeId: string,
-    body: { opens_at?: string | null; closes_at?: string | null; withdrawn?: boolean; weights?: LabWeights },
+    body: {
+      entry_id?: string | null
+      opens_at?: string | null
+      closes_at?: string | null
+      withdrawn?: boolean
+      weights?: LabWeights
+    },
   ) =>
     request<LabAuthoredPath>(`/api/v1/learning/authored/${pathId}/challenges/${challengeId}/`, {
       method: "PATCH",

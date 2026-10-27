@@ -340,7 +340,7 @@ export function TeacherRoster() {
                     </header>
                     <ol className="path-list">
                       {group.items.map((item) => (
-                        <li key={item.id} className={`path-item path-${item.state}`}>
+                        <li key={item.entry_id ?? `${item.id}-${item.position}`} className={`path-item path-${item.state}`}>
                           <span className="path-index">{item.position}</span>
                           <div className="path-copy">
                             <strong>{item.title}</strong>

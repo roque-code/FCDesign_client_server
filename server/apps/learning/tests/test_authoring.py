@@ -896,3 +896,126 @@ def test_el_docente_pone_ponderaciones_en_el_reto_y_en_la_ruta():
     )
     assert graded.status_code == 200, graded.content
     assert graded.json()["attempt"]["score"] == 90
+
+
+def test_el_mismo_reto_se_puede_volver_a_asignar_sin_borrar_el_historial():
+    teacher = _teacher("repite-profe@ejemplo.test", "Profe Repite")
+    pending, pending_id = _student("repite-pendiente@ejemplo.test", "Pendiente")
+    done, done_id = _student("repite-listo@ejemplo.test", "Listo")
+    challenge_id = _catalog_ids()[0]
+    created = teacher.post(
+        "/api/v1/learning/authored/",
+        {"name": "Segunda oportunidad", "description": ""},
+        format="json",
+    )
+    assert created.status_code == 201, created.content
+    path_id = created.json()["id"]
+    placed = teacher.put(
+        f"/api/v1/learning/authored/{path_id}/challenges/",
+        {"challenge_ids": [challenge_id]},
+        format="json",
+    )
+    assert placed.status_code == 200, placed.content
+    entry_id = placed.json()["challenges"][0]["entry_id"]
+    past = timezone.now() - timedelta(hours=1)
+    opened = timezone.now() - timedelta(hours=2)
+    scheduled = teacher.patch(
+        f"/api/v1/learning/authored/{path_id}/challenges/{challenge_id}/",
+        {"entry_id": entry_id, "opens_at": opened.isoformat(), "closes_at": past.isoformat()},
+        format="json",
+    )
+    assert scheduled.status_code == 200, scheduled.content
+    community = teacher.post("/api/v1/communities/", {"name": "Grupo Repite"}, format="json")
+    assert community.status_code == 201, community.content
+    for student_id in (pending_id, done_id):
+        assert (
+            teacher.post(
+                f"/api/v1/communities/{community.json()['id']}/members/",
+                {"user_id": student_id},
+                format="json",
+            ).status_code
+            == 201
+        )
+    assert (
+        teacher.put(
+            f"/api/v1/learning/authored/{path_id}/assignments/",
+            {"community_ids": [community.json()["id"]], "student_ids": []},
+            format="json",
+        ).status_code
+        == 200
+    )
+    ChallengeAttempt.objects.create(
+        user_id=pending_id,
+        challenge_id=challenge_id,
+        path_id=path_id,
+        status=ChallengeAttempt.ABANDONED,
+        finished_at=timezone.now(),
+    )
+    ChallengeAttempt.objects.create(
+        user_id=done_id,
+        challenge_id=challenge_id,
+        path_id=path_id,
+        status=ChallengeAttempt.COMPLETED,
+        score=80,
+        finished_at=timezone.now(),
+    )
+    before = ChallengeAttempt.objects.filter(challenge_id=challenge_id).count()
+
+    repeated = teacher.put(
+        f"/api/v1/learning/authored/{path_id}/challenges/",
+        {"challenge_ids": [challenge_id, challenge_id], "entry_ids": [entry_id, None]},
+        format="json",
+    )
+    assert repeated.status_code == 200, repeated.content
+    rows = repeated.json()["challenges"]
+    assert [item["id"] for item in rows] == [challenge_id, challenge_id]
+    assert rows[0]["entry_id"] == entry_id
+    assert rows[0]["closes_at"] is not None
+    assert rows[1]["entry_id"] != entry_id
+    assert rows[1]["opens_at"] is None
+    assert rows[1]["closes_at"] is None
+    assert ChallengeAttempt.objects.filter(challenge_id=challenge_id).count() == before
+
+    def states(client: APIClient) -> list[str]:
+        listed = client.get("/api/v1/learning/paths/").json()["results"]
+        path = next(item for item in listed if item["id"] == path_id)
+        return [item["state"] for item in path["challenges"]]
+
+    assert states(pending) == ["closed", "available"]
+    assert states(done) == ["completed", "completed"]
+
+    started = pending.post(
+        f"/api/v1/learning/challenges/{challenge_id}/attempts/",
+        {"path_id": path_id},
+        format="json",
+    )
+    assert started.status_code == 200, started.content
+    assert started.json()["attempt"]["status"] == "open"
+    assert ChallengeAttempt.objects.filter(user_id=pending_id, challenge_id=challenge_id).count() == 2
+
+    replay = done.post(
+        f"/api/v1/learning/challenges/{challenge_id}/attempts/",
+        {"path_id": path_id},
+        format="json",
+    )
+    assert replay.status_code == 200, replay.content
+    assert replay.json()["attempt"]["status"] == ChallengeAttempt.COMPLETED
+    assert (
+        ChallengeAttempt.objects.filter(
+            user_id=done_id,
+            challenge_id=challenge_id,
+            status=ChallengeAttempt.COMPLETED,
+        ).count()
+        == 1
+    )
+
+    later = timezone.now() + timedelta(days=1)
+    patched = teacher.patch(
+        f"/api/v1/learning/authored/{path_id}/challenges/{challenge_id}/",
+        {"entry_id": rows[1]["entry_id"], "closes_at": later.isoformat()},
+        format="json",
+    )
+    assert patched.status_code == 200, patched.content
+    fresh = patched.json()["challenges"]
+    assert fresh[0]["closes_at"] == rows[0]["closes_at"]
+    assert fresh[1]["closes_at"] != fresh[0]["closes_at"]

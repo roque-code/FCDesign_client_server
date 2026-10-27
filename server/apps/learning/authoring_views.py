@@ -103,7 +103,14 @@ class AuthoredChallengeEditorView(APIView):
 class AuthoredChallengesView(APIView):
     def put(self, request: Request, path_id) -> Response:
         data = object_body(request.data)
-        return Response(set_challenges(current_user(request), path_id, data.get("challenge_ids")))
+        return Response(
+            set_challenges(
+                current_user(request),
+                path_id,
+                data.get("challenge_ids"),
+                data.get("entry_ids"),
+            )
+        )
 
 
 class AuthoredEntryView(APIView):

@@ -92,6 +92,7 @@ function ChallengeSchedule({
     try {
       onSaved(
         await api.setLabSchedule(pathId, item.id, {
+          entry_id: item.entry_id,
           opens_at: fromLocalInput(opens),
           closes_at: fromLocalInput(closes),
           weights: rubric,
@@ -108,7 +109,9 @@ function ChallengeSchedule({
     onError("")
     setSaving(true)
     try {
-      onSaved(await api.setLabSchedule(pathId, item.id, { withdrawn: !item.withdrawn }))
+      onSaved(
+        await api.setLabSchedule(pathId, item.id, { entry_id: item.entry_id, withdrawn: !item.withdrawn }),
+      )
     } catch (caught) {
       onError(messageOf(caught, t("pathSaveError")))
     } finally {
@@ -265,12 +268,16 @@ export function TeacherPaths() {
     }
   }
 
-  async function storeChallenges(ids: string[]) {
+  async function storeRows(rows: { id: string; entry_id: string | null }[]) {
     if (!current) return
     setBusy(true)
     setError("")
     try {
-      const saved = await api.setLabChallenges(current.id, ids)
+      const saved = await api.setLabChallenges(
+        current.id,
+        rows.map((row) => row.id),
+        rows.map((row) => row.entry_id),
+      )
       setCurrent(saved)
       await reload()
     } catch (caught) {
@@ -281,8 +288,11 @@ export function TeacherPaths() {
   }
 
   function addChallenge() {
-    if (!current || !pick || current.challenges.some((item) => item.id === pick)) return
-    void storeChallenges([...current.challenges.map((item) => item.id), pick])
+    if (!current || !pick) return
+    void storeRows([
+      ...current.challenges.map((item) => ({ id: item.id, entry_id: item.entry_id })),
+      { id: pick, entry_id: null },
+    ])
   }
 
   async function placeChallenge(draft: LabChallengeDraft) {
@@ -293,8 +303,13 @@ export function TeacherPaths() {
       const available = await api.labCatalog()
       setCatalog(available.results)
       setConcepts(available.concepts)
-      const ids = current.challenges.map((item) => item.id)
-      const saved = await api.setLabChallenges(current.id, ids.includes(draft.id) ? ids : [...ids, draft.id])
+      const rows = current.challenges.map((item) => ({ id: item.id, entry_id: item.entry_id }))
+      const next = rows.some((row) => row.id === draft.id) ? rows : [...rows, { id: draft.id, entry_id: null }]
+      const saved = await api.setLabChallenges(
+        current.id,
+        next.map((row) => row.id),
+        next.map((row) => row.entry_id),
+      )
       setCurrent(saved)
       setEditor(null)
       await reload()
@@ -312,7 +327,7 @@ export function TeacherPaths() {
     if (target < 0 || target >= next.length) return
     const [item] = next.splice(index, 1)
     next.splice(target, 0, item)
-    void storeChallenges(next.map((row) => row.id))
+    void storeRows(next.map((row) => ({ id: row.id, entry_id: row.entry_id })))
   }
 
   async function saveAssignments(event: FormEvent) {
@@ -444,6 +459,7 @@ export function TeacherPaths() {
             <div className="stage-form path-panel path-tone-2">
               <h2>{t("challenges")}</h2>
               <p>{t("scheduleNote")}</p>
+              <p>{t("repeatChallengeNote")}</p>
               {current.challenges.length === 0 ? <p className="roster-empty">{t("pathHasNone")}</p> : null}
               <div className="path-pick">
                 <label>
@@ -483,11 +499,7 @@ export function TeacherPaths() {
                       return (
                         <optgroup key={label} label={label}>
                           {rows.map((item) => (
-                            <option
-                              key={item.id}
-                              value={item.id}
-                              disabled={current.challenges.some((row) => row.id === item.id)}
-                            >
+                            <option key={item.id} value={item.id}>
                               {item.title} · {ACTIVITY[item.activity_type] ? t(ACTIVITY[item.activity_type]) : item.activity_type} · {t("pointsCount", { count: item.points })}
                             </option>
                           ))}
@@ -515,7 +527,7 @@ export function TeacherPaths() {
             ) : null}
             <ol className="path-list">
               {current.challenges.map((item, index) => (
-                <li key={item.id} className={`path-panel path-tone-entry entry-item${item.withdrawn ? " entry-withdrawn" : ""}`}>
+                <li key={item.entry_id} className={`path-panel path-tone-entry entry-item${item.withdrawn ? " entry-withdrawn" : ""}`}>
                   <div className="entry-head">
                     <span className="path-index">{index + 1}</span>
                     <div className="path-copy">
@@ -557,7 +569,13 @@ export function TeacherPaths() {
                     <button
                       type="button"
                       className="danger"
-                      onClick={() => void storeChallenges(current.challenges.filter((row) => row.id !== item.id).map((row) => row.id))}
+                      onClick={() =>
+                        void storeRows(
+                          current.challenges
+                            .filter((row) => row.entry_id !== item.entry_id)
+                            .map((row) => ({ id: row.id, entry_id: row.entry_id })),
+                        )
+                      }
                       disabled={busy}
                     >
                       {t("removeMember")}

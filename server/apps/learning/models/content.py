@@ -193,7 +193,6 @@ class PathEntry(models.Model):
         ordering = ["path", "position"]
         constraints = [
             models.UniqueConstraint(fields=["path", "position"], name="uniq_path_entry_position"),
-            models.UniqueConstraint(fields=["path", "challenge"], name="uniq_path_entry_challenge"),
         ]
 
     def __str__(self) -> str:

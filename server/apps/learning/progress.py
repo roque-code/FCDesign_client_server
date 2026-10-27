@@ -49,7 +49,8 @@ def path_payload(user, path: LearningPath | None = None) -> dict[str, object]:
     chosen = path or _path()
     if path is not None and not can_see_path(user, chosen):
         raise DomainError("No se encontró la ruta.", code="not_found", status_code=404)
-    challenges = _sequence(chosen, user)
+    placements = _placements(chosen, user)
+    challenges = [challenge for challenge, _entry in placements]
     completed = set(
         ChallengeAttempt.objects.filter(
             user=user, status=ChallengeAttempt.COMPLETED, challenge__in=challenges
@@ -65,13 +66,12 @@ def path_payload(user, path: LearningPath | None = None) -> dict[str, object]:
         .values("challenge_id")
         .annotate(total=Count("id"))
     }
-    windows = _windows(chosen)
-    withdrawn_ids = _withdrawn_ids(chosen)
     now = timezone.now()
     rows: list[dict[str, object]] = []
     previous_linked_done = True
-    for index, challenge in enumerate(challenges, start=1):
-        opens_at, closes_at = windows.get(challenge.id, (None, None))
+    for index, (challenge, entry) in enumerate(placements, start=1):
+        opens_at = entry.opens_at if entry is not None else None
+        closes_at = entry.closes_at if entry is not None else None
         scheduled = opens_at is not None or closes_at is not None
         if challenge.id in completed:
             state = "completed"
@@ -88,6 +88,7 @@ def path_payload(user, path: LearningPath | None = None) -> dict[str, object]:
         rows.append(
             {
                 "id": str(challenge.id),
+                "entry_id": None if entry is None else str(entry.id),
                 "title": challenge.title,
                 "activity_type": challenge.activity_type,
                 "difficulty": challenge.difficulty,
@@ -97,7 +98,7 @@ def path_payload(user, path: LearningPath | None = None) -> dict[str, object]:
                 "state": state,
                 "opens_at": _iso(opens_at),
                 "closes_at": _iso(closes_at),
-                "withdrawn": challenge.id in withdrawn_ids,
+                "withdrawn": False if entry is None else entry.withdrawn,
                 "time_limit_seconds": challenge.time_limit_seconds,
                 "attempt_count": closed_counts.get(challenge.id, 0),
             }
@@ -456,13 +457,14 @@ def _path() -> LearningPath:
     return path
 
 
-def _sequence(path: LearningPath, user=None) -> list[Challenge]:
+def _placements(path: LearningPath, user=None) -> list[tuple[Challenge, PathEntry | None]]:
     if not PathEntry.objects.filter(path=path).exists():
-        return list(
-            Challenge.objects.filter(is_published=True, unit__path=path)
+        return [
+            (challenge, None)
+            for challenge in Challenge.objects.filter(is_published=True, unit__path=path)
             .select_related("unit__concept")
             .order_by("unit__position", "position")
-        )
+        ]
     entries = list(
         PathEntry.objects.filter(path=path, challenge__is_published=True)
         .select_related("challenge__unit__concept")
@@ -480,21 +482,14 @@ def _sequence(path: LearningPath, user=None) -> list[Challenge]:
                 ).values_list("challenge_id", flat=True)
             )
     return [
-        entry.challenge for entry in entries if not entry.withdrawn or entry.challenge_id in solved
+        (entry.challenge, entry)
+        for entry in entries
+        if not entry.withdrawn or entry.challenge_id in solved
     ]
 
 
-def _windows(path: LearningPath) -> dict:
-    return {
-        entry.challenge_id: (entry.opens_at, entry.closes_at)
-        for entry in PathEntry.objects.filter(path=path)
-    }
-
-
-def _withdrawn_ids(path: LearningPath) -> set:
-    return set(
-        PathEntry.objects.filter(path=path, withdrawn=True).values_list("challenge_id", flat=True)
-    )
+def _sequence(path: LearningPath, user=None) -> list[Challenge]:
+    return [challenge for challenge, _entry in _placements(path, user)]
 
 
 def _iso(value) -> str | None:
@@ -529,26 +524,41 @@ def _published(challenge_id) -> Challenge:
         raise DomainError("No se encontró el reto.", code="not_found", status_code=404) from exc
 
 
+def _span(entry: PathEntry, now) -> str:
+    if entry.opens_at is not None and now < entry.opens_at:
+        return "future"
+    if entry.closes_at is not None and now >= entry.closes_at:
+        return "past"
+    return "open"
+
+
 def _ensure_open(user, challenge: Challenge, path: LearningPath) -> None:
     done = ChallengeAttempt.objects.filter(
         user=user, challenge=challenge, status=ChallengeAttempt.COMPLETED
     ).exists()
     if done:
         return
-    opens_at, closes_at = _windows(path).get(challenge.id, (None, None))
-    now = timezone.now()
-    if opens_at is not None and now < opens_at:
+    copies = [
+        entry
+        for item, entry in _placements(path, user)
+        if entry is not None and item.id == challenge.id
+    ]
+    if not copies:
+        return
+    spans = [_span(entry, timezone.now()) for entry in copies]
+    if "open" in spans:
+        return
+    if "future" in spans:
         raise DomainError(
             "Este reto todavía no está disponible.",
             code="locked",
             status_code=403,
         )
-    if closes_at is not None and now >= closes_at:
-        raise DomainError(
-            "El plazo de este reto ya terminó.",
-            code="locked",
-            status_code=403,
-        )
+    raise DomainError(
+        "El plazo de este reto ya terminó.",
+        code="locked",
+        status_code=403,
+    )
 
 
 def _ensure_unlocked(user, challenge: Challenge, path: LearningPath | None = None) -> None:
@@ -559,18 +569,22 @@ def _ensure_unlocked(user, challenge: Challenge, path: LearningPath | None = Non
         user=user, challenge=challenge, status=ChallengeAttempt.COMPLETED
     ).exists():
         return
-    challenges = _sequence(chosen, user)
-    index = next((i for i, item in enumerate(challenges) if item.id == challenge.id), None)
+    placements = _placements(chosen, user)
+    index = next((i for i, (item, _entry) in enumerate(placements) if item.id == challenge.id), None)
     if index is None:
         raise DomainError("No se encontró el reto.", code="not_found", status_code=404)
-    windows = _windows(chosen)
-    opens_at, closes_at = windows.get(challenge.id, (None, None))
-    if opens_at is not None or closes_at is not None:
+    copies = [
+        entry
+        for item, entry in placements
+        if entry is not None and item.id == challenge.id and (entry.opens_at is not None or entry.closes_at is not None)
+    ]
+    if copies:
         return
     previous = None
-    for item in challenges[:index]:
-        item_opens, item_closes = windows.get(item.id, (None, None))
-        if item_opens is None and item_closes is None:
+    for item, entry in placements[:index]:
+        opens_at = None if entry is None else entry.opens_at
+        closes_at = None if entry is None else entry.closes_at
+        if opens_at is None and closes_at is None:
             previous = item
     if previous is None:
         return
@@ -1229,11 +1243,13 @@ def _save_tree(attempt: ChallengeAttempt, workspace: dict[str, Any], adapted) ->
 def _weights(attempt: ChallengeAttempt) -> dict[str, int]:
     entry = None
     if attempt.path_id:
-        entry = (
-            PathEntry.objects.filter(path_id=attempt.path_id, challenge_id=attempt.challenge_id)
-            .only("weights")
-            .first()
+        copies = list(
+            PathEntry.objects.filter(path_id=attempt.path_id, challenge_id=attempt.challenge_id).order_by(
+                "position"
+            )
         )
+        open_copies = [item for item in copies if _span(item, timezone.now()) == "open"]
+        entry = open_copies[-1] if open_copies else (copies[-1] if copies else None)
     return resolved_weights(attempt.challenge, entry)
 
 

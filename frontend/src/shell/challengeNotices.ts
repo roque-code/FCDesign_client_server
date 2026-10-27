@@ -60,11 +60,20 @@ export function acknowledge(paths: LabPath[], seen: Record<string, SeenMark>): R
   return next
 }
 
+const NOTICE_RANK: Record<LabPathChallenge["state"], number> = {
+  available: 5,
+  scheduled: 4,
+  locked: 3,
+  closed: 2,
+  completed: 1,
+}
+
 function indexPaths(paths: LabPath[]): Map<string, Listed> {
   const current = new Map<string, Listed>()
   for (const path of paths) {
     for (const item of path.challenges) {
-      if (current.has(item.id)) continue
+      const previous = current.get(item.id)
+      if (previous && NOTICE_RANK[previous.state] >= NOTICE_RANK[item.state]) continue
       current.set(item.id, {
         id: item.id,
         pathId: path.id,

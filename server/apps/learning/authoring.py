@@ -85,6 +85,7 @@ def _challenge_row(
     row["weights"] = resolved_weights(challenge, entry)
     row["challenge_weights"] = resolved_weights(challenge)
     if entry is not None:
+        row["entry_id"] = str(entry.id)
         row["opens_at"] = _iso(entry.opens_at)
         row["closes_at"] = _iso(entry.closes_at)
         row["withdrawn"] = entry.withdrawn
@@ -434,33 +435,87 @@ def _uuid_list(values: object, *, message: str) -> list[uuid.UUID]:
     return found
 
 
+def _challenge_id_list(values: object) -> list[uuid.UUID]:
+    if not isinstance(values, list):
+        raise DomainError(_MISSING_CHALLENGE)
+    found: list[uuid.UUID] = []
+    for item in values:
+        if not isinstance(item, str):
+            raise DomainError(_MISSING_CHALLENGE)
+        try:
+            found.append(uuid.UUID(item))
+        except ValueError as exc:
+            raise DomainError(_MISSING_CHALLENGE) from exc
+    if len(found) > 60:
+        raise DomainError("La ruta tiene demasiados retos.")
+    return found
+
+
+def _optional_entry_ids(values: object, count: int) -> list[uuid.UUID | None] | None:
+    if values is None:
+        return None
+    if not isinstance(values, list) or len(values) != count:
+        raise DomainError(_MISSING_CHALLENGE)
+    found: list[uuid.UUID | None] = []
+    for item in values:
+        if item is None or item == "":
+            found.append(None)
+            continue
+        if not isinstance(item, str):
+            raise DomainError(_MISSING_CHALLENGE)
+        try:
+            found.append(uuid.UUID(item))
+        except ValueError as exc:
+            raise DomainError(_MISSING_CHALLENGE) from exc
+    if len([item for item in found if item is not None]) != len({item for item in found if item is not None}):
+        raise DomainError("Hay un elemento repetido.")
+    return found
+
+
 @transaction.atomic
-def set_challenges(teacher, path_id, challenge_ids: object) -> dict[str, object]:
+def set_challenges(
+    teacher, path_id, challenge_ids: object, entry_ids: object = None
+) -> dict[str, object]:
     path = LearningPath.objects.select_for_update().get(pk=_owned(teacher, path_id).pk)
-    ids = _uuid_list(challenge_ids, message=_MISSING_CHALLENGE)
+    ids = _challenge_id_list(challenge_ids)
+    chosen = _optional_entry_ids(entry_ids, len(ids))
     allowed = set(_placeable(teacher).filter(pk__in=ids).values_list("pk", flat=True))
     if set(ids) != allowed:
         raise DomainError(_MISSING_CHALLENGE)
-    kept = {
-        entry.challenge_id: (entry.opens_at, entry.closes_at, entry.withdrawn, entry.weights)
-        for entry in path.entries.all()
-    }
-    path.entries.all().delete()
-    rows = []
+    existing = {entry.pk: entry for entry in path.entries.all()}
+    pools: dict[uuid.UUID, list[PathEntry]] = {}
+    for entry in path.entries.order_by("position"):
+        pools.setdefault(entry.challenge_id, []).append(entry)
+    planned: list[tuple[int, PathEntry | None, uuid.UUID]] = []
     for index, challenge_id in enumerate(ids, start=1):
-        opens_at, closes_at, withdrawn, weights = kept.get(challenge_id, (None, None, False, {}))
-        rows.append(
-            PathEntry(
-                path=path,
-                challenge_id=challenge_id,
-                position=index,
-                opens_at=opens_at,
-                closes_at=closes_at,
-                withdrawn=withdrawn,
-                weights=weights if isinstance(weights, dict) else {},
-            )
-        )
-    PathEntry.objects.bulk_create(rows)
+        entry: PathEntry | None = None
+        if chosen is None:
+            bucket = pools.get(challenge_id, [])
+            if bucket:
+                entry = bucket.pop(0)
+        else:
+            key = chosen[index - 1]
+            if key is not None:
+                entry = existing.get(key)
+                if entry is None or entry.challenge_id != challenge_id:
+                    raise DomainError(_MISSING_CHALLENGE, code=NOT_FOUND, status_code=404)
+                bucket = pools.get(challenge_id, [])
+                if entry in bucket:
+                    bucket.remove(entry)
+        planned.append((index, entry, challenge_id))
+    kept_ids = [entry.pk for _index, entry, _challenge_id in planned if entry is not None]
+    for offset, (_index, entry, _challenge_id) in enumerate(planned, start=1):
+        if entry is None:
+            continue
+        entry.position = 1000 + offset
+        entry.save(update_fields=["position"])
+    path.entries.exclude(pk__in=kept_ids).delete()
+    for index, entry, challenge_id in planned:
+        if entry is None:
+            PathEntry.objects.create(path=path, challenge_id=challenge_id, position=index)
+            continue
+        entry.position = index
+        entry.save(update_fields=["position"])
     return _detail(path)
 
 
@@ -480,8 +535,15 @@ def _moment(value: object, field: str):
 @transaction.atomic
 def update_entry(teacher, path_id, challenge_id, data: dict) -> dict[str, object]:
     path = LearningPath.objects.select_for_update().get(pk=_owned(teacher, path_id).pk)
+    entry_key = data.get("entry_id")
     try:
-        entry = path.entries.select_related("challenge").get(challenge_id=challenge_id)
+        if isinstance(entry_key, str) and entry_key:
+            entry = path.entries.select_related("challenge").get(pk=entry_key, challenge_id=challenge_id)
+        else:
+            matches = list(path.entries.select_related("challenge").filter(challenge_id=challenge_id))
+            if len(matches) != 1:
+                raise PathEntry.DoesNotExist
+            entry = matches[0]
     except (PathEntry.DoesNotExist, ValueError, TypeError, ValidationError) as exc:
         raise DomainError(_MISSING_CHALLENGE, code=NOT_FOUND, status_code=404) from exc
     if "opens_at" in data:

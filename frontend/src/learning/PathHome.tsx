@@ -173,7 +173,11 @@ export function PathHome({
                   </header>
                   <ol className="path-list">
                     {group.items.map((item) => (
-                      <ChallengeRow key={item.id} item={item} onOpen={() => onOpen(item.id, path.id)} />
+                      <ChallengeRow
+                        key={item.entry_id ?? `${item.id}-${item.position}`}
+                        item={item}
+                        onOpen={() => onOpen(item.id, path.id)}
+                      />
                     ))}
                   </ol>
                 </section>

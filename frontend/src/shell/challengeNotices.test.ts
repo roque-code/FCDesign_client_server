@@ -55,6 +55,14 @@ describe("avisos de retos", () => {
     expect(back.notices.map((item) => item.kind)).toEqual(["enabled"])
   })
 
+  it("una copia nueva disponible avisa aunque la anterior esté cerrada", () => {
+    const known = noticeDiff(null, [path([challenge("uno", "closed")])])
+    const again = noticeDiff(known.seen, [
+      path([challenge("uno", "closed"), { ...challenge("uno", "available"), position: 2 }]),
+    ])
+    expect(again.notices.map((item) => [item.id, item.kind])).toEqual([["uno", "enabled"]])
+  })
+
   it("marcar como vistos apaga el aviso", () => {
     const known = noticeDiff(null, [path([challenge("uno", "available")])])
     const added = noticeDiff(known.seen, [path([challenge("uno", "available"), challenge("dos", "available")])])
