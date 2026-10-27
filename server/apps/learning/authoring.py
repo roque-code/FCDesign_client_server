@@ -670,7 +670,7 @@ def _inputs(value: object) -> list[str]:
     if not isinstance(value, list):
         raise DomainError("Las entradas no son válidas.")
     rows = [_block(item, "Las entradas", 240, required=True) for item in value]
-    if len(rows) > 12:
+    if len(rows) > 40:
         raise DomainError("Las entradas tienen demasiados elementos.")
     return rows
 
