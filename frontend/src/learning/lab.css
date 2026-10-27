@@ -315,8 +315,36 @@
   min-height: 0;
   min-width: 0;
   overflow: hidden;
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
+}
+
+.lab-split {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.lab-split > .enunciado {
+  flex: 0 0 auto;
+  min-height: 4.5rem;
+  overflow: auto;
+  align-items: flex-start;
+}
+
+.lab-split > .enunciado .enunciado-text {
+  max-height: none;
+  max-width: none;
+}
+
+.lab-split > .splitter {
+  flex: 0 0 10px;
+  height: 10px;
+}
+
+.lab-split > .lab-main {
+  flex: 1 1 auto;
 }
 
 .challenge-leave {
@@ -592,9 +620,14 @@
 
 .path-play {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 20rem;
+  grid-template-columns: minmax(0, 1fr) 10px var(--mentor-width, 20rem);
   min-height: 0;
   overflow: hidden;
+}
+
+.path-play > .splitter {
+  height: auto;
+  align-self: stretch;
 }
 
 .stage-column {
@@ -831,8 +864,8 @@
 
 .build-stage {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 18rem;
-  gap: 0.85rem;
+  grid-template-columns: minmax(0, 1fr) 10px var(--cases-width, 18rem);
+  gap: 0;
   align-items: stretch;
   min-width: 0;
   min-height: 22rem;
@@ -840,10 +873,19 @@
   height: auto;
 }
 
+.build-stage > .splitter {
+  height: auto;
+  align-self: stretch;
+}
+
 @container stage (max-width: 46rem) {
   .build-stage {
     grid-template-columns: 1fr;
     min-height: 0;
+  }
+
+  .build-stage > .splitter {
+    display: none;
   }
 
   .build-cases {
@@ -2197,8 +2239,12 @@
 }
 
 @media (max-width: 900px) {
-  .lab-challenge {
-    grid-template-rows: auto auto auto minmax(0, 1fr);
+  .lab-split > .enunciado {
+    height: auto !important;
+  }
+
+  .lab-split > .splitter {
+    display: none;
   }
 
   .shell.lab .topbar {
@@ -2333,6 +2379,11 @@
     grid-template-columns: 1fr;
     grid-template-rows: minmax(0, 1fr) auto;
     overflow: auto;
+  }
+
+  .path-play > .splitter,
+  .build-stage > .splitter {
+    display: none;
   }
 
   .result-layout,

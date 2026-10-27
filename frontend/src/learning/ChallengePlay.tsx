@@ -1,4 +1,12 @@
-import { FormEvent, useEffect, useRef, useState } from "react"
+import {
+  FormEvent,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react"
 
 import { ApiError, api, type Diagnostic, type LabAttemptRecord, type LabCase, type LabSession } from "../api"
 import { editorKeywords, spellText, starterSource } from "../dialect"
@@ -97,6 +105,12 @@ export function ChallengePlay({
   const [langSource, setLangSource] = useState("")
   const [langCases, setLangCases] = useState<LabCase[] | null>(null)
   const [grade, setGrade] = useState<number | null>(null)
+  const [promptHeight, setPromptHeight] = useState<number | null>(168)
+  const [casesWidth, setCasesWidth] = useState(288)
+  const [mentorWidth, setMentorWidth] = useState(320)
+  const frameRef = useRef<HTMLDivElement>(null)
+  const enunciadoRef = useRef<HTMLElement>(null)
+  const stageRef = useRef<HTMLElement>(null)
   const [keywords, setKeywords] = useState<string[]>([])
   const [stdlib, setStdlib] = useState<string[]>([])
   const expiredOnce = useRef(false)
@@ -301,6 +315,21 @@ export function ChallengePlay({
     }
   }
 
+  function clampPrompt(value: number) {
+    const height = frameRef.current?.getBoundingClientRect().height ?? 640
+    return Math.round(Math.min(Math.max(value, 72), Math.max(72, height - 180)))
+  }
+
+  function clampMentor(value: number) {
+    const width = frameRef.current?.getBoundingClientRect().width ?? 960
+    return Math.round(Math.min(Math.max(value, 160), Math.max(160, width - 280)))
+  }
+
+  function clampCases(value: number) {
+    const width = stageRef.current?.getBoundingClientRect().width ?? 720
+    return Math.round(Math.min(Math.max(value, 160), Math.max(160, width - 240)))
+  }
+
   return (
     <div className="lab-challenge" data-phone={phonePane}>
       <div className="challenge-leave">
@@ -327,7 +356,12 @@ export function ChallengePlay({
           </button>
         ))}
       </div>
-      <section className="enunciado">
+      <div className="lab-split" ref={frameRef}>
+      <section
+        className="enunciado"
+        ref={enunciadoRef}
+        style={promptHeight == null ? undefined : { height: promptHeight }}
+      >
         <div className="enunciado-body">
           <p className="enunciado-kicker">
             {t("promptKicker")} · {ACTIVITY[activity] ? t(ACTIVITY[activity]) : activity} · {challenge.concept}
@@ -342,8 +376,16 @@ export function ChallengePlay({
           </p>
         ) : null}
       </section>
-      <div className="lab-main path-play">
-        <section className="stage-column">
+      <PanelSplitter
+        label={t("adjustPrompt")}
+        row
+        value={promptHeight ?? 168}
+        min={72}
+        max={clampPrompt(10_000)}
+        onChange={(next) => setPromptHeight(clampPrompt(next))}
+      />
+      <div className="lab-main path-play" style={{ "--mentor-width": `${mentorWidth}px` } as CSSProperties}>
+        <section className="stage-column" ref={stageRef}>
           <div className="stage-head">
             {!finished && !timedOut && attempt.score != null ? (
               <p className="note">{t("currentScore", { score: attempt.score })}</p>
@@ -476,7 +518,7 @@ export function ChallengePlay({
               </form>
             ) : null}
             {!finished && !timedOut && showCanvas ? (
-              <div className="build-stage">
+              <div className="build-stage" style={{ "--cases-width": `${casesWidth}px` } as CSSProperties}>
                 <div className="build-work">
                 <h2>{current === "construir" ? t("build") : t("check")}</h2>
                 {tools.length > 1 ? (
@@ -564,6 +606,13 @@ export function ChallengePlay({
                   </ul>
                 ) : null}
                 </div>
+                <PanelSplitter
+                  label={t("adjustCases")}
+                  value={casesWidth}
+                  min={160}
+                  max={clampCases(10_000)}
+                  onChange={(next) => setCasesWidth(clampCases(next))}
+                />
                 <aside className="build-cases" aria-label={t("testCases")}>
                   <h3>{t("howToAdvance")}</h3>
                   {specCases.length > 0 ? (
@@ -737,6 +786,13 @@ export function ChallengePlay({
             <AttemptHistory records={session.history ?? []} />
           </div>
         </section>
+        <PanelSplitter
+          label={t("adjustHelp")}
+          value={mentorWidth}
+          min={160}
+          max={clampMentor(10_000)}
+          onChange={(next) => setMentorWidth(clampMentor(next))}
+        />
         <aside className="mentor">
           <p className="enunciado-kicker">{t("help")}</p>
           <h2>{t("mentor")}</h2>
@@ -764,6 +820,79 @@ export function ChallengePlay({
           </button>
         </aside>
       </div>
+      </div>
     </div>
+  )
+}
+
+function PanelSplitter({
+  label,
+  row = false,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  label: string
+  row?: boolean
+  value: number
+  min: number
+  max: number
+  onChange: (value: number) => void
+}) {
+  function drag(event: ReactPointerEvent<HTMLButtonElement>) {
+    event.preventDefault()
+    const handle = event.currentTarget
+    try {
+      handle.setPointerCapture(event.pointerId)
+    } catch {
+      /* the pointer still moves while the button stays under it */
+    }
+    const page = document.body
+    const cursor = page.style.cursor
+    const select = page.style.userSelect
+    page.style.cursor = row ? "row-resize" : "col-resize"
+    page.style.userSelect = "none"
+    const origin = row ? event.clientY : event.clientX
+    const start = value
+    const sign = row ? 1 : -1
+    const move = (ev: PointerEvent) => {
+      const point = row ? ev.clientY : ev.clientX
+      onChange(start + sign * (point - origin))
+    }
+    const stop = () => {
+      page.style.cursor = cursor
+      page.style.userSelect = select
+      handle.removeEventListener("pointermove", move)
+      handle.removeEventListener("pointerup", stop)
+      handle.removeEventListener("pointercancel", stop)
+    }
+    handle.addEventListener("pointermove", move)
+    handle.addEventListener("pointerup", stop)
+    handle.addEventListener("pointercancel", stop)
+  }
+
+  function nudge(event: ReactKeyboardEvent<HTMLButtonElement>) {
+    const step = event.shiftKey ? 48 : 16
+    const grow = row ? event.key === "ArrowDown" : event.key === "ArrowLeft"
+    const shrink = row ? event.key === "ArrowUp" : event.key === "ArrowRight"
+    if (!grow && !shrink) return
+    event.preventDefault()
+    onChange(value + (grow ? step : -step))
+  }
+
+  return (
+    <button
+      type="button"
+      className={row ? "splitter splitter-row" : "splitter"}
+      role="separator"
+      aria-orientation={row ? "horizontal" : "vertical"}
+      aria-label={label}
+      aria-valuenow={value}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      onPointerDown={drag}
+      onKeyDown={nudge}
+    />
   )
 }
