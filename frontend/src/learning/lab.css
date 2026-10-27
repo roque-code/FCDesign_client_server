@@ -857,9 +857,15 @@
 }
 
 .stage-canvas.is-build {
+  display: flex;
+  flex-direction: column;
   height: auto;
   min-height: 10rem;
   flex: 1 1 auto;
+}
+
+.stage-canvas.is-build[hidden] {
+  display: none;
 }
 
 .build-stage {
@@ -920,6 +926,22 @@
   overflow: auto;
 }
 
+.build-work > .splitter {
+  flex: 0 0 10px;
+  height: 10px;
+}
+
+.build-work > .case-list {
+  flex: 1 1 auto;
+  min-height: 7rem;
+  overflow: auto;
+  margin: 0;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  background: var(--sheet);
+}
+
 .build-spec {
   margin: 0;
   padding: 0 0 0.35rem 1.1rem;
@@ -952,15 +974,22 @@
   gap: 0.2rem;
 }
 
-.stage-canvas.is-build > .editor-host,
+.stage-canvas.is-build > .editor-host {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+}
+
 .stage-canvas.is-build > .editor-host .cm-editor,
 .stage-canvas.is-build > .editor-host .cm-scroller {
   height: 100%;
 }
 
-.stage-canvas.is-build > .shell,
-.stage-canvas.is-build > .editor-host {
-  height: 100%;
+.stage-canvas.is-build > .shell {
+  flex: 1 1 auto;
+  height: auto;
   min-height: 0;
 }
 

@@ -108,6 +108,7 @@ export function ChallengePlay({
   const [promptHeight, setPromptHeight] = useState<number | null>(168)
   const [casesWidth, setCasesWidth] = useState(288)
   const [mentorWidth, setMentorWidth] = useState(320)
+  const [editorHeight, setEditorHeight] = useState(260)
   const frameRef = useRef<HTMLDivElement>(null)
   const enunciadoRef = useRef<HTMLElement>(null)
   const stageRef = useRef<HTMLElement>(null)
@@ -325,6 +326,11 @@ export function ChallengePlay({
     return Math.round(Math.min(Math.max(value, 160), Math.max(160, width - 280)))
   }
 
+  function clampEditor(value: number) {
+    const height = stageRef.current?.getBoundingClientRect().height ?? 640
+    return Math.round(Math.min(Math.max(value, 140), Math.max(140, height - 140)))
+  }
+
   function clampCases(value: number) {
     const width = stageRef.current?.getBoundingClientRect().width ?? 720
     return Math.round(Math.min(Math.max(value, 160), Math.max(160, width - 240)))
@@ -537,7 +543,11 @@ export function ChallengePlay({
                   </div>
                 ) : null}
                 {tools.includes("codigo") ? (
-                  <div className="stage-canvas is-build" hidden={buildMode !== "codigo"}>
+                  <div
+                    className="stage-canvas is-build"
+                    hidden={buildMode !== "codigo"}
+                    style={buildMode === "codigo" ? { height: editorHeight, flex: "0 0 auto" } : undefined}
+                  >
                     <CodeEditor
                       source={code}
                       keywords={keywords}
@@ -555,6 +565,16 @@ export function ChallengePlay({
                     />
                     {pasteBlocked ? <p className="note">{t("pasteBlockedNote")}</p> : null}
                   </div>
+                ) : null}
+                {tools.includes("codigo") && buildMode === "codigo" ? (
+                  <PanelSplitter
+                    row
+                    label={t("adjustEditor")}
+                    value={editorHeight}
+                    min={140}
+                    max={clampEditor(10_000)}
+                    onChange={(next) => setEditorHeight(clampEditor(next))}
+                  />
                 ) : null}
                 {tools.includes("diagrama") ? (
                   <div className="stage-canvas is-build" hidden={buildMode !== "diagrama"}>
