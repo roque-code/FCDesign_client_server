@@ -5,6 +5,7 @@ import { EditorView, keymap } from "@codemirror/view"
 import { basicSetup } from "codemirror"
 import { useEffect, useRef } from "react"
 
+import { blockBulkPaste } from "../editor/pasteGuard"
 import type { ForeignLanguage } from "./keywords"
 import { foreignSupport } from "./support"
 
@@ -42,23 +43,7 @@ export function ForeignEditor({
           indentUnit.of("\t"),
           EditorState.tabSize.of(4),
           foreignSupport(language),
-          EditorState.transactionFilter.of((transaction) => {
-            if (!blockedRef.current) return transaction
-            if (transaction.isUserEvent("input.paste") || transaction.isUserEvent("input.drop")) return []
-            return transaction
-          }),
-          EditorView.domEventHandlers({
-            paste(event) {
-              if (!blockedRef.current) return false
-              event.preventDefault()
-              return true
-            },
-            drop(event) {
-              if (!blockedRef.current) return false
-              event.preventDefault()
-              return true
-            },
-          }),
+          ...blockBulkPaste(() => blockedRef.current),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) onChangeRef.current(update.state.doc.toString())
           }),

@@ -11,6 +11,7 @@ import { canonicalKeyword, commitSource, mapCaret, presentSource, type Dialect }
 import { useLocale } from "../i18n"
 import { canonicalize, keywordSet } from "../words"
 import { consumeToken, type HighlightMode } from "./highlight"
+import { blockBulkPaste, trustedEdit } from "./pasteGuard"
 import { instructionCanonicals, instructionSource } from "./snippets"
 
 type TokenState = { mode: HighlightMode }
@@ -103,26 +104,6 @@ const debugLineField = StateField.define<DecorationSet>({
 })
 
 const debugExtensions: Extension[] = [breakpointField, breakpointGutter, debugLineField]
-
-function blockClipboard(blocked: boolean): Extension[] {
-  if (!blocked) return []
-  return [
-    EditorState.transactionFilter.of((transaction) => {
-      if (transaction.isUserEvent("input.paste") || transaction.isUserEvent("input.drop")) return []
-      return transaction
-    }),
-    EditorView.domEventHandlers({
-      paste(event) {
-        event.preventDefault()
-        return true
-      },
-      drop(event) {
-        event.preventDefault()
-        return true
-      },
-    }),
-  ]
-}
 
 function wordSource(keywords: string[], stdlib: string[], locale: Dialect) {
   const words = locale === "en" ? "Words" : "Palabras"
@@ -293,7 +274,7 @@ export function CodeEditor({
               EditorView.contentAttributes.of({ "aria-readonly": "true" }),
             ]
           : []),
-        ...blockClipboard(pasteBlocked),
+        ...blockBulkPaste(pasteBlocked),
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !applying.current) {
             publish(update.state.doc.toString(), update.state.selection.main.head)
@@ -319,6 +300,7 @@ export function CodeEditor({
     view.dispatch({
       changes: { from: 0, to: current.length, insert: shown },
       selection: { anchor: mapCaret(current, shown, head) },
+      annotations: trustedEdit.of(true),
     })
     applying.current = false
   }, [source, locale])

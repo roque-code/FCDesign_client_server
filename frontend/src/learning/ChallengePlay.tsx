@@ -15,7 +15,7 @@ import { Composer } from "../compose/Composer"
 import { CodeEditor } from "../editor/CodeEditor"
 import { runLanguageCases } from "../foreign/cases"
 import { FOREIGN_LANGUAGES, LANGUAGE_LABELS, type ForeignLanguage } from "../foreign/keywords"
-import { refusePaste } from "../paste"
+import { keepTypedText, refusePaste } from "../paste"
 import { inInstalledApp, localImport } from "../runtime"
 import { BlockWorkspace } from "./BlockWorkspace"
 import { SolutionCard } from "./SolutionCard"
@@ -692,7 +692,9 @@ export function ChallengePlay({
                     rows={12}
                     onPaste={pasteBlocked ? refusePaste : undefined}
                     onDrop={pasteBlocked ? refusePaste : undefined}
-                    onChange={(event) => setLangSource(event.target.value)}
+                    onChange={(event) =>
+                      setLangSource((current) => (pasteBlocked ? keepTypedText(current, event.target.value) : event.target.value))
+                    }
                   />
                 </label>
                 {pasteBlocked ? <p className="note">{t("pasteBlockedNote")}</p> : null}
