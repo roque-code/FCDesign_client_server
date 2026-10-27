@@ -178,6 +178,8 @@ export function ChallengePlay({
     setError("")
     if (rows.length > 0) {
       setNote(incomplete ? t("casesNeedAll", { done, total: rows.length }) : t("casesAllMatch"))
+    } else if (settled.passed === true) {
+      setNote(t("programReady"))
     } else {
       setNote(settled.correct === false || settled.passed === false ? t("notYetMatch") : "")
     }
@@ -564,13 +566,21 @@ export function ChallengePlay({
                 </div>
                 <aside className="build-cases" aria-label={t("testCases")}>
                   <h3>{t("howToAdvance")}</h3>
-                  <ul className="build-spec">
-                    <li>{t("proveAll")}</li>
-                    <li>{t("outputExact")}</li>
-                    <li>{t("explainGate")}</li>
-                    <li>{t("languageAfterCheck")}</li>
-                    <li>{t("stayCheck")}</li>
-                  </ul>
+                  {specCases.length > 0 ? (
+                    <ul className="build-spec">
+                      <li>{t("proveAll")}</li>
+                      <li>{t("outputExact")}</li>
+                      <li>{t("explainGate")}</li>
+                      <li>{t("languageAfterCheck")}</li>
+                      <li>{t("stayCheck")}</li>
+                    </ul>
+                  ) : (
+                    <ul className="build-spec">
+                      <li>{t("proveProgram")}</li>
+                      <li>{t("noCaseThenLanguage")}</li>
+                      <li>{t("explainAfterOpen")}</li>
+                    </ul>
+                  )}
                   {specCases.length > 0 ? (
                     <>
                       <h3>{t("casesWord")}</h3>
@@ -607,7 +617,13 @@ export function ChallengePlay({
                 }}
               >
                 <h2>{t("languageStage")}</h2>
-                <p>{inInstalledApp() ? t("languageNoteApp") : t("languageNote")}</p>
+                <p>
+                  {specCases.length === 0
+                    ? t("languageNoteOpen")
+                    : inInstalledApp()
+                      ? t("languageNoteApp")
+                      : t("languageNote")}
+                </p>
                 <label>
                   {t("foreignTitle")}
                   <select value={langId} onChange={(event) => setLangId(event.target.value as ForeignLanguage)}>
@@ -635,7 +651,9 @@ export function ChallengePlay({
                   {t("prove")}
                 </button>
                 {grade != null ? (
-                  <p className={grade === 100 ? "note" : "error"}>{t("languageGrade", { percent: grade })}</p>
+                  <p className={specCases.length === 0 || grade === 100 ? "note" : "error"}>
+                    {specCases.length === 0 ? t("languageDelivered") : t("languageGrade", { percent: grade })}
+                  </p>
                 ) : null}
                 {langCases && langCases.length > 0 ? (
                   <ul className="case-list">

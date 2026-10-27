@@ -67,7 +67,7 @@ Ejemplo hacia el navegador, ya filtrado para no enviar estructuras enormes:
 
 Los valores viajan como texto canónico, el mismo que usa `Escribir`. Un arreglo grande no se inyecta entero en cada línea: el evento lleva un resumen (`rangos` y `celdas`) y el panel pide un tramo con la orden de inspección.
 
-Canal: **SSE** desde `GET /api/v1/executions/{id}/events/`. Las órdenes del estudiante (entrada, pausa, continuar, un paso, entrar, salir, detener) son `POST`. En la máquina, el mismo proceso de Django produce los eventos y los entrega. En los contenedores de desarrollo, Nginx publica ese camino con `proxy_buffering off` y Redis hace de bus entre Gunicorn y el runner. El esquema es el de producción; el módulo `config.settings.production` no se carga.
+Canal: **SSE** desde `GET /api/v1/executions/{id}/events/`. Las órdenes del estudiante (entrada, pausa, continuar, un paso, entrar, salir, detener) son `POST`. En la máquina, el mismo proceso de Django produce los eventos y los entrega. En los contenedores de desarrollo, Nginx publica ese camino con `proxy_buffering off` y Redis hace de bus entre Gunicorn y el runner. El esquema del canal es el mismo en los dos compose. El de desarrollo no carga `config.settings.production`. El servidor público sí.
 
 En la aplicación de escritorio el canal es `GET /local/v1/sessions/{id}/events/`, servido por `local_host`. El laboratorio usa `GET /local/v1/lab/runs/{id}/events/`. El sobre de eventos es el mismo. Ese proceso no escribe `executions.Execution`: la cuenta y el fuente siguen en la API.
 

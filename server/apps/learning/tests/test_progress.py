@@ -2,6 +2,8 @@
 
 import json
 
+from rest_framework.test import APIClient
+
 from apps.executions.models import Execution
 from apps.learning.models import ChallengeAttempt, WorkspaceSnapshot
 from apps.learning.path_data import PATH
@@ -1157,3 +1159,107 @@ def test_el_lenguaje_califica_los_casos_y_frena_el_cierre(client):
     assert closed["attempt"]["score"] == 100
     assert closed["attempt"]["solution"]["language"]["percent"] == 100
     assert closed["attempt"]["solution"]["language"]["source"] == 'print("hola")\n'
+
+
+def test_un_reto_sin_casos_se_entrega_sin_comparar_la_salida(client):
+    teacher = APIClient()
+    register(
+        teacher,
+        email="sin-casos-profe@ejemplo.test",
+        display_name="Profe Sin Casos",
+        role="teacher",
+    )
+    student = register(client, email="sin-casos-alumno@ejemplo.test", display_name="Alumno Sin Casos")
+    student_id = student.json()["id"]
+    built = teacher.post(
+        "/api/v1/learning/authored/challenges/",
+        {
+            "title": "Palillos",
+            "prompt": "Dos jugadores retiran palillos. Pierde quien toma el último.",
+            "activity_type": "build",
+            "concept": "operator",
+            "question": "¿Quién pierde?",
+            "accepted": ["el que toma el último"],
+            "tools": ["codigo", "diagrama"],
+            "cases": [],
+            "weights": {
+                "comprension": 15,
+                "diseno": 20,
+                "correccion": 20,
+                "lenguaje": 20,
+                "explicacion": 15,
+                "autonomia": 10,
+            },
+        },
+        format="json",
+    )
+    assert built.status_code == 201, built.content
+    assert built.json()["cases"] == []
+    challenge_id = built.json()["id"]
+    path = teacher.post(
+        "/api/v1/learning/authored/",
+        {"name": "Juegos", "description": "Sin casos"},
+        format="json",
+    )
+    assert path.status_code == 201, path.content
+    path_id = path.json()["id"]
+    placed = teacher.put(
+        f"/api/v1/learning/authored/{path_id}/challenges/",
+        {"challenge_ids": [challenge_id]},
+        format="json",
+    )
+    assert placed.status_code == 200, placed.content
+    group = teacher.post("/api/v1/communities/", {"name": "Grupo Palillos"}, format="json")
+    assert group.status_code == 201, group.content
+    assert (
+        teacher.post(
+            f"/api/v1/communities/{group.json()['id']}/members/",
+            {"user_id": student_id},
+            format="json",
+        ).status_code
+        == 201
+    )
+    assigned = teacher.put(
+        f"/api/v1/learning/authored/{path_id}/assignments/",
+        {"community_ids": [group.json()["id"]], "student_ids": [student_id]},
+        format="json",
+    )
+    assert assigned.status_code == 200, assigned.content
+    started = client.post(
+        f"/api/v1/learning/challenges/{challenge_id}/attempts/",
+        {"path_id": path_id},
+        format="json",
+    )
+    assert started.status_code == 200, started.content
+    assert started.json()["challenge"]["task"]["cases"] == []
+    attempt_id = started.json()["attempt"]["id"]
+    _stage(client, attempt_id, "comprender", {"ack": True})
+    reasoned = _stage(client, attempt_id, "razonar", {"text": "el que toma el último"})
+    assert reasoned["attempt"]["next_stage"] == "construir"
+    checked = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/check/",
+        {"workspace": SALUDO, "tool": "codigo"},
+        format="json",
+    )
+    assert checked.status_code == 200, checked.content
+    assert checked.json()["passed"] is True
+    assert checked.json()["cases"] == []
+    assert checked.json()["attempt"]["next_stage"] == "lenguaje"
+    blocked = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/close/",
+        {"reflection": "Ya entiendo cómo funciona este reto."},
+        format="json",
+    )
+    assert blocked.status_code == 409
+    handed = client.post(
+        f"/api/v1/learning/attempts/{attempt_id}/language/",
+        {"language": "python", "source": "print('palillos')\n"},
+        format="json",
+    )
+    assert handed.status_code == 200, handed.content
+    assert handed.json()["passed"] is True
+    assert handed.json()["percent"] == 100
+    assert handed.json()["cases"] == []
+    assert handed.json()["attempt"]["next_stage"] == "explicar"
+    closed = _close(client, attempt_id)
+    assert closed["attempt"]["status"] == "completed"

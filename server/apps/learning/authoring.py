@@ -790,8 +790,10 @@ def _cases(data: dict) -> list[ChallengeTestCase]:
                 position=1,
             )
         ]
-    if not isinstance(raw, list) or not raw:
+    if not isinstance(raw, list):
         raise DomainError("Agrega al menos un caso con su salida esperada.")
+    if not raw:
+        return []
     if len(raw) > 6:
         raise DomainError("Puedes agregar hasta 6 casos.")
     cases: list[ChallengeTestCase] = []

@@ -1,6 +1,6 @@
 # Diagrama de despliegue
 
-Fecha de referencia: 2026-10-21. El nodo de desarrollo sigue siendo la máquina con el compose. El nodo de `config.settings.production` está descrito y no está activo. La ventana de escritorio es un nodo distinto: interfaz y `local_host` en la máquina de la persona, API en `TRAZA_API_ORIGIN`.
+Fecha de referencia: 2026-10-27. El diagrama de abajo es el nodo de desarrollo, la máquina con `compose.yaml`. El servidor público ya está activo, con `config.settings.production`, en `https://fcdesign.aulivana.com`. Su procedimiento está en [instalacion-aws.md](../instalacion-aws.md). La ventana de escritorio es un nodo distinto: interfaz y `local_host` en la máquina de la persona, API en `TRAZA_API_ORIGIN`.
 
 ```mermaid
 flowchart TB
@@ -55,8 +55,8 @@ flowchart LR
 
 El paquete no lleva PostgreSQL ni Redis. El empaquetado se lanza a mano en `.github/workflows/desktop.yml`.
 
-## Nodo futuro, no desplegado
+## Nodo público
 
-Cuando haya un servidor, el mismo runner y el mismo Redis siguen. Cambian el borde y la configuración: TLS, `config.settings.production`, el resultado de `npm run build` en lugar de Vite, sin montar el árbol, sin puertos públicos de PostgreSQL, Redis ni runner, y un SMTP distinto de Mailpit. `production` no arranca si el ejecutor es el del proceso, si falta `REDIS_URL` o si falta `EMAIL_HOST`.
+El mismo runner y el mismo Redis siguen en `compose.servidor.yaml`. Cambian el borde y la configuración: TLS, `config.settings.production`, el resultado de `npm run build` en lugar de Vite, sin puertos públicos de PostgreSQL, Redis, runner ni lenguajes, y Gmail en lugar de Mailpit. Los lenguajes del navegador van en su propio contenedor, sin salida. `production` no arranca si el ejecutor es el del proceso, si falta `REDIS_URL`, si falta `EMAIL_HOST` o si los orígenes no son `https://`. El servicio `web` sigue montando el árbol. El detalle está en [instalacion-aws.md](../instalacion-aws.md).
 
 Volver al [índice](indice.md).

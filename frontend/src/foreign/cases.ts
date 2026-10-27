@@ -7,6 +7,7 @@ export async function runLanguageCases(
   source: string,
   cases: { inputs: string[] }[],
 ): Promise<string[]> {
+  if (cases.length === 0) return []
   if (installedLocal()) await api.consumeExecution()
   const outputs: string[] = []
   for (const item of cases) {

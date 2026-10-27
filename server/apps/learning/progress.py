@@ -249,6 +249,27 @@ def check_attempt(user, attempt_id, data: dict[str, Any]) -> dict[str, object]:
         _record_progress(attempt)
         return _bundle(attempt, passed=False, diagnostics=_named(concept, adapted.diagnostics))
     missing = _missing_blocks(workspace, _required(attempt.challenge))
+    if not attempt.challenge.test_cases.exists():
+        passed = not missing
+        graded = {"passed": passed, "outputs": []}
+        tool = _chosen_tool(data)
+        if tool is not None:
+            graded["tool"] = tool
+        _remember(attempt, "comprobar", graded)
+        diagnostics = _named(concept, adapted.diagnostics)
+        if missing:
+            diagnostics.append(
+                {
+                    "severity": "error",
+                    "code": "L0102",
+                    "message": f"{concept}: Falta un bloque que el reto pide.",
+                    "line": 1,
+                    "column": 1,
+                    "suggestion": None,
+                }
+            )
+        _record_progress(attempt)
+        return _bundle(attempt, passed=passed, cases=[], diagnostics=diagnostics)
     consume_execution(user)
     cases = _grade_cases(adapted.program, adapted.source, attempt.challenge)
     passed = _every_case_passed(cases) and not missing
@@ -291,6 +312,14 @@ def submit_language(user, attempt_id, data: dict[str, Any]) -> dict[str, object]
     if len(source) > 256 * 1024:
         raise DomainError("El código es demasiado grande.")
     cases = list(attempt.challenge.test_cases.order_by("position"))
+    if not cases:
+        _remember(
+            attempt,
+            "lenguaje",
+            {"language": language, "source": source, "outputs": [], "passed": True, "percent": 100},
+        )
+        _record_progress(attempt)
+        return _bundle(attempt, passed=True, cases=[], percent=100)
     supplied = data.get("outputs", None)
     if supplied is None:
         consume_execution(user)
@@ -1022,9 +1051,13 @@ def _accepts_language_output(output: str, expected: str, inputs: object) -> bool
 
 def _language_matches(attempt: ChallengeAttempt) -> bool:
     cases = list(attempt.challenge.test_cases.order_by("position"))
-    if not cases:
-        return True
     saved = _latest(attempt, "lenguaje")
+    if not cases:
+        if not isinstance(saved, dict):
+            return False
+        answer = saved.get("answer")
+        source = answer.get("source") if isinstance(answer, dict) else None
+        return isinstance(source, str) and source.strip() != ""
     if not isinstance(saved, dict):
         return False
     answer = saved.get("answer")
@@ -1160,6 +1193,8 @@ def _build_matches_every_case(attempt: ChallengeAttempt) -> bool:
     errors = [item for item in adapted.diagnostics if item.severity == "error"]
     if adapted.program is None or errors:
         return False
+    if not attempt.challenge.test_cases.exists():
+        return True
     return _every_case_passed(_grade_cases(adapted.program, adapted.source, attempt.challenge))
 
 

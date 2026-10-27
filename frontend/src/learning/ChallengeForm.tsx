@@ -66,6 +66,7 @@ export function ChallengeForm({
   const [inputs, setInputs] = useState("")
   const [expected, setExpected] = useState("")
   const [cases, setCases] = useState<{ inputs: string; expected: string }[]>([{ inputs: "", expected: "" }])
+  const [gradeCases, setGradeCases] = useState(true)
   const [tools, setTools] = useState<string[]>(["codigo", "diagrama", "bloques"])
   const [source, setSource] = useState("")
   const [sourceCaret, setSourceCaret] = useState<number | null>(null)
@@ -105,6 +106,7 @@ export function ChallengeForm({
         setInputs(draft.inputs.join("\n"))
         setExpected(draft.expected_output)
         const loaded = draft.cases.length > 0 ? draft.cases : draft.expected_output ? [{ inputs: draft.inputs, expected_output: draft.expected_output }] : []
+        setGradeCases(loaded.length > 0)
         setCases(
           loaded.length > 0
             ? loaded.map((item) => ({ inputs: item.inputs.join("\n"), expected: shownOutput(item.expected_output) }))
@@ -141,7 +143,7 @@ export function ChallengeForm({
       setError(t("needTool"))
       return
     }
-    if (activity === "build" && cases.some((item) => item.expected.trim() === "")) {
+    if (activity === "build" && gradeCases && cases.some((item) => item.expected.trim() === "")) {
       setError(t("needCaseOutput"))
       return
     }
@@ -171,10 +173,10 @@ export function ChallengeForm({
               .filter((item) => item.text.length > 0),
       question: question.trim(),
       accepted: lines(accepted),
-      inputs: activity === "build" ? lines(cases[0]?.inputs ?? "") : lines(inputs),
-      expected_output: activity === "build" ? (cases[0]?.expected ?? "") : expected,
+      inputs: activity === "build" && gradeCases ? lines(cases[0]?.inputs ?? "") : lines(inputs),
+      expected_output: activity === "build" && gradeCases ? (cases[0]?.expected ?? "") : expected,
       cases:
-        activity === "build"
+        activity === "build" && gradeCases
           ? cases.map((item) => ({ inputs: lines(item.inputs), expected_output: item.expected }))
           : [],
       tools: activity === "build" ? tools : [],
@@ -376,7 +378,16 @@ export function ChallengeForm({
               </label>
             ))}
           </fieldset>
-          {cases.map((item, index) => (
+          <label className="check-line">
+            <input
+              type="checkbox"
+              checked={gradeCases}
+              onChange={(event) => setGradeCases(event.target.checked)}
+            />
+            {t("gradeWithCases")}
+          </label>
+          <p className="note">{t("gradeWithCasesNote")}</p>
+          {gradeCases ? cases.map((item, index) => (
             <div key={index} className="case-editor">
               <div className="case-editor-head">
                 <p>{t("caseN", { number: index + 1 })}</p>
@@ -416,14 +427,16 @@ export function ChallengeForm({
                 />
               </label>
             </div>
-          ))}
-          <button
-            type="button"
-            onClick={() => setCases((rows) => [...rows, { inputs: "", expected: "" }])}
-            disabled={cases.length >= 6}
-          >
-            {t("addCase")}
-          </button>
+          )) : null}
+          {gradeCases ? (
+            <button
+              type="button"
+              onClick={() => setCases((rows) => [...rows, { inputs: "", expected: "" }])}
+              disabled={cases.length >= 6}
+            >
+              {t("addCase")}
+            </button>
+          ) : null}
           <label className="check-line">
             <input
               type="checkbox"

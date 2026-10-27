@@ -135,7 +135,8 @@ Hecha. `flowchart.py`, API, React Flow, posiciones en el cliente, sincronizació
 - Tabulador para indentar. Selección visible en una sola línea.
 - Al escribir una instrucción, el editor ofrece su estructura. Tab recorre los huecos. La prueba está en `frontend/src/editor/snippets.test.ts`.
 - Lenguajes aparece si el nivel lo incluye. En el navegador corre en el servidor; en la aplicación de escritorio, en la máquina. Si falta el runtime, se descarga del manifiesto y se escribe en disco. Un construir con casos no se cierra hasta que ese código pasa todos los casos. Repetir el alta con un correo existente responde que ya está registrado.
-- Cada nivel tiene un tope de ejecuciones al día, 3 como mínimo, o vacío si no hay tope. Ejecutar, depurar, la práctica, comprobar un reto y arrancar un lenguaje descuentan una. El pseudocódigo se corta a 100 000 instrucciones o a 5 segundos, y Detener lo corta antes.
+- Cada nivel tiene un tope de ejecuciones al día, 3 como mínimo, o vacío si no hay tope. Ejecutar, depurar, la práctica, comprobar un reto y arrancar un lenguaje descuentan una. El pseudocódigo se corta a 100 000 instrucciones o a 5 segundos, y Detener lo corta antes. La identidad muestra las que quedan.
+- En el servidor público los lenguajes del navegador corren en un contenedor aparte. Si no responde, la API dice que Lenguajes no está disponible. El avance del docente empieza por la comunidad y el CSV de la ruta solo incluye a sus alumnos. El administrador puede bloquear una cuenta.
 - Menú **Configuración** y menú **Funciones**. El idioma de la cuenta cambia los textos y la grafía de las palabras reservadas, y no reescribe el fuente guardado.
 - **Traducir** muestra el algoritmo en los siete lenguajes sin ejecutarlo. **Actualizar** vuelve a cargar la cuenta y suelta el borrador local.
 - La consola hace eco del dato aceptado y se desplaza hasta el final.
@@ -143,9 +144,9 @@ Hecha. `flowchart.py`, API, React Flow, posiciones en el cliente, sincronizació
 
 ### Fase 6 — contenedores de desarrollo
 
-Hecha, sin pasar a producción. `compose.yaml` levanta PostgreSQL, Redis, el runner aislado, Gunicorn, Vite, Nginx y Mailpit, con volúmenes y healthchecks. El runner no importa Django. Redis es el bus de órdenes y de eventos. Nginx publica el canal SSE con el buffer apagado. El alta de los contenedores envía la confirmación por SMTP y no abre sesión hasta el enlace. La integración continua está en `.github/workflows/ci.yml`. Los manuales son [instalacion.md](instalacion.md), [desarrollo.md](desarrollo.md), [despliegue.md](despliegue.md) y [arquitectura.md](arquitectura.md).
+Hecha en la máquina de desarrollo. `compose.yaml` levanta PostgreSQL, Redis, el runner aislado, Gunicorn, Vite, Nginx y Mailpit, con volúmenes y healthchecks. El runner no importa Django. Redis es el bus de órdenes y de eventos. Nginx publica el canal SSE con el buffer apagado. El alta de los contenedores envía la confirmación por SMTP y no abre sesión hasta el enlace. La integración continua está en `.github/workflows/ci.yml`. Los manuales son [instalacion.md](instalacion.md), [desarrollo.md](desarrollo.md), [despliegue.md](despliegue.md) y [arquitectura.md](arquitectura.md).
 
-`config.settings.production` sigue sin usarse. Rechaza el ejecutor en proceso y exige Redis y `EMAIL_HOST`. Ese cambio queda para cuando haya un servidor.
+El servidor público ya carga `config.settings.production`. Rechaza el ejecutor en proceso, exige Redis y `EMAIL_HOST`, y exige orígenes `https://`. El procedimiento está en [instalacion-aws.md](instalacion-aws.md).
 
 La aplicación de escritorio ya se empaqueta, a mano, con `.github/workflows/desktop.yml`. El intérprete de esa ventana es `local_host`. La API de cuentas sigue siendo la de Django. No es el nodo de producción descrito en [despliegue.md](despliegue.md).
 
@@ -174,7 +175,7 @@ Un estudiante ya puede hacer lo siguiente desde un navegador de escritorio actua
 15. Pedir la traducción del algoritmo a otro lenguaje sin ejecutarlo.
 16. Ejecutar las pruebas automáticas.
 
-Arreglos, subrutinas, depurador y diagrama están en el producto. El aislamiento del runner está en el compose de desarrollo. El servidor de producción no.
+Arreglos, subrutinas, depurador y diagrama están en el producto. El aislamiento del runner está en el compose de desarrollo y en el servidor público.
 
 ## 7. Definición de hecho de cada fase
 

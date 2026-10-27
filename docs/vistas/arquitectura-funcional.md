@@ -1,6 +1,6 @@
 # Arquitectura funcional
 
-Fecha de referencia: 2026-10-26. Las funciones están agrupadas por lo que la persona hace, no por el archivo que las implementa.
+Fecha de referencia: 2026-10-27. Las funciones están agrupadas por lo que la persona hace, no por el archivo que las implementa.
 
 ```mermaid
 flowchart TB
@@ -51,15 +51,15 @@ flowchart TB
 | Ejecutar | Consola con `Escribir` y con cada `Leer` aceptado. El nivel cuenta las ejecuciones del día. Detener corta el programa. Un ciclo se corta a 100 000 instrucciones o a 5 segundos |
 | Depurar | Paso, entrar, salir, continuar, pausa, detener, reiniciar y puntos de interrupción |
 | Diagrama | Figuras desde el AST, descarga SVG, PNG y PDF, e impresión |
-| Lenguajes | Aparece si el nivel lo incluye. En el navegador, Ejecutar corre en el servidor. En la aplicación de escritorio corre en la máquina. El código se puede pasar a un reto de construir |
+| Lenguajes | Aparece si el nivel lo incluye. En el navegador, Ejecutar corre en el servidor: en el público, en un contenedor aparte. En la aplicación de escritorio corre en la máquina. El código se puede pasar a un reto de construir |
 | Laboratorio | Retos de clasificar, ordenar, construir y predecir. Construir exige coincidir en todos los casos y, si tiene casos, también el código de un lenguaje. La nota se ve al avanzar. El docente define la ponderación en la ruta |
 | Ayuda | Operadores muestra símbolos y ligadura. Manuales abre el PDF en la aplicación y lo descarga |
 | Sesión | Una por cuenta. Tres fallos bloquean el correo 15 minutos. 30 minutos sin uso cierran la sesión |
-| Comunidades | Lista de alumnos y docentes ya registrados, tope de 30 comunidades y 200 personas. Traducción y pegado nacen habilitados y se pueden apagar |
-| Cuenta | Nombre, foto JPG o PNG y contraseña. El tipo de cuenta no cambia |
+| Comunidades | Pantalla propia. Lista de alumnos y docentes ya registrados, filtro y páginas de 15. Tope de 30 comunidades y 200 personas. Traducción y pegado nacen habilitados y se pueden apagar |
+| Cuenta | Nombre, foto JPG o PNG y contraseña. El tipo de cuenta no cambia. La identidad muestra las ejecuciones que quedan hoy |
 | Nivel | Menús, topes de proyectos y códigos, y si el navegador abre la aplicación |
 | Repaso | El docente abre los proyectos del alumno en solo lectura. No crea versiones |
-| Notas | Tablero por alumno y CSV de una ruta. La nota promedia puntuaciones de 0 a 100 |
+| Notas | Primero se elige la comunidad. Después, el tablero y el CSV de una ruta, solo con los alumnos de esa comunidad. La nota promedia puntuaciones de 0 a 100 |
 | Idioma | Textos, bloques, figuras y palabras reservadas en español o en inglés. El fuente guardado no se reescribe |
 
 El cliente tiene tres pantallas: banco de trabajo, laboratorio y armar diagrama. Las tres comparten la sesión.
