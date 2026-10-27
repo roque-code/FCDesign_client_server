@@ -1,7 +1,18 @@
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
 
 import { api, ApiError, type Community, type CommunitySummary, type Person } from "../api"
 import { translatedMessage, useT } from "../i18n"
+
+const PAGE = 15
+
+function matches(person: Person, text: string): boolean {
+  const needle = text.trim().toLocaleLowerCase()
+  if (needle === "") return true
+  return (
+    person.display_name.toLocaleLowerCase().includes(needle) ||
+    person.email.toLocaleLowerCase().includes(needle)
+  )
+}
 
 export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
   const t = useT()
@@ -12,7 +23,11 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState("")
   const [people, setPeople] = useState<Person[]>([])
   const [searched, setSearched] = useState("")
+  const [memberQuery, setMemberQuery] = useState("")
+  const [page, setPage] = useState(0)
+  const [focusAdd, setFocusAdd] = useState(false)
   const [error, setError] = useState("")
+  const searchRef = useRef<HTMLInputElement>(null)
 
   async function loadList(prefer?: string) {
     const page = await api.communities()
@@ -29,6 +44,17 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
       setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("communitiesLoadError"))
     })
   }, [])
+
+  useEffect(() => {
+    setMemberQuery("")
+    setPage(0)
+  }, [selectedId])
+
+  useEffect(() => {
+    if (!focusAdd || !detail || detail.id !== selectedId) return
+    searchRef.current?.focus()
+    setFocusAdd(false)
+  }, [focusAdd, detail, selectedId])
 
   useEffect(() => {
     if (!selectedId) return
@@ -78,6 +104,7 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
       const created = await api.createCommunity(name.trim())
       setName("")
       setDetail(created)
+      setFocusAdd(true)
       await loadList(created.id)
     } catch (caught) {
       setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("communityCreateError"))
@@ -174,6 +201,13 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
     }
   }
 
+  const listed = detail?.students.filter((person) => matches(person, memberQuery)) ?? []
+  const pages = Math.max(1, Math.ceil(listed.length / PAGE))
+  const safePage = Math.min(page, pages - 1)
+  const visibleStudents = listed.slice(safePage * PAGE, safePage * PAGE + PAGE)
+  const rangeFrom = listed.length === 0 ? 0 : safePage * PAGE + 1
+  const rangeTo = Math.min(listed.length, safePage * PAGE + PAGE)
+
   return (
     <div className="communities-backdrop" onMouseDown={onClose}>
       <section
@@ -223,69 +257,109 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
           <div className="communities-detail">
             {detail ? (
               <>
-                <div className="communities-title">
-                  <h3>{detail.name}</h3>
-                  <button type="button" className="danger" onClick={() => void removeCommunity()}>{t("remove")}</button>
+                <div className="community-head">
+                  <div className="communities-title">
+                    <h3>{detail.name}</h3>
+                    <button type="button" className="danger" onClick={() => void removeCommunity()}>{t("remove")}</button>
+                  </div>
+                  <div className="community-switches">
+                    <label className="translation-switch">
+                      <input
+                        type="checkbox"
+                        role="switch"
+                        checked={detail.translation_enabled}
+                        onChange={(event) => void setGroupTranslation(event.target.checked)}
+                      />
+                      <span>{t("translationForGroup")}</span>
+                    </label>
+                    <label className="translation-switch">
+                      <input
+                        type="checkbox"
+                        role="switch"
+                        checked={!detail.paste_enabled}
+                        onChange={(event) => void setGroupPaste(!event.target.checked)}
+                      />
+                      <span>{t("blockPasteForGroup")}</span>
+                    </label>
+                  </div>
+                  {error && <p className="error">{error}</p>}
                 </div>
-                <label className="translation-switch">
-                  <input
-                    type="checkbox"
-                    role="switch"
-                    checked={detail.translation_enabled}
-                    onChange={(event) => void setGroupTranslation(event.target.checked)}
-                  />
-                  <span>{t("translationForGroup")}</span>
-                </label>
-                <label className="translation-switch">
-                  <input
-                    type="checkbox"
-                    role="switch"
-                    checked={!detail.paste_enabled}
-                    onChange={(event) => void setGroupPaste(!event.target.checked)}
-                  />
-                  <span>{t("blockPasteForGroup")}</span>
-                </label>
-                <h4>{t("students")}</h4>
-                <MemberList
-                  people={detail.students}
-                  empty={t("noStudents")}
-                  removeLabel={t("removeMember")}
-                  onRemove={remove}
-                  onTranslation={(person, enabled) => void setStudentTranslation(person, enabled)}
-                  onPaste={(person, enabled) => void setStudentPaste(person, enabled)}
-                />
-                <h4>{t("teachers")}</h4>
-                <MemberList people={detail.teachers} empty={t("noTeachers")} removeLabel={t("removeMember")} onRemove={remove} />
-                <label>
-                  {t("searchLabel")}
-                  <input
-                    aria-label={t("searchPeople")}
-                    value={query}
-                    placeholder={t("searchPlaceholder")}
-                    onChange={(event) => setQuery(event.target.value)}
-                  />
-                </label>
-                {searched !== "" && searched === query.trim() && people.length === 0 && (
-                  <p className="note">{t("noAccounts")}</p>
-                )}
-                <ul className="people-results">
-                  {people.map((person) => (
-                    <li key={person.id}>
-                      <span>
-                        <strong>{person.display_name}</strong>
-                        <small>{person.email} · {person.role === "teacher" ? t("teacher") : t("student")}</small>
-                      </span>
-                      <button type="button" disabled={person.member} onClick={() => void add(person)}>
-                        {person.member ? t("alreadyIn") : t("add")}
+                <section className="community-add">
+                  <label>
+                    {t("addPeople")}
+                    <input
+                      ref={searchRef}
+                      aria-label={t("searchPeople")}
+                      value={query}
+                      placeholder={t("searchPlaceholder")}
+                      onChange={(event) => setQuery(event.target.value)}
+                    />
+                  </label>
+                  {searched !== "" && searched === query.trim() && people.length === 0 && (
+                    <p className="note">{t("noAccounts")}</p>
+                  )}
+                  <ul className="people-results">
+                    {people.map((person) => (
+                      <li key={person.id}>
+                        <span>
+                          <strong>{person.display_name}</strong>
+                          <small>{person.email} · {person.role === "teacher" ? t("teacher") : t("student")}</small>
+                        </span>
+                        <button type="button" disabled={person.member} onClick={() => void add(person)}>
+                          {person.member ? t("alreadyIn") : t("add")}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+                <section className="community-roster">
+                  <div className="roster-tools">
+                    <h4>{t("students")}</h4>
+                    <input
+                      aria-label={t("filterMembers")}
+                      value={memberQuery}
+                      placeholder={t("filterMembersPlaceholder")}
+                      onChange={(event) => {
+                        setMemberQuery(event.target.value)
+                        setPage(0)
+                      }}
+                    />
+                  </div>
+                  <div className="member-scroll">
+                    {detail.students.length === 0 ? <p className="note">{t("noStudents")}</p> : null}
+                    {detail.students.length > 0 && listed.length === 0 ? <p className="note">{t("noMemberMatch")}</p> : null}
+                    <MemberList
+                      people={visibleStudents}
+                      empty=""
+                      removeLabel={t("removeMember")}
+                      onRemove={remove}
+                      onTranslation={(person, enabled) => void setStudentTranslation(person, enabled)}
+                      onPaste={(person, enabled) => void setStudentPaste(person, enabled)}
+                    />
+                  </div>
+                  {pages > 1 ? (
+                    <div className="member-pager">
+                      <button type="button" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
+                        {t("previousPage")}
                       </button>
-                    </li>
-                  ))}
-                </ul>
+                      <span>{t("memberRange", { from: rangeFrom, to: rangeTo, total: listed.length })}</span>
+                      <button type="button" disabled={safePage >= pages - 1} onClick={() => setPage(safePage + 1)}>
+                        {t("nextPage")}
+                      </button>
+                    </div>
+                  ) : null}
+                </section>
+                <section className="community-teachers">
+                  <h4>{t("teachers")}</h4>
+                  <MemberList people={detail.teachers} empty={t("noTeachers")} removeLabel={t("removeMember")} onRemove={remove} />
+                </section>
               </>
             ) : (
-              <p className="note">{t("pickCommunity")}</p>
+              <>
+                <p className="note">{t("pickCommunity")}</p>
+                {error && <p className="error">{error}</p>}
+              </>
             )}
-            {error && <p className="error">{error}</p>}
           </div>
         </div>
       </section>
@@ -309,7 +383,7 @@ function MemberList({
   onPaste?: (person: Person, enabled: boolean) => void
 }) {
   const t = useT()
-  if (people.length === 0) return <p className="note">{empty}</p>
+  if (people.length === 0) return empty ? <p className="note">{empty}</p> : null
   return (
     <ul className="member-list">
       {people.map((person) => (
