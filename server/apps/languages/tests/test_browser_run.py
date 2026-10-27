@@ -34,6 +34,18 @@ def test_sin_la_opcion_el_navegador_no_ejecuta():
     assert denied.json()["error"]["code"] == "plan_forbidden"
 
 
+def test_el_servidor_no_ejecuta_el_lenguaje_dentro_del_proceso(monkeypatch):
+    monkeypatch.setenv("TRAZA_LANGUAGE_HOST", "0")
+    monkeypatch.delenv("TRAZA_LANGUAGE_TOKEN", raising=False)
+    from apps.languages.bridge import dispatch
+    from config.errors import DomainError
+
+    with pytest.raises(DomainError) as caught:
+        dispatch("open", {"language": "python", "source": 'print(input())\n'})
+    assert caught.value.code == "unavailable"
+    assert caught.value.status_code == 503
+
+
 def test_el_navegador_ejecuta_python_y_puede_enviar_un_dato():
     _enable_languages()
     client = _browser()

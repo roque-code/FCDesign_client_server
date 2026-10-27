@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { ApiError, api, type AccountRole, type ConnectedAccount } from "../api"
 import { useT } from "../i18n"
@@ -10,6 +10,7 @@ export function AdminSessions() {
   const [fetchedAt, setFetchedAt] = useState(Date.now())
   const [now, setNow] = useState(Date.now())
   const [error, setError] = useState("")
+  const origins = useRef(new Map<number, number>())
 
   async function refresh() {
     try {
@@ -32,6 +33,13 @@ export function AdminSessions() {
       window.clearInterval(tick)
     }
   }, [])
+
+  useEffect(() => {
+    const live = new Set(rows.map((row) => row.id))
+    for (const id of origins.current.keys()) {
+      if (!live.has(id)) origins.current.delete(id)
+    }
+  }, [rows])
 
   return (
     <section className="session-board">
@@ -62,11 +70,9 @@ export function AdminSessions() {
             </thead>
             <tbody>
               {rows.map((row) => {
-                const elapsed = row.seconds + Math.max(0, Math.floor((now - fetchedAt) / 1000))
-                const started = new Date(row.started_at)
-                const clock = Number.isNaN(started.getTime())
-                  ? ""
-                  : started.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                const origin = sessionOrigin(row, fetchedAt, origins.current)
+                const elapsed = Math.max(0, Math.floor((now - origin) / 1000))
+                const clock = new Date(origin).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
                 return (
                   <tr key={row.id}>
                     <td>{row.display_name}</td>
@@ -83,6 +89,21 @@ export function AdminSessions() {
       )}
     </section>
   )
+}
+
+function sessionOrigin(
+  row: ConnectedAccount,
+  fetchedAt: number,
+  origins: Map<number, number>,
+): number {
+  const parsed = new Date(row.started_at).getTime()
+  const inferred = fetchedAt - row.seconds * 1000
+  let candidate = Number.isFinite(parsed) ? parsed : inferred
+  if (Number.isFinite(inferred)) candidate = Math.min(candidate, inferred)
+  const known = origins.get(row.id)
+  const origin = known === undefined ? candidate : Math.min(known, candidate)
+  origins.set(row.id, origin)
+  return origin
 }
 
 function roleLabel(role: AccountRole, t: ReturnType<typeof useT>): string {

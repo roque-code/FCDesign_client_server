@@ -1085,17 +1085,28 @@ def _language_public(attempt: ChallengeAttempt) -> dict[str, object] | None:
 
 
 def _execute_language(language: str, source: str, cases) -> list[str]:
-    try:
-        run_source = _language_runner()
-    except ImportError:
-        return ["Falta el runtime en esta máquina."] * len(cases)
+    import os
+
+    external = os.environ.get("TRAZA_LANGUAGE_HOST", "").strip() == "0"
+    run_source = None
+    if not external:
+        try:
+            run_source = _language_runner()
+        except ImportError:
+            return ["Falta el runtime en esta máquina."] * len(cases)
     outputs: list[str] = []
     for case in cases:
         raw = case.inputs if isinstance(case.inputs, list) else []
         lines = [item for item in raw if isinstance(item, str)]
         stdin = "\n".join(lines) + ("\n" if lines else "")
         try:
-            result = run_source(language, source, stdin, download=True, isolated=True)
+            if external:
+                from apps.languages.bridge import dispatch
+
+                result = dispatch("run", {"language": language, "source": source, "stdin": stdin})
+            else:
+                assert run_source is not None
+                result = run_source(language, source, stdin, download=True, isolated=True)
         except Exception as exc:
             message = getattr(exc, "message", None)
             outputs.append(

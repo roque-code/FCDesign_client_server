@@ -5,6 +5,7 @@ from django.http import JsonResponse
 
 from apps.accounts.guard import (
     hold_active_session,
+    note_presence,
     release_session,
     remember_window,
     sent_window,
@@ -41,7 +42,9 @@ class IdleSessionMiddleware:
                 if denied is not None:
                     return denied
             else:
-                if request.headers.get("X-Traza-Presence") != "1":
+                if request.headers.get("X-Traza-Presence") == "1":
+                    note_presence(request.session)
+                else:
                     touch_session(request.session)
                 remember_window(request.session, window)
         return self.get_response(request)

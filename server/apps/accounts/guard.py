@@ -21,6 +21,7 @@ _OPEN_MESSAGE = (
 )
 _IDLE_MESSAGE = "La sesión se cerró por inactividad. Vuelve a entrar."
 _WINDOW_SECONDS = 25
+_PRESENT_SECONDS = 45
 _WINDOW_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-")
 
 
@@ -72,6 +73,7 @@ def begin_session(request, user: User) -> User:
         login(request, current, backend=_BACKEND)
         now = int(time.time())
         request.session["last_activity"] = now
+        request.session["last_seen"] = now
         request.session["session_started"] = now
         remember_window(request.session, sent)
         request.session.save()
@@ -146,8 +148,22 @@ def session_is_idle(session) -> bool:
 def touch_session(session) -> None:
     now = int(time.time())
     session["last_activity"] = now
-    if not isinstance(session.get("session_started"), int):
-        session["session_started"] = now
+    session["last_seen"] = now
+    _remember_start(session, now)
+
+
+def note_presence(session) -> None:
+    """El navegador sigue abierto. No cuenta como uso ni mueve la hora de entrada."""
+    now = int(time.time())
+    session["last_seen"] = now
+    _remember_start(session, now)
+
+
+def _remember_start(session, now: int) -> None:
+    if isinstance(session.get("session_started"), int):
+        return
+    previous = session.get("last_activity")
+    session["session_started"] = previous if isinstance(previous, int) else now
 
 
 def close_account_session(user: User) -> None:
@@ -177,9 +193,17 @@ def active_sessions() -> list[dict[str, object]]:
         last = store.get("last_activity")
         if isinstance(last, int) and now - last >= idle:
             continue
+        seen = store.get("last_seen")
+        if not isinstance(seen, int):
+            seen = last if isinstance(last, int) else None
+        if not isinstance(seen, int) or now - seen > _PRESENT_SECONDS:
+            continue
         started = store.get("session_started")
         if not isinstance(started, int):
-            started = last if isinstance(last, int) else now
+            marks = [value for value in (last, seen) if isinstance(value, int)]
+            started = min(marks) if marks else now
+            store["session_started"] = started
+            store.save()
         seconds = max(0, now - started)
         profile = user.profile
         rows.append(

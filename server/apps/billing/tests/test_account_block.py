@@ -1,5 +1,7 @@
 """El administrador bloquea cuentas y ve quién sigue conectado."""
 
+import time
+
 import pytest
 from django.core.management import call_command
 from rest_framework.test import APIClient
@@ -85,6 +87,37 @@ def test_bloquear_cierra_la_sesion_y_el_tablero_la_quita(client):
         format="json",
     )
     assert back.status_code == 200, back.content
+
+
+def test_el_tiempo_de_sesion_no_vuelve_a_cero(client):
+    created = register(client, email="presente@ejemplo.test", display_name="Paz")
+    assert created.status_code == 201, created.content
+    started = int(time.time()) - 500
+    session = client.session
+    session["session_started"] = started
+    session["last_activity"] = started
+    session["last_seen"] = int(time.time())
+    session.save()
+
+    admin = _admin()
+    listed = admin.get("/api/v1/billing/sessions/")
+    assert listed.status_code == 200, listed.content
+    row = next(item for item in listed.json()["results"] if item["email"] == "presente@ejemplo.test")
+    assert row["seconds"] >= 500
+
+    ping = client.get("/api/v1/auth/me/", HTTP_X_TRAZA_PRESENCE="1")
+    assert ping.status_code == 200, ping.content
+    assert client.session["session_started"] == started
+
+    again = admin.get("/api/v1/billing/sessions/")
+    kept = next(item for item in again.json()["results"] if item["email"] == "presente@ejemplo.test")
+    assert kept["seconds"] >= 500
+
+    session = client.session
+    session["last_seen"] = int(time.time()) - 120
+    session.save()
+    gone = admin.get("/api/v1/billing/sessions/").json()["results"]
+    assert "presente@ejemplo.test" not in [item["email"] for item in gone]
 
 
 def test_un_alumno_no_ve_el_tablero_ni_bloquea(client):

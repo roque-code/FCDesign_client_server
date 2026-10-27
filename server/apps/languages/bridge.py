@@ -30,6 +30,11 @@ def _ensure_local_host() -> None:
         sys.path.insert(0, text)
 
 
+def _host_is_external() -> bool:
+    """En el servidor el lenguaje corre en su contenedor, no en este proceso."""
+    return os.environ.get("TRAZA_LANGUAGE_HOST", "1").strip() == "0"
+
+
 def dispatch(action: str, body: dict[str, Any]) -> dict[str, object]:
     _ensure_local_host()
     from local_host.engine import HostError
@@ -39,6 +44,8 @@ def dispatch(action: str, body: dict[str, Any]) -> dict[str, object]:
         payload["download"] = True
         payload["isolated"] = True
     try:
+        if _host_is_external():
+            return _post_external(action, payload)
         if _use_host():
             try:
                 return _post(f"/local/v1/foreign/{action}", payload)
@@ -47,6 +54,15 @@ def dispatch(action: str, body: dict[str, Any]) -> dict[str, object]:
         return _direct(action, payload)
     except HostError as exc:
         raise DomainError(exc.message, code=exc.code, status_code=exc.status) from exc
+
+
+def _post_external(action: str, payload: dict[str, Any]) -> dict[str, object]:
+    if not _token():
+        raise DomainError("Lenguajes no está disponible.", code="unavailable", status_code=503)
+    try:
+        return _post(f"/local/v1/foreign/{action}", payload)
+    except _HostDown as exc:
+        raise DomainError("Lenguajes no está disponible.", code="unavailable", status_code=503) from exc
 
 
 def _token() -> str:
