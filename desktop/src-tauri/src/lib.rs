@@ -124,7 +124,7 @@ fn init_script(origin: &str, token: &str) -> String {
 
 fn start_host() -> Result<Bridge, String> {
     let token = random_token();
-    let api = std::env::var("TRAZA_API_ORIGIN").unwrap_or_else(|_| "https://fcdesign.aulivana.com".into());
+    let api = std::env::var("TRAZA_API_ORIGIN").unwrap_or_else(|_| "http://3.17.151.210:18080".into());
     let mut command = host_command()?;
     if std::env::var("TRAZA_RUNTIME_MANIFEST")
         .ok()

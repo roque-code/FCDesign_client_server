@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from datetime import UTC, datetime
 from importlib import import_module
 
 from django.conf import settings
@@ -69,7 +70,9 @@ def begin_session(request, user: User) -> User:
         if window_blocks(request.session, sent):
             raise DomainError(_OPEN_MESSAGE, code="session_open", status_code=409)
         login(request, current, backend=_BACKEND)
-        request.session["last_activity"] = int(time.time())
+        now = int(time.time())
+        request.session["last_activity"] = now
+        request.session["session_started"] = now
         remember_window(request.session, sent)
         request.session.save()
         current.session_key = request.session.session_key or ""
@@ -141,7 +144,56 @@ def session_is_idle(session) -> bool:
 
 
 def touch_session(session) -> None:
-    session["last_activity"] = int(time.time())
+    now = int(time.time())
+    session["last_activity"] = now
+    if not isinstance(session.get("session_started"), int):
+        session["session_started"] = now
+
+
+def close_account_session(user: User) -> None:
+    """Cierra la sesión abierta para que la cuenta deje de estar conectada."""
+    key = user.session_key
+    if key:
+        _store(key).delete()
+    if user.session_key:
+        User.objects.filter(pk=user.pk).update(session_key="")
+        user.session_key = ""
+
+
+def active_sessions() -> list[dict[str, object]]:
+    """Cuentas cuya sesión sigue abierta y no venció por inactividad."""
+    now = int(time.time())
+    idle = int(settings.SESSION_IDLE_SECONDS)
+    rows: list[dict[str, object]] = []
+    people = (
+        User.objects.select_related("profile")
+        .exclude(session_key="")
+        .order_by("email")
+    )
+    for user in people:
+        store = _store(user.session_key)
+        if not store.exists(user.session_key):
+            continue
+        last = store.get("last_activity")
+        if isinstance(last, int) and now - last >= idle:
+            continue
+        started = store.get("session_started")
+        if not isinstance(started, int):
+            started = last if isinstance(last, int) else now
+        seconds = max(0, now - started)
+        profile = user.profile
+        rows.append(
+            {
+                "id": user.pk,
+                "email": user.email,
+                "display_name": profile.display_name,
+                "role": profile.role,
+                "seconds": seconds,
+                "started_at": datetime.fromtimestamp(started, UTC).isoformat(),
+            }
+        )
+    rows.sort(key=lambda row: (-int(row["seconds"]), str(row["display_name"]).casefold()))
+    return rows
 
 
 def _elsewhere(user: User, request) -> bool:

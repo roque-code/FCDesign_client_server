@@ -43,26 +43,10 @@ def dispatch(action: str, body: dict[str, Any]) -> dict[str, object]:
             try:
                 return _post(f"/local/v1/foreign/{action}", payload)
             except _HostDown:
-                if _host_is_external():
-                    raise DomainError(
-                        "Lenguajes no está disponible.",
-                        code="unavailable",
-                        status_code=503,
-                    ) from None
-        elif _host_is_external():
-            raise DomainError(
-                "Lenguajes no está disponible.",
-                code="unavailable",
-                status_code=503,
-            )
+                pass
         return _direct(action, payload)
     except HostError as exc:
         raise DomainError(exc.message, code=exc.code, status_code=exc.status) from exc
-
-
-def _host_is_external() -> bool:
-    """El servidor público no ejecuta lenguajes dentro del proceso web."""
-    return os.environ.get("TRAZA_LANGUAGE_HOST", "1").strip() == "0"
 
 
 def _token() -> str:

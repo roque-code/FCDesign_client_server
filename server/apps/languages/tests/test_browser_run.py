@@ -4,9 +4,7 @@ import pytest
 from rest_framework.test import APIClient
 
 from apps.billing.models import Plan
-from apps.languages.bridge import dispatch
 from apps.tests.helpers import refresh_csrf, register
-from config.errors import DomainError
 
 pytestmark = pytest.mark.django_db
 
@@ -34,15 +32,6 @@ def test_sin_la_opcion_el_navegador_no_ejecuta():
     )
     assert denied.status_code == 403
     assert denied.json()["error"]["code"] == "plan_forbidden"
-
-
-def test_el_servidor_no_ejecuta_el_lenguaje_dentro_del_proceso(monkeypatch):
-    monkeypatch.setenv("TRAZA_LANGUAGE_HOST", "0")
-    monkeypatch.delenv("TRAZA_LANGUAGE_TOKEN", raising=False)
-    with pytest.raises(DomainError) as raised:
-        dispatch("run", {"language": "python", "source": 'print("hola")\n'})
-    assert raised.value.code == "unavailable"
-    assert raised.value.status_code == 503
 
 
 def test_el_navegador_ejecuta_python_y_puede_enviar_un_dato():

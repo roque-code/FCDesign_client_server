@@ -142,6 +142,16 @@ export type Subscriber = {
   role: AccountRole
   plan: AccountPlan | null
   browser_allowed: boolean | null
+  blocked: boolean
+}
+
+export type ConnectedAccount = {
+  id: number
+  email: string
+  display_name: string
+  role: AccountRole
+  seconds: number
+  started_at: string
 }
 
 export type PendingConfirmation = {
@@ -1152,9 +1162,11 @@ export const api = {
     request<{ results: Subscriber[]; count: number; page: number; pages: number }>(
       `/api/v1/billing/users/?q=${encodeURIComponent(query)}&page=${page}`,
     ),
+  connectedAccounts: () =>
+    request<{ results: ConnectedAccount[]; count: number }>("/api/v1/billing/sessions/"),
   assignPlan: (
     userId: number,
-    body: { plan_id?: string; paid_until?: string | null; browser_allowed?: boolean | null },
+    body: { plan_id?: string; paid_until?: string | null; browser_allowed?: boolean | null; blocked?: boolean },
   ) =>
     request<Subscriber>(`/api/v1/billing/users/${userId}/`, { method: "PATCH", body: JSON.stringify(body) }),
 }

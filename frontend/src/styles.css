@@ -1547,6 +1547,7 @@ button.fold {
   text-transform: uppercase;
 }
 .account-table select { min-width: 8rem; }
+.session-time { font-variant-numeric: tabular-nums; font-weight: 700; }
 .admin-pager {
   display: flex;
   align-items: center;

@@ -4,6 +4,7 @@ import { ApiError, api, type Account, type BillingPlan, type PlanFeature, type R
 import { useT } from "../i18n"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
+import { AdminSessions } from "./AdminSessions"
 
 type Draft = {
   id: string | null
@@ -44,6 +45,7 @@ export function AdminHome({
   const [signup, setSignup] = useState<SignupPolicy | null>(null)
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
+  const [panel, setPanel] = useState<"levels" | "live">("levels")
 
   async function load() {
     const [features, listed, gates] = await Promise.all([api.planCatalog(), api.plans(), api.signup()])
@@ -185,6 +187,18 @@ export function AdminHome({
     }
   }
 
+  async function setBlocked(person: Subscriber, blocked: boolean) {
+    if (blocked && !window.confirm(t("blockConfirm", { name: person.display_name }))) return
+    setError("")
+    try {
+      const saved = await api.assignPlan(person.id, { blocked })
+      setPeople((rows) => rows.map((row) => (row.id === saved.id ? saved : row)))
+      setNotice(blocked ? t("accountBlockedSaved") : t("accountUnblockedSaved"))
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : t("requestError"))
+    }
+  }
+
   async function allowBrowser(person: Subscriber, allowed: boolean) {
     setError("")
     try {
@@ -202,18 +216,36 @@ export function AdminHome({
     <div className="shell">
       <header className="topbar topbar-editor">
         <div className="brand">
-          <h1><Logo mark />{t("levels")}</h1>
+          <h1><Logo mark />{panel === "live" ? t("connected") : t("levels")}</h1>
           <AccountIdentity account={account} onAccount={onAccount} />
         </div>
         <div className="actions">
+          <button
+            className="top-action"
+            type="button"
+            aria-current={panel === "levels" ? "page" : undefined}
+            onClick={() => setPanel("levels")}
+          >
+            {t("levels")}
+          </button>
+          <button
+            className="top-action"
+            type="button"
+            aria-current={panel === "live" ? "page" : undefined}
+            onClick={() => setPanel("live")}
+          >
+            {t("connected")}
+          </button>
           <button className="top-leave" type="button" onClick={onLogout}>
             {t("leave")}
           </button>
         </div>
       </header>
       <main className="admin-home">
-        {error ? <p className="error">{error}</p> : null}
-        {notice ? <p className="note">{notice}</p> : null}
+        {panel === "live" ? <AdminSessions /> : null}
+        {panel === "levels" && error ? <p className="error">{error}</p> : null}
+        {panel === "levels" && notice ? <p className="note">{notice}</p> : null}
+        {panel === "levels" ? (<>
         <section>
           <h2>{t("signupTitle")}</h2>
           <p className="note">{t("signupHint")}</p>
@@ -406,12 +438,13 @@ export function AdminHome({
                   <th>{t("accountType")}</th>
                   <th>{t("planWord")}</th>
                   <th>{t("browserOn")}</th>
+                  <th>{t("accountState")}</th>
                 </tr>
               </thead>
               <tbody>
                 {people.length === 0 ? (
                   <tr>
-                    <td colSpan={5}>{t("noAccounts")}</td>
+                    <td colSpan={6}>{t("noAccounts")}</td>
                   </tr>
                 ) : (
                   people.map((person) => {
@@ -450,6 +483,15 @@ export function AdminHome({
                             />
                           </label>
                         </td>
+                        <td>
+                          <button
+                            type="button"
+                            className={person.blocked ? "primary" : undefined}
+                            onClick={() => void setBlocked(person, !person.blocked)}
+                          >
+                            {person.blocked ? t("unblockAccount") : t("blockAccount")}
+                          </button>
+                        </td>
                       </tr>
                     )
                   })
@@ -467,6 +509,7 @@ export function AdminHome({
             </button>
           </div>
         </section>
+        </>) : null}
       </main>
     </div>
   )

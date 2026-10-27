@@ -5,6 +5,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.guard import active_sessions
 from apps.accounts.models import Profile, User
 from apps.billing.models import Plan
 from apps.billing.services import (
@@ -13,6 +14,7 @@ from apps.billing.services import (
     consume_execution,
     create_plan,
     plan_payload,
+    set_blocked,
     update_plan,
     user_row,
 )
@@ -94,15 +96,27 @@ class SubscriberListView(APIView):
 
 class SubscriberDetailView(APIView):
     def patch(self, request: Request, user_id: int) -> Response:
-        _admin(request)
+        actor = _admin(request)
         try:
             person = User.objects.select_related("profile").get(pk=user_id)
         except (User.DoesNotExist, ValueError, TypeError) as exc:
             raise DomainError(
                 "No se encontró la cuenta.", code="not_found", status_code=404
             ) from exc
-        assign_plan(person, object_body(request.data))
+        data = object_body(request.data)
+        if "blocked" in data:
+            set_blocked(actor, person, data.get("blocked"))
+        if any(key in data for key in ("plan_id", "paid_until", "browser_allowed")):
+            assign_plan(person, data)
+        person.refresh_from_db()
         return Response(user_row(person))
+
+
+class ConnectedSessionView(APIView):
+    def get(self, request: Request) -> Response:
+        _admin(request)
+        rows = active_sessions()
+        return Response({"results": rows, "count": len(rows)})
 
 
 class ConsumeExecutionView(APIView):

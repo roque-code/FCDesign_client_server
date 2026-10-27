@@ -573,6 +573,20 @@ def _parse_until(value: object):
     return parsed
 
 
+def set_blocked(actor: User, person: User, blocked: object) -> None:
+    """Impide entrar y cierra la sesión abierta. El administrador no se bloquea."""
+    from apps.accounts.guard import close_account_session
+
+    if not isinstance(blocked, bool):
+        raise DomainError("El bloqueo no es válido.")
+    if person.profile.role == Profile.ADMIN or person.pk == actor.pk:
+        raise DomainError("No se puede bloquear una cuenta de administrador.")
+    person.is_active = not blocked
+    person.save(update_fields=["is_active"])
+    if blocked:
+        close_account_session(person)
+
+
 def assign_plan(user: User, data: dict) -> Subscription:
     if user.profile.role == Profile.ADMIN:
         raise DomainError("El administrador no tiene un nivel de alumno o docente.")
@@ -620,4 +634,5 @@ def user_row(user: User) -> dict[str, object]:
         "role": user.profile.role,
         "plan": plan,
         "browser_allowed": override,
+        "blocked": not user.is_active,
     }

@@ -157,8 +157,7 @@ def main() -> None:
     if not token:
         raise SystemExit("Falta TRAZA_LANGUAGE_TOKEN.")
     port = int(os.environ.get("TRAZA_LANGUAGE_PORT", "8766"))
-    bind = os.environ.get("TRAZA_LANGUAGE_BIND", "127.0.0.1").strip() or "127.0.0.1"
-    LanguageServer((bind, port), token).serve_forever()
+    LanguageServer(("127.0.0.1", port), token).serve_forever()
 
 
 if __name__ == "__main__":

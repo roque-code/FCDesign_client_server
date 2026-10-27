@@ -271,6 +271,14 @@ def login_user(request, email: object, password: object) -> User:
     if isinstance(password, str):
         authenticated = authenticate(request, username=cleaned, password=password)
     if not isinstance(authenticated, User):
+        if isinstance(password, str):
+            inactive = User.objects.filter(email=cleaned, is_active=False).first()
+            if inactive is not None and inactive.check_password(password):
+                raise DomainError(
+                    "Esta cuenta está bloqueada.",
+                    code="account_blocked",
+                    status_code=403,
+                )
         note_login_failure(cleaned)
         raise DomainError("Correo o contraseña incorrectos.")
     user = authenticated
