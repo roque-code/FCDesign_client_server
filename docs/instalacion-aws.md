@@ -155,10 +155,11 @@ Desde `~/fcdesign/FCDesign_client_server`:
 docker compose -f compose.servidor.yaml build web
 docker compose -f compose.servidor.yaml build runner
 docker compose -f compose.servidor.yaml build nginx
+docker compose -f compose.servidor.yaml build languages
 docker compose -f compose.servidor.yaml up -d --remove-orphans
 ```
 
-No se construye `frontend`. Ese servicio era el Vite de desarrollo. Nginx incluye la página ya construida. `--remove-orphans` apaga un contenedor `frontend` que hubiera quedado de un arranque anterior.
+No se construye `frontend`. `languages` es el contenedor de C y de los demás lenguajes del navegador. No lleva las claves y no tiene salida a internet. La primera construcción descarga Node, Java y .NET; tarda más que las otras. Ese servicio era el Vite de desarrollo. Nginx incluye la página ya construida. `--remove-orphans` apaga un contenedor `frontend` que hubiera quedado de un arranque anterior.
 
 La primera construcción tarda varios minutos. Al terminar tienen que estar en marcha `db`, `redis`, `runner`, `web` y `nginx`. Postgres y Redis no publican puertos hacia internet.
 
@@ -187,6 +188,7 @@ docker compose -f compose.servidor.yaml down
 docker compose -f compose.servidor.yaml build web
 docker compose -f compose.servidor.yaml build runner
 docker compose -f compose.servidor.yaml build nginx
+docker compose -f compose.servidor.yaml build languages
 docker compose -f compose.servidor.yaml up -d --remove-orphans
 ```
 

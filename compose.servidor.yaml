@@ -71,6 +71,42 @@ services:
     networks:
       - isolated
 
+  languages:
+    build:
+      context: .
+      dockerfile: deploy/languages.Dockerfile
+    environment:
+      HOME: /tmp
+      TRAZA_LANGUAGE_TOKEN: ${TRAZA_LANGUAGE_TOKEN:-traza-language-dev}
+      TRAZA_LANGUAGE_BIND: 0.0.0.0
+      TRAZA_LANGUAGE_PORT: "8766"
+      TRAZA_RUNTIME_DIR: /opt/traza-runtimes
+      TRAZA_RUNTIME_MANIFEST: /opt/traza/deploy/runtimes/manifest.json
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 640m
+    cpus: 0.75
+    pids_limit: 128
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import os,urllib.request; t=os.environ['TRAZA_LANGUAGE_TOKEN']; urllib.request.urlopen('http://127.0.0.1:8766/local/v1/health?token=' + t)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 8s
+    networks:
+      - languages
+
   web:
     build:
       context: .
@@ -81,6 +117,9 @@ services:
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,web,nginx,fcdesign.aulivana.com}
       DJANGO_CSRF_ORIGINS: ${DJANGO_CSRF_ORIGINS:-https://fcdesign.aulivana.com}
       TRAZA_RUNNER: redis
+      TRAZA_LANGUAGE_HOST: "0"
+      TRAZA_LANGUAGE_ORIGIN: http://languages:8766
+      TRAZA_LANGUAGE_TOKEN: ${TRAZA_LANGUAGE_TOKEN:-traza-language-dev}
       REDIS_URL: redis://web:traza-web-dev@redis:6379/0
       EMAIL_HOST: smtp.gmail.com
       EMAIL_PORT: "587"
@@ -108,6 +147,8 @@ services:
         condition: service_healthy
       runner:
         condition: service_healthy
+      languages:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -122,6 +163,7 @@ services:
       start_period: 25s
     networks:
       - web
+      - languages
 
   nginx:
     build:
@@ -144,6 +186,8 @@ services:
 networks:
   web:
   isolated:
+    internal: true
+  languages:
     internal: true
 
 volumes:

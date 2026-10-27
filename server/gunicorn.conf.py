@@ -16,7 +16,14 @@ errorlog = "-"
 
 
 def on_starting(server):
-    """Un proceso aparte guarda la sesión del lenguaje entre workers."""
+    """Un proceso aparte guarda la sesión del lenguaje entre workers.
+
+    En el servidor público el host vive en otro contenedor. Arrancarlo aquí
+    le copiaría las claves de Django, del correo y de la base.
+    """
+    if os.environ.get("TRAZA_LANGUAGE_HOST", "1").strip() == "0":
+        server.log.info("El host de lenguajes no arranca en este proceso.")
+        return
     token = secrets.token_hex(16)
     path = Path("/tmp/traza-language.token")
     path.write_text(token, encoding="utf-8")

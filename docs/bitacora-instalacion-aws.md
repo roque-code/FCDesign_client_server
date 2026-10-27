@@ -178,6 +178,22 @@ La aplicación de escritorio usa el mismo origen, `https://fcdesign.aulivana.com
 
 Para renovar sin soltar el puerto 80, en `/etc/letsencrypt/renewal/fcdesign.aulivana.com.conf` el authenticator queda en `webroot` y `webroot_path` en `/var/www/certbot`. Después, `sudo certbot renew --dry-run` y `docker compose -f compose.servidor.yaml exec nginx nginx -s reload`.
 
+## 7. C2: lenguajes fuera del contenedor web, 26 de octubre
+
+C, Java y los demás lenguajes del navegador corrían dentro del contenedor `web`, el mismo que tiene la clave de Django, la de Gmail y la de Postgres. El pseudocódigo no: ese sigue en el runner. La aplicación de escritorio tampoco: ahí el lenguaje corre en la computadora del alumno.
+
+El arreglo deja un servicio `languages` en `compose.servidor.yaml`. Gunicorn ya no lo arranca (`TRAZA_LANGUAGE_HOST=0`). Si ese servicio no responde, Django no ejecuta el programa por su cuenta. La calificación de un reto en otro lenguaje usa el mismo servicio.
+
+El contenedor tiene usuario sin privilegios, disco de solo lectura, memoria, CPU y procesos limitados, y una red interna sin salida. No monta el repositorio ni el `.env`. Node, Java y .NET quedan dentro de la imagen. C, C++ y Python usan gcc y el Python de la imagen. El puerto 8766 no se publica.
+
+En la máquina local, `compose.yaml` sigue arrancando el host dentro de `web`. El desarrollo no cambia. La aplicación de escritorio sigue hablando con `local_host` en la computadora del alumno y con la API solo para la cuenta y los proyectos.
+
+Al repetir el arranque se agrega:
+
+```bash
+docker compose -f compose.servidor.yaml build languages
+```
+
 ## Qué no se repite
 
 - No se abre el 18080 ni el 8025.
