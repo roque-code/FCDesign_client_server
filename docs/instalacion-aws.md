@@ -1,12 +1,12 @@
 # Instalación del servidor en AWS
 
-La instancia que ya está en marcha se llama `cfdesign`. Este manual sirve para crear otra igual y para volver a levantar el código cada vez que `main` cambia. El archivo de Word con el mismo contenido está en [Instalacion-servidor-AWS.docx](Instalacion-servidor-AWS.docx).
+La instancia que ya está en marcha se llama `cfdesign`. Este manual sirve para crear otra igual y para volver a levantar el código cada vez que `main` cambia. El archivo de Word con el mismo contenido está en [Instalacion-servidor-AWS.docx](Instalacion-servidor-AWS.docx). El orden de los cambios, desde la primera configuración, está en [bitacora-instalacion-aws.md](bitacora-instalacion-aws.md).
 
-El arranque del servidor es `compose.servidor.yaml`. Ese archivo no levanta Mailpit: el correo de confirmación sale por Gmail. La aplicación queda en el puerto **18080**. Sigue en `config.settings.development` porque, con HTTP, la configuración de producción marcaría las cookies como `Secure` y el navegador no guardaría la sesión.
+El arranque del servidor es `compose.servidor.yaml`. Ese archivo no levanta Mailpit: el correo de confirmación sale por Gmail. El sitio público es `https://fcdesign.aulivana.com`. Nginx termina TLS y Django arranca con `config.settings.production`. La IP elástica, los puertos y el cierre del 18080 están en [Seguridad C1](#seguridad-c1).
 
 ## 1. La instancia que está hoy
 
-Datos tomados de la consola de EC2 el 21 de octubre de 2026.
+Datos tomados de la consola de EC2. El tipo, la IP pública y los puertos se actualizaron el 26 de octubre de 2026, con C1.
 
 | Dato | Valor |
 | --- | --- |
@@ -14,7 +14,7 @@ Datos tomados de la consola de EC2 el 21 de octubre de 2026.
 | ID | i-07c39f84b1c7b3787 |
 | Región | EE. UU. Este (Ohio), `us-east-2` |
 | Estado | En ejecución |
-| Tipo | t3.micro |
+| Tipo | t3.small. El 21 de octubre de 2026 era t3.micro |
 | AMI | ami-03e224e4dbc21f89e |
 | Nombre de la AMI | al2023-ami-2023.12.20261014.0-kernel-6.18-x86_64 |
 | Plataforma | Linux/UNIX, Amazon Linux 2023, x86_64 |
@@ -22,27 +22,28 @@ Datos tomados de la consola de EC2 el 21 de octubre de 2026.
 | IMDSv2 | Obligatorio |
 | VPC | vpc-0877ce6fabe7f919f |
 | Subred | subnet-0065e8a11b4f527d8 |
-| IP pública | 3.17.151.210, asignada automáticamente. El 21 de octubre de 2026 era 18.118.112.206 |
-| DNS público | el que muestre la consola; cambia con la IP |
-| IP privada | 172.31.24.67 |
-| IP elástica | ninguna |
+| IP pública | la IP elástica. El 26 de octubre de 2026 el DNS de `fcdesign.aulivana.com` responde `77.112.213.200`. Antes, sin elástica, fue `3.17.151.210` y `18.118.112.206` |
+| DNS público | `fcdesign.aulivana.com` |
+| IP privada | 172.31.24.67. No cambia al asociar la elástica |
+| IP elástica | asociada a esta instancia. Los pasos están en [Seguridad C1](#seguridad-c1) |
 | Par de claves | cfdesign |
 | Grupo de seguridad | launch-wizard-1, sg-05d3ffa45265dcd67 |
 | Monitoreo detallado | desactivado |
 | Protección de terminación | desactivada |
 
-La IP pública no es elástica. Si la instancia se detiene y se vuelve a encender, AWS puede dar otra. En ese caso hay que cambiar la IP en el `.env` del servidor y en el origen de la aplicación de escritorio.
+La IP privada `172.31.24.67` solo existe dentro de la VPC. El navegador usa la elástica, por el nombre `fcdesign.aulivana.com`.
 
-El grupo `default` (sg-03438b97b419876e4) también tiene una regla del puerto 18080, pero no es el grupo de esta instancia. Las reglas que importan son las de `launch-wizard-1`.
+El grupo `default` (sg-03438b97b419876e4) no es el de esta instancia. Las reglas que importan son las de `launch-wizard-1`.
 
 | Puerto | Protocolo | Origen | Para qué |
 | --- | --- | --- | --- |
-| 22 | TCP | 0.0.0.0/0 | SSH |
-| 18080 | TCP | 0.0.0.0/0 | La aplicación |
-| 443 | TCP | 0.0.0.0/0 | Abierto en la consola. El compose no lo usa: el sitio es HTTP en el 18080 |
-| 8025 | TCP | 0.0.0.0/0 | Abierto en la consola. `compose.servidor.yaml` no publica Mailpit |
+| 22 | TCP | 0.0.0.0/0 | SSH, el acceso de administración |
+| 80 | TCP | 0.0.0.0/0 | Nginx redirige a HTTPS y Let's Encrypt renueva el certificado |
+| 443 | TCP | 0.0.0.0/0 | El sitio |
+| 18080 | TCP | cerrado | El compose ya no lo publica. Hay que borrar la regla hacia internet |
+| 8025 | TCP | cerrado | Mailpit no está en este compose. Hay que borrar la regla |
 
-En una instancia nueva bastan el 22 y el 18080.
+En una instancia nueva se abren el 22, el 80 y el 443. No se abre el 18080.
 
 `t3.micro` tiene unos 913 MiB de memoria. Mientras Docker construye las imágenes, la sesión SSH puede cortarse con `Broken pipe`. Se vuelve a entrar y se repite el comando que quedó a medias. En esta instancia hizo falta un archivo de intercambio de 2 GB antes de que la construcción terminara. Los comandos están en la sección 6. Una `t3.small` deja más margen.
 
@@ -55,8 +56,8 @@ En la consola de AWS, región **Ohio (us-east-2)**:
 3. AMI: Amazon Linux 2023, kernel 6.x, arquitectura 64 bits (x86). La de esta máquina es `ami-03e224e4dbc21f89e`. Una Amazon Linux 2023 posterior, de 64 bits, también sirve.
 4. Tipo: `t3.micro`.
 5. Par de claves: crear o elegir `cfdesign` y guardar el archivo `cfdesign.pem`.
-6. Red: la VPC y la subred de la tabla, con IP pública automática.
-7. Grupo de seguridad nuevo, o `launch-wizard-1` si ya existe. Entrada TCP 22 y TCP 18080 desde `0.0.0.0/0`.
+6. Red: la VPC y la subred de la tabla, con IP pública automática. Después se sustituye por la elástica, en [Seguridad C1](#seguridad-c1).
+7. Grupo de seguridad nuevo, o `launch-wizard-1` si ya existe. Entrada TCP 22, TCP 80 y TCP 443 desde `0.0.0.0/0`. Sin 18080 y sin 8025.
 8. Almacenamiento: el volumen por defecto del asistente.
 9. Metadatos: IMDSv2 obligatorio.
 10. Lanzar.
@@ -65,10 +66,10 @@ Desde el Mac, con el `.pem` en la carpeta desde la que se trabaja:
 
 ```bash
 chmod 400 cfdesign.pem
-ssh -i "cfdesign.pem" ec2-user@3.17.151.210
+ssh -i "cfdesign.pem" ec2-user@77.112.213.200
 ```
 
-Si la IP cambió, se usa la IP pública o el DNS que muestre la consola en ese momento. El usuario es `ec2-user`.
+Esa es la elástica del 26 de octubre de 2026. Si es otra, se usa la que muestre la consola. El usuario es `ec2-user`.
 
 ## 3. Git, Docker, Compose y Buildx
 
@@ -123,14 +124,14 @@ cd FCDesign_client_server
 En `~/fcdesign/FCDesign_client_server/.env`:
 
 ```bash
-DJANGO_SECRET_KEY=una-clave-larga-distinta-de-la-de-desarrollo
+DJANGO_SECRET_KEY=una-clave-larga-distinta-de-las-de-desarrollo
 EMAIL_HOST_PASSWORD=clave-de-aplicacion-de-gmail
-DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,web,nginx,3.17.151.210
-DJANGO_CSRF_ORIGINS=http://3.17.151.210:18080,http://127.0.0.1:18080,http://localhost:18080
-TRAZA_PUBLIC_ORIGIN=http://3.17.151.210:18080
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,web,nginx,fcdesign.aulivana.com
+DJANGO_CSRF_ORIGINS=https://fcdesign.aulivana.com
+TRAZA_PUBLIC_ORIGIN=https://fcdesign.aulivana.com
 ```
 
-Si la IP pública es otra, se sustituye `3.17.151.210` en esas tres líneas. `.env` no se sube a Git. Si esas variables no están en el archivo, `compose.servidor.yaml` sigue usando `18.118.112.206`. La aplicación de escritorio, si no tiene `TRAZA_API_ORIGIN`, llama a `http://3.17.151.210:18080`.
+`DJANGO_SECRET_KEY` no puede quedar vacía ni ser `dev-only-change-me` ni `dev-container-not-production`. Con una de esas, `config.settings.production` no arranca. `DJANGO_CSRF_ORIGINS` tiene que ser `https://`. `.env` no se sube a Git. Si esas variables no están, `compose.servidor.yaml` usa `https://fcdesign.aulivana.com`. La aplicación de escritorio, si no tiene `TRAZA_API_ORIGIN`, tiene que llamar a ese mismo origen.
 
 ## 6. Primera vez
 
@@ -164,10 +165,10 @@ La primera construcción tarda varios minutos. Al terminar tienen que estar en m
 Comprobación dentro de la EC2:
 
 ```bash
-curl -sS -m 10 http://127.0.0.1:18080/api/v1/auth/csrf/
+curl -sS -m 10 https://fcdesign.aulivana.com/api/v1/auth/csrf/
 ```
 
-Tiene que responder `{"ok":true}`. En el navegador se abre `http://3.17.151.210:18080`.
+Tiene que responder `{"ok":true}` y la cookie `csrftoken` tiene que llevar `Secure`. En el navegador se abre `https://fcdesign.aulivana.com`. `http://` en el puerto 80 responde con una redirección a ese mismo nombre. Nginx no arranca si todavía no existe el certificado de la sección [Seguridad C1](#seguridad-c1).
 
 La cuenta que administra niveles no sale del alta pública:
 
@@ -204,8 +205,135 @@ El código que vale es el de `origin/main`.
 
 ## 8. Si el sitio no abre
 
-- La dirección lleva el puerto: `http://3.17.151.210:18080`. El 8080 no está abierto y el navegador se queda esperando.
-- La IP `172.31.24.67` es privada. Desde fuera se usa la pública.
-- El grupo de la instancia tiene que ser `launch-wizard-1`, con el TCP 18080 desde `0.0.0.0/0`.
-- `docker compose -f compose.servidor.yaml ps` tiene que mostrar `nginx` en ejecución y el puerto `0.0.0.0:18080->80/tcp`.
-- Si `df -h` deja el disco casi lleno, se aplica la limpieza de la sección 7 y se repite el build.
+- La dirección es `https://fcdesign.aulivana.com`, sin `:18080`. El 8080 y el 18080 no son el sitio.
+- `http://fcdesign.aulivana.com` tiene que redirigir a `https://`. Si el navegador se queda en HTTP, el puerto 80 no está abierto o Nginx no cargó.
+- La IP `172.31.24.67` es privada. Desde fuera se usa la elástica, y el DNS del dominio tiene que apuntar a ella.
+- El grupo de la instancia tiene que ser `launch-wizard-1`, con TCP 22, 80 y 443. Sin regla de 18080 hacia internet.
+- `docker compose -f compose.servidor.yaml ps` tiene que mostrar `nginx` con `0.0.0.0:80->80/tcp` y `0.0.0.0:443->443/tcp`.
+- Si Nginx reinicia en bucle, faltan `/etc/letsencrypt/live/fcdesign.aulivana.com/fullchain.pem` y `privkey.pem` en el host.
+- Si `df -h` deja el disco casi lleno, se aplica la limpieza de la sección 7 y se repite el build. El volumen de 30 GB de la consola no se ve en `df` hasta estirar la partición, en [Seguridad C1](#seguridad-c1).
+
+## Seguridad C1
+
+| Campo | Valor |
+| --- | --- |
+| ID | C1 |
+| Gravedad | Crítico |
+| Zona | Servidor |
+| Hallazgo | El servidor público arranca en modo desarrollo y sin TLS |
+| Corrección | Poner TLS delante de Nginx, apuntar `DJANGO_SETTINGS_MODULE` a `config.settings.production`, exigir una clave distinta de los valores de desarrollo, alargar HSTS y declarar el proxy de confianza. En el firewall del host dejar solo 443 y el acceso de administración; cerrar 18080 hacia internet |
+
+Eso ya está en el código de `main` y en la instancia que responde `https://fcdesign.aulivana.com`. Esta sección es el procedimiento para dejar otra instancia igual, desde la IP elástica hasta el certificado.
+
+### Crear la IP elástica y asignarla
+
+En la consola de EC2, región **Ohio (us-east-2)**:
+
+1. **Red y seguridad → Direcciones IP elásticas → Asignar dirección IP elástica**.
+2. Grupo de direcciones: IPv4 de Amazon. Borde de red: esta región. **Asignar**.
+3. Anotar la dirección nueva. Esa es la pública fija.
+4. Marcarla → **Acciones → Asociar dirección IP elástica**.
+5. Tipo de recurso: **Instancia**. Instancia: `cfdesign` (`i-07c39f84b1c7b3787`).
+6. IP privada: `172.31.24.67`.
+7. **Asociar**.
+
+La IP automática que tenía la instancia se suelta en ese momento. La elástica sigue aunque la instancia se detenga. La privada no cambia. El nombre `fcdesign.aulivana.com` se publica en GoDaddy, en el paso siguiente. Sin ese registro, Let's Encrypt no emite el certificado.
+
+### El dominio en GoDaddy
+
+El DNS de `aulivana.com` está en GoDaddy. Los servidores de nombres son `ns55.domaincontrol.com` y `ns56.domaincontrol.com`. El registro no se crea en Route 53 ni en la consola de EC2.
+
+1. Entra en [godaddy.com](https://www.godaddy.com) con la cuenta que registró el dominio.
+2. Abre **Mis productos** y elige **aulivana.com**.
+3. Entra en **DNS** (a veces aparece como **Administrar DNS**).
+4. En **Registros DNS**, pulsa **Agregar**.
+5. Llena el registro así:
+
+| Campo | Valor |
+| --- | --- |
+| Tipo | A |
+| Nombre | `fcdesign` |
+| Valor | la IP elástica asociada a `cfdesign`. El 26 de octubre de 2026 es `77.112.213.200` |
+| TTL | 1 hora, el valor por defecto |
+
+El nombre es solo `fcdesign`. Si se escribe `fcdesign.aulivana.com`, GoDaddy lo publica como `fcdesign.aulivana.com.aulivana.com`.
+
+Guarda cuando la elástica ya esté asociada. Si el registro apunta a una IP que todavía no está unida a la instancia, el dominio no llega al sitio. Un subdominio no se cobra aparte: el dominio `aulivana.com` ya está pagado.
+
+La comprobación, desde cualquier máquina:
+
+```bash
+dig +short A fcdesign.aulivana.com
+```
+
+Tiene que imprimir la misma IP elástica de la consola de EC2.
+
+La IP pública cuesta 0.005 dólares por hora y sale de los créditos del plan gratuito. La elástica asociada a la instancia en marcha sustituye a la automática: no se suman las dos. Si la elástica queda asignada a la cuenta y no asociada a una instancia en marcha, el cargo sigue.
+
+### Puertos
+
+El firewall que ve internet es el grupo `launch-wizard-1` (`sg-05d3ffa45265dcd67`). En **Instancia → Seguridad → grupos de seguridad**, las reglas de entrada quedan así:
+
+| Puerto | Se deja | Motivo |
+| --- | --- | --- |
+| 22 | Sí | Administración por SSH |
+| 443 | Sí | HTTPS. Nginx escucha aquí |
+| 80 | Sí | Excepción práctica: la redirección a HTTPS y la renovación del certificado. C1 pide dejar solo 443 y la administración; sin el 80, Let's Encrypt no renueva |
+| 18080 | No | Se borra la regla hacia `0.0.0.0/0`. `compose.servidor.yaml` publica `80:80` y `443:443`, no el 18080 |
+| 8025 | No | Se borra. Este compose no publica Mailpit |
+| 5432 y 6379 | No | Postgres y Redis no tienen puerto en el host |
+
+En la instancia, si `systemctl is-active firewalld` responde `active`, el mismo criterio: SSH, HTTP y HTTPS. Si responde `inactive`, manda solo el grupo de seguridad.
+
+El volumen de la consola puede decir 30 GB mientras `df -h /` sigue en 8 GB. Eso no es el firewall. En la instancia:
+
+```bash
+sudo growpart /dev/nvme0n1 1
+sudo xfs_growfs -d /
+df -h /
+```
+
+### TLS y producción
+
+`deploy/nginx/servidor.conf` escucha 443 con el certificado de `fcdesign.aulivana.com` y redirige el puerto 80 a `https://fcdesign.aulivana.com`. `/api/` y `/admin/` van a Gunicorn por HTTP interno, con `X-Forwarded-Proto $scheme`. El certificado tiene que existir en el host antes de `docker compose up`, porque Nginx no arranca sin estos dos archivos:
+
+- `/etc/letsencrypt/live/fcdesign.aulivana.com/fullchain.pem`
+- `/etc/letsencrypt/live/fcdesign.aulivana.com/privkey.pem`
+
+Con el puerto 80 libre (el compose todavía no está arriba):
+
+```bash
+sudo dnf install -y certbot
+sudo mkdir -p /var/www/certbot
+sudo certbot certonly --standalone -d fcdesign.aulivana.com --agree-tos -m correo-del-responsable --non-interactive
+```
+
+`compose.servidor.yaml` monta `/etc/letsencrypt` y `/var/www/certbot` en Nginx, y fija:
+
+```bash
+DJANGO_SETTINGS_MODULE=config.settings.production
+```
+
+Ese módulo, en `server/config/settings/production.py`, hace el resto de C1:
+
+- `DEBUG` queda en falso. Las cookies de sesión y de CSRF salen con `Secure`.
+- Rechaza `DJANGO_SECRET_KEY` vacía, `dev-only-change-me` y `dev-container-not-production`.
+- Exige `DJANGO_CSRF_ORIGINS` en `https://` y `TRAZA_RUNNER=redis`.
+- `SECURE_PROXY_SSL_HEADER` confía en `X-Forwarded-Proto: https`. Sin eso, Django creería que la petición sigue en HTTP y no guardaría la sesión.
+- `SECURE_HSTS_SECONDS` está en `3600` (una hora), con subdominios. C1 pide alargarlo cuando el inicio de sesión por HTTPS ya se comprobó. El valor de un año es `31536000`, en esa misma línea. Subirlo antes deja al navegador atado a este nombre si el certificado falla.
+- La caché del bloqueo de intentos usa Redis, la misma `REDIS_URL` del compose.
+
+La comprobación, desde fuera:
+
+```bash
+curl -sI https://fcdesign.aulivana.com/api/v1/auth/csrf/
+```
+
+Tiene que verse `strict-transport-security` y `set-cookie` con `Secure`. La aplicación de escritorio usa el mismo origen: `https://fcdesign.aulivana.com`, en `desktop/src-tauri/src/lib.rs` o en `TRAZA_API_ORIGIN`. Un instalador que siga en `http://…:18080` no guarda la cookie segura.
+
+Para renovar el certificado sin soltar el puerto 80, en `/etc/letsencrypt/renewal/fcdesign.aulivana.com.conf` el authenticator queda en `webroot` y `webroot_path` en `/var/www/certbot`. Nginx ya sirve `/.well-known/acme-challenge/` desde esa carpeta. Después:
+
+```bash
+sudo certbot renew --dry-run
+docker compose -f compose.servidor.yaml exec nginx nginx -s reload
+```

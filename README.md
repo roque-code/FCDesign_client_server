@@ -30,6 +30,7 @@ El mapa del sistema que corre hoy está en [arquitectura](docs/arquitectura.md).
 | [Desarrollo](docs/desarrollo.md) | Máquina local, ejecutor en proceso y bus Redis |
 | [Despliegue](docs/despliegue.md) | Lo que falta cuando haya un servidor. No está activo |
 | [Servidor en AWS](docs/instalacion-aws.md) | Instancia cfdesign, grupo de seguridad y arranque con `compose.servidor.yaml`. El Word está en [Instalacion-servidor-AWS.docx](docs/Instalacion-servidor-AWS.docx) |
+| [Bitácora AWS](docs/bitacora-instalacion-aws.md) | Cambios desde la primera EC2 hasta HTTPS, en el orden para replicar la instancia |
 | [Arquitectura](docs/arquitectura.md) | Contenedores, correo, tres pantallas, API y fronteras |
 | [Vistas](docs/vistas/indice.md) | Negocio, datos, física, C4, UML, secuencia y el Word |
 | [Gramática](docs/gramatica.md) | EBNF, léxico, grafías en inglés, operadores, perfiles y traducción |
