@@ -42,7 +42,6 @@ import {
 } from "../runtime"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
-import { CommunitiesPanel } from "./Communities"
 import { TranslateDialog } from "./TranslateDialog"
 import { stdlibHelp } from "./stdlibHelp"
 
@@ -67,6 +66,7 @@ export function Workbench({
   onLogout,
   onOpenLab,
   onOpenLanguages,
+  onOpenCommunities,
   onOpenCompose,
   focus,
   onLocale,
@@ -76,6 +76,7 @@ export function Workbench({
   onLogout: () => void
   onOpenLab: () => void
   onOpenLanguages: () => void
+  onOpenCommunities: () => void
   onOpenCompose: (payload: { name?: string; source?: string; semicolons: boolean }) => void
   focus: { projectId: string; algorithmId: string; token: number } | null
   onLocale: (locale: Locale) => void
@@ -111,7 +112,6 @@ export function Workbench({
   const [debugHeight, setDebugHeight] = useState(220)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [functionsOpen, setFunctionsOpen] = useState(false)
-  const [communitiesOpen, setCommunitiesOpen] = useState(false)
   const [students, setStudents] = useState<ClassroomStudent[]>([])
   const [reviewId, setReviewId] = useState<number | null>(null)
   const [reviewLoading, setReviewLoading] = useState(false)
@@ -187,7 +187,6 @@ export function Workbench({
 
   useEffect(() => {
     if (account.role !== "teacher" || access.features.communities !== true) {
-      setCommunitiesOpen(false)
       setStudents([])
     }
   }, [account.role, access.features.communities])
@@ -1114,11 +1113,10 @@ export function Workbench({
             <button
               className="top-action"
               type="button"
-              aria-expanded={communitiesOpen}
               onClick={() => {
                 setSettingsOpen(false)
                 setFunctionsOpen(false)
-                setCommunitiesOpen(true)
+                onOpenCommunities()
               }}
             >
               {t("communities")}
@@ -1258,7 +1256,6 @@ export function Workbench({
           </button>
         </div>
       </header>
-      {communitiesOpen && <CommunitiesPanel key={reloadToken} onClose={() => setCommunitiesOpen(false)} />}
       {meta?.notice && <p className="notice">{meta.notice}</p>}
       <div
         className={["workspace", projectsOpen ? "" : "projects-hidden", diagramOpen && can("diagram") ? "" : "diagram-hidden"].filter(Boolean).join(" ")}

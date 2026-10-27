@@ -11,12 +11,13 @@ import { inInstalledApp, installedLocal, launchSearch, rememberAccess } from "./
 import { AccountOnly } from "./shell/AccountOnly"
 import { LegalFooter } from "./shell/LegalFooter"
 import { Logo } from "./shell/Logo"
+import { CommunitiesPanel } from "./workbench/Communities"
 import { Workbench } from "./workbench/Workbench"
 
 export function App() {
   const [account, setAccount] = useState<Account | null>(null)
   const [ready, setReady] = useState(false)
-  const [screen, setScreen] = useState<"editor" | "lab" | "compose" | "languages">("editor")
+  const [screen, setScreen] = useState<"editor" | "lab" | "compose" | "languages" | "communities">("editor")
   const [diagramRequest, setDiagramRequest] = useState<DiagramRequest | null>(null)
   const [editorFocus, setEditorFocus] = useState<{ projectId: string; algorithmId: string; token: number } | null>(null)
   const [locale, setLocale] = useState<Locale>(readStoredLocale)
@@ -194,6 +195,7 @@ function openCompose(payload: { name?: string; source?: string; semicolons: bool
           onLogout={() => void logout()}
           onOpenLab={() => setScreen("lab")}
           onOpenLanguages={() => setScreen("languages")}
+          onOpenCommunities={() => setScreen("communities")}
           onOpenCompose={openCompose}
           focus={editorFocus}
           onLocale={applyLocale}
@@ -204,6 +206,9 @@ function openCompose(payload: { name?: string; source?: string; semicolons: bool
       )}
       {screen === "languages" && (
         <ForeignBench account={account} onAccount={holdAccount} onBack={backToEditor} />
+      )}
+      {screen === "communities" && (
+        <CommunitiesPanel account={account} onAccount={holdAccount} onBack={backToEditor} />
       )}
       <div className="screen-slot" hidden={screen !== "compose"}>
         <Composer account={account} onAccount={holdAccount} active={screen === "compose"} incoming={diagramRequest} onBack={backToEditor} onOpenInEditor={openInEditor} />

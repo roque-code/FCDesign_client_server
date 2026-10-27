@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
 
 import {
   ApiError,
@@ -78,6 +78,8 @@ export function ForeignBench({
   const [attachOpen, setAttachOpen] = useState(false)
   const [attachNote, setAttachNote] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const [outputHeight, setOutputHeight] = useState(144)
   const fileRef = useRef<HTMLInputElement>(null)
   const outputRef = useRef<HTMLPreElement>(null)
   const sessionRef = useRef("")
@@ -313,6 +315,50 @@ export function ForeignBench({
     }
   }
 
+  function outputLimit() {
+    const box = bodyRef.current?.getBoundingClientRect()
+    const min = 72
+    const max = box ? Math.max(min, Math.round(box.height - 220)) : 480
+    return { min, max }
+  }
+
+  function setOutput(next: number) {
+    const { min, max } = outputLimit()
+    setOutputHeight(Math.round(Math.min(Math.max(next, min), max)))
+  }
+
+  function dragOutput(event: ReactPointerEvent<HTMLButtonElement>) {
+    const parent = bodyRef.current
+    if (!parent) return
+    event.preventDefault()
+    const handle = event.currentTarget
+    try {
+      handle.setPointerCapture(event.pointerId)
+    } catch {
+      /* El arrastre sigue por los eventos del propio separador. */
+    }
+    const page = document.body
+    const cursor = page.style.cursor
+    const select = page.style.userSelect
+    page.style.cursor = "row-resize"
+    page.style.userSelect = "none"
+    const move = (ev: PointerEvent) => {
+      const box = parent.getBoundingClientRect()
+      const pad = Number.parseFloat(getComputedStyle(parent).paddingBottom) || 0
+      setOutput(box.bottom - pad - ev.clientY)
+    }
+    const stop = () => {
+      handle.removeEventListener("pointermove", move)
+      handle.removeEventListener("pointerup", stop)
+      handle.removeEventListener("pointercancel", stop)
+      page.style.cursor = cursor
+      page.style.userSelect = select
+    }
+    handle.addEventListener("pointermove", move)
+    handle.addEventListener("pointerup", stop)
+    handle.addEventListener("pointercancel", stop)
+  }
+
   const route = paths?.find((item) => item.id === routeId) ?? null
   const builds = (route?.challenges ?? []).filter(
     (item) => item.activity_type === "build" && item.state === "available",
@@ -334,7 +380,7 @@ export function ForeignBench({
           </button>
         </div>
       </header>
-      <div className="foreign-body">
+      <div className="foreign-body" ref={bodyRef}>
         <div className="foreign-tabs" role="tablist" aria-label={t("foreignTitle")}>
           {FOREIGN_LANGUAGES.map((item) => (
             <button
@@ -457,7 +503,34 @@ export function ForeignBench({
         )}
         {failure && <p className="error">{failure}</p>}
         {result?.message && <p className="error">{translatedMessage(result.message)}</p>}
-        <pre className="foreign-output" aria-label={t("console")} ref={outputRef}>
+        <button
+          type="button"
+          className="splitter splitter-row"
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label={t("adjustConsole")}
+          aria-valuenow={outputHeight}
+          aria-valuemin={outputLimit().min}
+          aria-valuemax={outputLimit().max}
+          onPointerDown={dragOutput}
+          onKeyDown={(event) => {
+            const step = event.shiftKey ? 48 : 16
+            if (event.key === "ArrowUp") {
+              event.preventDefault()
+              setOutput(outputHeight + step)
+            }
+            if (event.key === "ArrowDown") {
+              event.preventDefault()
+              setOutput(outputHeight - step)
+            }
+          }}
+        />
+        <pre
+          className="foreign-output"
+          aria-label={t("console")}
+          ref={outputRef}
+          style={{ height: outputHeight }}
+        >
           {result ? `${result.stderr}${result.stdout}` : ""}
         </pre>
       </div>

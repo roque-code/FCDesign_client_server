@@ -439,49 +439,19 @@ a.manual-download:hover, button.manual-download:hover { background: var(--hover)
 .manual-sheet table { border-collapse: collapse; width: 100%; }
 .manual-sheet td, .manual-sheet th { border: 1px solid var(--line); padding: 0.35rem 0.45rem; vertical-align: top; }
 
-.communities-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  display: grid;
-  background: var(--paper);
-}
-
-.communities-panel {
-  width: 100%;
-  height: 100%;
-  max-height: none;
-  overflow: hidden;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  background: var(--sheet);
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.communities-panel > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--line);
-}
-
-.communities-panel h2,
-.communities-panel h3,
-.communities-panel h4 { margin: 0; letter-spacing: -0.02em; text-transform: none; color: var(--ink); }
-
-.communities-panel h2 { font-size: 1.05rem; }
-.communities-panel h3 { font-size: 1rem; }
-.communities-panel h4 { font-size: 0.82rem; color: var(--muted); margin-top: 0.35rem; }
-
-.communities-body {
+.shell > .communities-body {
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
   grid-template-columns: 16rem minmax(0, 1fr);
-  min-height: 0;
+  background: var(--sheet);
 }
+
+.communities-screen h3,
+.communities-screen h4 { margin: 0; letter-spacing: -0.02em; text-transform: none; color: var(--ink); }
+
+.communities-screen h3 { font-size: 1rem; }
+.communities-screen h4 { font-size: 0.82rem; color: var(--muted); margin-top: 0.35rem; }
 
 .communities-list,
 .communities-detail { padding: 0.9rem 1rem; display: grid; align-content: start; gap: 0.7rem; min-height: 0; }
@@ -833,6 +803,16 @@ button.avatar-button:hover { background: var(--accent); filter: brightness(1.06)
 .mark-silver { color: #8b95a7; }
 .mark-bronze { color: #c4844a; }
 .mark-place { color: var(--accent); }
+.mark-days-open { color: #0284c7; }
+.mark-days-low { color: #f97316; }
+.mark-days-gone { color: var(--muted); }
+.mark-runs-open, .mark-runs-free { color: #16a34a; }
+.mark-runs-low { color: #f97316; }
+.mark-runs-gone { color: var(--muted); }
+
+:root[data-theme="dark"] .mark-days-open { color: #38bdf8; }
+:root[data-theme="dark"] .mark-runs-open,
+:root[data-theme="dark"] .mark-runs-free { color: #4ade80; }
 
 .actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 
@@ -1278,8 +1258,15 @@ button.fold {
 
 .foreign-attach p { margin: 0; color: var(--muted); }
 
+.foreign-body > .splitter {
+  flex: 0 0 10px;
+  height: 10px;
+}
+
 .foreign-output {
-  flex: 0 0 9rem;
+  flex: 0 0 auto;
+  height: 9rem;
+  min-height: 0;
   margin: 0;
   overflow: auto;
   white-space: pre-wrap;

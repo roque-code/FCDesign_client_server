@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from "react"
 
-import { api, ApiError, type Community, type CommunitySummary, type Person } from "../api"
+import { api, ApiError, type Account, type Community, type CommunitySummary, type Person } from "../api"
 import { translatedMessage, useT } from "../i18n"
+import { AccountIdentity } from "../shell/Identity"
+import { Logo } from "../shell/Logo"
 
 const PAGE = 15
 
@@ -14,7 +16,15 @@ function matches(person: Person, text: string): boolean {
   )
 }
 
-export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
+export function CommunitiesPanel({
+  account,
+  onAccount,
+  onBack,
+}: {
+  account: Account
+  onAccount: (account: Account) => void
+  onBack: () => void
+}) {
   const t = useT()
   const [communities, setCommunities] = useState<CommunitySummary[]>([])
   const [selectedId, setSelectedId] = useState("")
@@ -71,11 +81,11 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose()
+      if (event.key === "Escape") onBack()
     }
     document.addEventListener("keydown", onKey)
     return () => document.removeEventListener("keydown", onKey)
-  }, [onClose])
+  }, [onBack])
 
   useEffect(() => {
     const text = query.trim()
@@ -209,19 +219,19 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
   const rangeTo = Math.min(listed.length, safePage * PAGE + PAGE)
 
   return (
-    <div className="communities-backdrop" onMouseDown={onClose}>
-      <section
-        className="communities-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t("communities")}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <header>
-          <h2>{t("communities")}</h2>
-          <button type="button" onClick={onClose}>{t("close")}</button>
-        </header>
-        <div className="communities-body">
+    <div className="shell communities-screen">
+      <header className="topbar topbar-editor">
+        <div className="brand">
+          <h1><Logo mark />{t("communities")}</h1>
+          <AccountIdentity account={account} onAccount={onAccount} />
+        </div>
+        <div className="actions">
+          <button className="top-leave" type="button" onClick={onBack}>
+            {t("backToEditor")}
+          </button>
+        </div>
+      </header>
+      <div className="communities-body">
           <div className="communities-list">
             <form onSubmit={create}>
               <label>
@@ -362,7 +372,6 @@ export function CommunitiesPanel({ onClose }: { onClose: () => void }) {
             )}
           </div>
         </div>
-      </section>
     </div>
   )
 }

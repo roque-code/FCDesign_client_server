@@ -1,6 +1,6 @@
 import { useRef, useState } from "react"
 
-import { ApiError, api, type Account } from "../api"
+import { accessOf, ApiError, api, type Account } from "../api"
 import { useT } from "../i18n"
 
 export function AccountIdentity({
@@ -12,6 +12,17 @@ export function AccountIdentity({
 }) {
   const t = useT()
   const [open, setOpen] = useState(false)
+  const runLimit = accessOf(account).limits.max_executions_per_day
+  const runsUsed = account.usage?.executions_today ?? 0
+  const runsLeft = runLimit == null ? null : Math.max(0, runLimit - runsUsed)
+  const runsTitle =
+    runsLeft == null
+      ? t("unlimitedRuns")
+      : runsLeft === 0
+        ? t("executionsGone")
+        : runsLeft === 1
+          ? t("executionsLeftOne")
+          : t("executionsLeft", { count: runsLeft })
   return (
     <>
       <div className="who">
@@ -43,10 +54,16 @@ export function AccountIdentity({
         </span>
         {account.plan?.days_remaining !== null && account.plan ? (
           <span className="stat" title={t("daysLeft", { days: account.plan.days_remaining })}>
+            <DaysMark days={account.plan.days_remaining} />
             <strong>{account.plan.days_remaining}</strong>
             <small>{t("daysShort")}</small>
           </span>
         ) : null}
+        <span className="stat" title={runsTitle}>
+          <RunsMark left={runsLeft} />
+          <strong>{runsLeft == null ? "∞" : runsLeft}</strong>
+          <small>{t("runsShort")}</small>
+        </span>
       </div>
       {open ? (
         <ProfileDialog
@@ -273,6 +290,38 @@ function PointsMark({ points }: { points: number }) {
       {tier === "star" && <path d="M12 2.2 14.3 7l5.2.7-3.8 3.6.9 5.2L12 14.1 7.4 16.5l.9-5.2L4.5 7.7 9.7 7 12 2.2Z" />}
       {tier === "bolt" && <path d="M13.4 1.6 4.4 13.4h6.4l-1.2 9 9.8-12.6h-6.6l.6-8.2Z" />}
       {tier === "crown" && <path d="M3.4 17.8 5.2 8.4 9.3 12.6 12 4.8 14.7 12.6 18.8 8.4 20.6 17.8H3.4Zm.4 2.2h16.4v1.6H3.8v-1.6Z" />}
+    </svg>
+  )
+}
+
+function daysTier(days: number): "gone" | "low" | "open" {
+  if (days <= 0) return "gone"
+  if (days <= 7) return "low"
+  return "open"
+}
+
+function runsTier(left: number | null): "gone" | "low" | "open" | "free" {
+  if (left == null) return "free"
+  if (left <= 0) return "gone"
+  if (left <= 2) return "low"
+  return "open"
+}
+
+function DaysMark({ days }: { days: number }) {
+  return (
+    <svg className={`mark mark-days-${daysTier(days)}`} viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8.1 2.2h1.5v2.4H8.1V2.2Zm6.3 0h1.5v2.4h-1.5V2.2Z" />
+      <path d="M6.4 4.8h1.1v1.5h9V4.8h1.1c1.15 0 2.1.95 2.1 2.1v11.2c0 1.15-.95 2.1-2.1 2.1H6.4c-1.15 0-2.1-.95-2.1-2.1V6.9c0-1.15.95-2.1 2.1-2.1Zm12 5.6H5.6v7.5c0 .44.36.8.8.8h11.2c.44 0 .8-.36.8-.8v-7.5Z" />
+      <path d="M5.6 7.2h12.8v2.15H5.6V7.2Z" />
+    </svg>
+  )
+}
+
+function RunsMark({ left }: { left: number | null }) {
+  return (
+    <svg className={`mark mark-runs-${runsTier(left)}`} viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.3" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M10.15 8.05v7.9l6.85-3.95-6.85-3.95Z" />
     </svg>
   )
 }
