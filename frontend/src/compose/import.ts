@@ -219,19 +219,21 @@ class Parser {
       this.skipSemicolons()
       if (this.eof() || stops.has(this.current.canon)) break
       if (caseAware && this.looksLikeCaseLabel()) break
-      steps.push(this.parseStatement())
+      const parsed = this.parseStatement()
+      if (Array.isArray(parsed)) steps.push(...parsed)
+      else steps.push(parsed)
     }
     return steps
   }
 
-  private parseStatement(): Step {
+  private parseStatement(): Step | Step[] {
     if (this.is("//")) {
       const text = this.current.raw
       this.index += 1
       return { id: newId(), kind: "comentario", text }
     }
     if (this.is("definir")) return this.parseDefinir()
-    if (this.is("dimension")) return this.parseLibre(false)
+    if (this.is("dimension")) return this.parseDimension()
     if (this.is("leer")) return this.parseLeer()
     if (this.is("escribir")) return this.parseEscribir()
     if (this.is("borrar")) return this.parseBorrar()
@@ -256,6 +258,30 @@ class Parser {
     this.skipSemicolons()
     if (!names) throw new Error("Falta el nombre en Definir.")
     return { id: newId(), kind: "definir", names, typeName }
+  }
+
+  private parseDimension(): Step[] {
+    this.expect("dimension", "Dimension")
+    const steps: Step[] = []
+    while (true) {
+      const name = this.readName("el nombre del arreglo")
+      this.expect("[", "[")
+      const sizes = this.readUntil((token, depth) => depth === 0 && token.raw === "]")
+      this.expect("]", "]")
+      let typeName = ""
+      if (this.is("como")) {
+        this.index += 1
+        if (this.eof()) throw new Error("Falta el tipo después de Como.")
+        typeName = TYPES[this.current.canon] ?? this.current.raw
+        this.index += 1
+      }
+      if (!sizes) throw new Error("Falta el tamaño en Dimension.")
+      steps.push({ id: newId(), kind: "dimension", name, sizes, typeName })
+      if (!this.isRaw(",")) break
+      this.index += 1
+    }
+    this.skipSemicolons()
+    return steps
   }
 
   private parseAsignar(): Step {

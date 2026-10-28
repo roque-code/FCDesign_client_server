@@ -106,10 +106,24 @@ describe("importar pseudocódigo al diagrama", () => {
     expect(toSource(importSource(source).program)).toBe(source)
   })
 
-  it("conserva Dimension y una llamada como figuras de texto", () => {
+  it("arma Dimension como figura y conserva una llamada como texto", () => {
     const program = importSource(ARREGLO).program
-    const dimension = program.body.find((step) => step.kind === "libre")
-    expect(dimension).toMatchObject({ kind: "libre", text: "Dimension numeros[5] Como Entero", call: false })
+    const dimension = program.body.find((step) => step.kind === "dimension")
+    expect(dimension).toMatchObject({ kind: "dimension", name: "numeros", sizes: "5", typeName: "Entero" })
+    const table = importSource(`Algoritmo Sala
+    Dimension sala[2, 3] Como Entero;
+    Dimension a[2] Como Entero, b[n] Como Cadena;
+FinAlgoritmo
+`).program.body.filter((step) => step.kind === "dimension")
+    expect(table).toMatchObject([
+      { name: "sala", sizes: "2, 3", typeName: "Entero" },
+      { name: "a", sizes: "2", typeName: "Entero" },
+      { name: "b", sizes: "n", typeName: "Cadena" },
+    ])
+    expect(toSource(importSource(`Algoritmo Sala
+    Dimension sala[2, 3] Como Entero;
+FinAlgoritmo
+`).program)).toContain("    Dimension sala[2, 3] Como Entero;")
     const call = importSource(INCREMENTAR).program.body.find((step) => step.kind === "libre")
     expect(call).toMatchObject({ kind: "libre", text: "Incrementar(edad)", call: true })
   })

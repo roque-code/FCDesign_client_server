@@ -482,12 +482,23 @@
 .ns-split {
   display: flex;
   align-items: stretch;
+  width: max-content;
+  min-width: 100%;
+}
+
+.ns-split.is-measuring {
+  width: max-content;
+  min-width: 0;
+}
+
+.ns-split.is-measuring .ns-nest {
+  width: max-content;
 }
 
 .ns-col {
   display: flex;
   flex-direction: column;
-  flex: 1 1 148px;
+  flex: 1 0 auto;
   min-width: 148px;
   border-left: 1px solid #3f382f;
 }
@@ -547,6 +558,7 @@
 .ns-kind-comentario .ns-label { font-style: italic; }
 .ns-kind-asignar > .ns-cell,
 .ns-kind-definir > .ns-cell,
+.ns-kind-dimension > .ns-cell,
 .ns-kind-libre > .ns-cell,
 .ns-kind-borrar > .ns-cell,
 .ns-kind-esperar > .ns-cell { background: #fff3a0; }

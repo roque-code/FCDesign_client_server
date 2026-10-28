@@ -63,6 +63,7 @@ type PaletteKind = StepKind | RoutineKind
 
 const FIGURE_BLOCKS: Record<string, string[]> = {
   definir: ["traza_definir"],
+  dimension: ["traza_dimension"],
   asignar: ["traza_asignar"],
   leer: ["traza_leer"],
   escribir: ["traza_escribir"],
@@ -80,6 +81,7 @@ const FIGURE_BLOCKS: Record<string, string[]> = {
 
 const PALETTE: { kind: PaletteKind; title: MessageKey; hint: MessageKey; nsTitle?: MessageKey }[] = [
   { kind: "definir", title: "figDefine", hint: "hintDeclare" },
+  { kind: "dimension", title: "figDimension", hint: "hintArray" },
   { kind: "asignar", title: "figAssign", hint: "hintProcess" },
   { kind: "leer", title: "figRead", hint: "hintInput" },
   { kind: "escribir", title: "figWrite", hint: "hintOutput" },
@@ -106,6 +108,7 @@ const NS_ORDER: PaletteKind[] = [
   "repetir",
   "para",
   "definir",
+  "dimension",
   "borrar",
   "esperar",
   "funcion",
@@ -116,6 +119,7 @@ const KNOWN: Record<string, MessageKey> = {
   "El nombre del algoritmo tiene que ser un identificador.": "badAlgorithmName",
   "Falta una condición.": "missingCondition",
   "Falta el nombre en Definir.": "missingDefine",
+  "Falta el nombre o el tamaño en Dimension.": "missingDimension",
   "Falta completar una asignación.": "missingAssign",
   "Hay una figura sin texto.": "emptyFigure",
   "Falta completar un Para.": "missingFor",
@@ -951,6 +955,35 @@ function Inspector({
           <button type="button" className="inspector-remove" onClick={onRemove}>
             {routine.kind === "funcion" ? t("removeFunction") : t("removeProcedure")}
           </button>
+        </>
+      ) : null}
+      {step?.kind === "dimension" ? (
+        <>
+          <label>
+            {t("nameWord")}
+            <input value={step.name} onChange={(event) => onChange((item) => (item.kind === "dimension" ? { ...item, name: event.target.value } : item))} />
+          </label>
+          <label>
+            {t("sizesWord")}
+            <input
+              value={step.sizes}
+              placeholder="5 o 2, 3"
+              onChange={(event) => onChange((item) => (item.kind === "dimension" ? { ...item, sizes: event.target.value } : item))}
+            />
+          </label>
+          <label>
+            {t("typeWord")}
+            <select
+              value={step.typeName || "Entero"}
+              onChange={(event) => onChange((item) => (item.kind === "dimension" ? { ...item, typeName: event.target.value } : item))}
+            >
+              {TYPE_OPTIONS.map((typeName) => (
+                <option key={typeName} value={typeName}>
+                  {spellText(locale, typeName)}
+                </option>
+              ))}
+            </select>
+          </label>
         </>
       ) : null}
       {step?.kind === "definir" ? (

@@ -3,6 +3,7 @@ import { isIdentContinue, isIdentStart } from "../words"
 
 export type StepKind =
   | "definir"
+  | "dimension"
   | "asignar"
   | "escribir"
   | "leer"
@@ -20,6 +21,7 @@ export type CaseBranch = { id: string; label: string; body: Step[] }
 
 export type Step =
   | { id: string; kind: "definir"; names: string; typeName: string }
+  | { id: string; kind: "dimension"; name: string; sizes: string; typeName: string }
   | { id: string; kind: "asignar"; destination: string; expression: string }
   | { id: string; kind: "escribir"; text: string }
   | { id: string; kind: "leer"; text: string }
@@ -53,6 +55,7 @@ export type SlotPath =
 
 const KINDS = new Set<StepKind>([
   "definir",
+  "dimension",
   "asignar",
   "escribir",
   "leer",
@@ -131,6 +134,8 @@ export function createStep(kind: StepKind): Step {
   switch (kind) {
     case "definir":
       return { id, kind, names: "dato", typeName: "Entero" }
+    case "dimension":
+      return { id, kind, name: "datos", sizes: "5", typeName: "Entero" }
     case "asignar":
       return { id, kind, destination: "dato", expression: "0" }
     case "escribir":
@@ -439,6 +444,11 @@ export function removeCase(program: Program, ownerId: string): Program {
   })
 }
 
+function dimensionText(step: Extract<Step, { kind: "dimension" }>, locale: Dialect): string {
+  const typed = step.typeName ? ` ${say(locale, "Como", "As")} ${spellText(locale, step.typeName)}` : ""
+  return `${say(locale, "Dimension", "Dimension")} ${clean(step.name) || "…"}[${clean(step.sizes) || "…"}]${typed}`
+}
+
 function clean(text: string): string {
   return text.trim().replace(/\s+/g, " ")
 }
@@ -455,6 +465,8 @@ export function caption(step: Step, locale: Dialect = "es"): string {
   switch (step.kind) {
     case "definir":
       return `${say(locale, "Definir", "Declare")} ${clean(step.names) || "…"} ${say(locale, "Como", "As")} ${spellText(locale, step.typeName)}`
+    case "dimension":
+      return dimensionText(step, locale)
     case "asignar":
       return `${clean(step.destination) || "…"} <- ${spellText(locale, clean(step.expression) || "…")}`
     case "escribir":
@@ -499,6 +511,9 @@ function writeStep(step: Step, level: number, lines: string[], semicolons: boole
       lines.push(
         `${indent}${say(locale, "Definir", "Declare")} ${clean(step.names) || "…"} ${say(locale, "Como", "As")} ${spellText(locale, step.typeName)}${stop}`,
       )
+      return
+    case "dimension":
+      lines.push(`${indent}${dimensionText(step, locale)}${stop}`)
       return
     case "asignar":
       lines.push(`${indent}${clean(step.destination) || "…"} <- ${spellText(locale, clean(step.expression) || "…")}${stop}`)
@@ -595,6 +610,9 @@ export function issues(program: Program): string[] {
         notes.push("Falta una condición.")
       }
       if (step.kind === "definir" && !clean(step.names)) notes.push("Falta el nombre en Definir.")
+      if (step.kind === "dimension" && (!clean(step.name) || !clean(step.sizes))) {
+        notes.push("Falta el nombre o el tamaño en Dimension.")
+      }
       if (step.kind === "asignar" && (!clean(step.destination) || !clean(step.expression))) {
         notes.push("Falta completar una asignación.")
       }
@@ -639,6 +657,9 @@ function isStep(value: unknown): value is Step {
   }
   const kind = value.kind
   if (kind === "definir") return typeof value.names === "string" && typeof value.typeName === "string"
+  if (kind === "dimension") {
+    return typeof value.name === "string" && typeof value.sizes === "string" && typeof value.typeName === "string"
+  }
   if (kind === "asignar") return typeof value.destination === "string" && typeof value.expression === "string"
   if (kind === "escribir" || kind === "leer" || kind === "esperar" || kind === "comentario") return typeof value.text === "string"
   if (kind === "libre") return typeof value.text === "string" && typeof value.call === "boolean"
@@ -688,6 +709,7 @@ function normalizeRoutine(routine: Routine): Routine {
 
 function normalizeStep(step: Step): Step {
   if (step.kind === "definir" && !TYPES.includes(step.typeName)) return { ...step, typeName: "Entero" }
+  if (step.kind === "dimension" && step.typeName && !TYPES.includes(step.typeName)) return { ...step, typeName: "Entero" }
   if (step.kind === "si") return { ...step, then: step.then.map(normalizeStep), else: step.else.map(normalizeStep) }
   if (step.kind === "mientras" || step.kind === "repetir" || step.kind === "para") {
     return { ...step, body: step.body.map(normalizeStep) }

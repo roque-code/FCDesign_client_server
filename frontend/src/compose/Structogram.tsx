@@ -1,4 +1,4 @@
-import { createContext, Fragment, useContext, type DragEvent, type MouseEvent, type ReactNode } from "react"
+import { createContext, Fragment, useContext, useLayoutEffect, useRef, type DragEvent, type MouseEvent, type ReactNode } from "react"
 
 import type { Dialect } from "../dialect"
 import { translate } from "../i18n"
@@ -46,6 +46,7 @@ const SAMPLES: Record<string, [string, string]> = {
   repetir: ["Hasta que…", "Until…"],
   para: ["Para …", "For …"],
   definir: ["Definir", "Declare"],
+  dimension: ["datos[5]", "data[5]"],
   borrar: ["Borrar", "Clear"],
   esperar: ["Esperar", "Wait"],
   funcion: ["Función", "Function"],
@@ -207,6 +208,27 @@ function NsSlot({ path, empty = false }: { path: SlotPath; empty?: boolean }) {
   )
 }
 
+function NsSplit({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const row = ref.current
+    if (!row) return
+    const cols = [...row.children] as HTMLElement[]
+    if (cols.length === 0 || row.getClientRects().length === 0) return
+    row.classList.add("is-measuring")
+    for (const col of cols) col.style.flex = "0 0 auto"
+    const widest = Math.max(148, ...cols.map((col) => col.scrollWidth))
+    row.classList.remove("is-measuring")
+    const next = `1 0 ${widest}px`
+    for (const col of cols) col.style.flex = next
+  })
+  return (
+    <div ref={ref} className="ns-split">
+      {children}
+    </div>
+  )
+}
+
 function LoopBody({ step, label, footer = false }: { step: Extract<Step, { kind: "mientras" | "para" | "repetir" }>; label: string; footer?: boolean }) {
   const bar = <div className={footer ? "ns-loop-bar ns-loop-bar-end" : "ns-loop-bar"}>{label}</div>
   const body = (
@@ -269,7 +291,7 @@ function NsStep({ step }: { step: Step }) {
           <span className="ns-if-yes">{word(api.locale, "Si", "If")}</span>
           <span className="ns-if-no">No</span>
         </div>
-        <div className="ns-split">
+        <NsSplit>
           <div className="ns-col">
             <div className="ns-nest">
               <NsList steps={step.then} pathAt={(index) => ({ scope: "then", ownerId: step.id, index })} />
@@ -280,7 +302,7 @@ function NsStep({ step }: { step: Step }) {
               <NsList steps={step.else} pathAt={(index) => ({ scope: "else", ownerId: step.id, index })} />
             </div>
           </div>
-        </div>
+        </NsSplit>
       </div>,
       true,
     )
@@ -316,7 +338,7 @@ function NsStep({ step }: { step: Step }) {
         <div className="ns-switch-expr">
           {word(api.locale, "Según", "Switch")} {shown(step, api.locale)}
         </div>
-        <div className="ns-split">
+        <NsSplit>
           {columns.map((column, index) => (
             <div key={column.key} className="ns-col">
               <div className="ns-case-label">
@@ -332,7 +354,7 @@ function NsStep({ step }: { step: Step }) {
               </div>
             </div>
           ))}
-        </div>
+        </NsSplit>
       </div>,
       true,
     )

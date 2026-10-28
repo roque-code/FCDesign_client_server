@@ -36,7 +36,7 @@ describe("diagrama Nassi-Shneiderman", () => {
 
   it("dibuja comentario, hasta que, para y según", () => {
     let program = emptyProgram()
-    for (const kind of ["comentario", "repetir", "para", "segun"] as const) {
+    for (const kind of ["comentario", "repetir", "para", "segun", "dimension"] as const) {
       program = insertStep(program, { scope: "root", index: program.body.length }, createStep(kind))
     }
     const html = markup(program)
@@ -44,6 +44,8 @@ describe("diagrama Nassi-Shneiderman", () => {
     expect(html).toContain("Hasta que")
     expect(html).toContain("Para")
     expect(html).toContain("Según")
+    expect(html).toContain("Dimension datos[5] Como Entero")
+    expect(html).toContain("ns-kind-dimension")
     expect(html).toContain(">1<")
     expect(html).toContain(">Otro<")
     expect(markup(program, "en")).toContain("Until")
