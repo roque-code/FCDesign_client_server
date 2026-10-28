@@ -118,6 +118,16 @@ FinAlgoritmo
     expect(program.body).toEqual([])
   })
 
+  it("junta las figuras y las separa solo al insertar", () => {
+    const program = insertStep(emptyProgram(), { scope: "root", index: 0 }, createStep("leer"))
+    const closed = layoutProgram(program)
+    const open = layoutProgram(program, "es", true)
+    expect(open.height).toBeGreaterThan(closed.height)
+    const read = closed.nodes.find((node) => node.figure === "input")
+    const end = closed.nodes.find((node) => node.id === "end")
+    expect(read && end && end.y - (read.y + read.height) < 40).toBe(true)
+  })
+
   it("acomoda el ejemplo sin encimar figuras ni huecos", () => {
     expect(overlaps()).toEqual([])
     const scene = layoutProgram(guessingGame())

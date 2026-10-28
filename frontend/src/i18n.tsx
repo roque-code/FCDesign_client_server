@@ -304,9 +304,9 @@ const es = {
   diagramFlow: "Flujo",
   diagramNs: "Nassi-Shneiderman",
   figuresNote:
-    "Arrastra una figura al diagrama, o haz doble clic para añadirla al final. Para mover una figura ya puesta, selecciónala y haz clic en otro hueco, o arrástrala. La rama V sale a la derecha y la F a la izquierda. Función y procedimiento se agregan debajo del algoritmo.",
+    "Arrastra una figura al diagrama, o haz doble clic para añadirla al final. Al elegir una figura de la lista se abren los huecos y las demás se corren; al soltarla se vuelven a juntar. Para mover una figura ya puesta, arrástrala. La rama V sale a la derecha y la F a la izquierda. Función y procedimiento se agregan debajo del algoritmo.",
   figuresNoteNs:
-    "Arrastra una figura al diagrama, o haz doble clic para añadirla al final. Si parte el bloque en Sí y No, los ciclos encierran el cuerpo y Según abre una columna por caso. El pseudocódigo de la derecha sale de esas figuras.",
+    "Arrastra una figura al diagrama, o haz doble clic para añadirla al final. Al elegir una figura de la lista se abren los huecos y las demás se corren; al soltarla se vuelven a juntar. Si parte el bloque en Sí y No, los ciclos encierran el cuerpo y Según abre una columna por caso. El pseudocódigo de la derecha sale de esas figuras.",
   nsDrop: "Suelta una figura",
   commentWord: "Comentario",
   adjustFigures: "Ajustar figuras",
@@ -1203,9 +1203,9 @@ const en: { [Key in keyof typeof es]: string } = {
   diagramFlow: "Flow",
   diagramNs: "Nassi-Shneiderman",
   figuresNote:
-    "Drag a shape onto the diagram, or double-click to add it at the end. To move a shape that is already placed, select it and click another gap, or drag it. The true branch leaves to the right and the false branch to the left. A function or procedure is added below the algorithm.",
+    "Drag a shape onto the diagram, or double-click to add it at the end. Choosing a shape from the list opens the gaps and the others move aside; they close up again when you drop it. Drag a shape that is already placed to move it. The true branch leaves to the right and the false branch to the left. A function or procedure is added below the algorithm.",
   figuresNoteNs:
-    "Drag a shape onto the diagram, or double-click to add it at the end. If splits the block into two columns, loops enclose the body, and Switch opens one column per case. The pseudocode on the right comes from those shapes.",
+    "Drag a shape onto the diagram, or double-click to add it at the end. Choosing a shape from the list opens the gaps and the others move aside; they close up again when you drop it. If splits the block into two columns, loops enclose the body, and Switch opens one column per case. The pseudocode on the right comes from those shapes.",
   nsDrop: "Drop a shape",
   commentWord: "Comment",
   adjustFigures: "Resize shapes",

@@ -254,7 +254,8 @@ export function Composer({
     const rank = new Map(NS_ORDER.map((kind, index) => [kind, index]))
     return [...source].sort((left, right) => (rank.get(left.kind) ?? 99) - (rank.get(right.kind) ?? 99))
   }, [allowedBlocks, nassi])
-  const scene = useMemo(() => layoutProgram(program, locale), [program, locale])
+  const placing = Boolean(armed) || dragging
+  const scene = useMemo(() => layoutProgram(program, locale, placing), [program, locale, placing])
   const source = useMemo(() => toSource(program, semicolons, locale), [program, semicolons, locale])
   const reportSource = useRef(onSource)
   reportSource.current = onSource
@@ -374,18 +375,21 @@ export function Composer({
         const routine = createRoutine(kind)
         setProgram((value) => addRoutine(value, routine))
         setSelected(routine.id)
+        setArmed(null)
         return
       }
       if (!isStepKind(kind)) return
       const step = createStep(kind)
       setProgram((value) => insertStep(value, path, step))
       setSelected(step.id)
+      setArmed(null)
       return
     }
     if (data.startsWith("move:")) {
       const id = data.slice(5)
       setProgram((value) => moveStep(value, id, path))
       setSelected(id)
+      setArmed(null)
     }
   }
 
@@ -394,13 +398,13 @@ export function Composer({
       const routine = createRoutine(kind)
       setProgram((value) => addRoutine(value, routine))
       setSelected(routine.id)
-      setArmed(kind)
+      setArmed(null)
       return
     }
     const step = createStep(kind)
     setProgram((value) => insertStep(value, { scope: "root", index: value.body.length }, step))
     setSelected(step.id)
-    setArmed(kind)
+    setArmed(null)
   }
 
   async function copySource() {
@@ -536,7 +540,7 @@ export function Composer({
         </div>
       </header>
       <div
-        className={`composer${dragging ? " is-dragging" : ""}${armed || current ? " is-placing" : ""}`}
+        className={`composer${dragging ? " is-dragging" : ""}${armed ? " is-placing" : ""}`}
         ref={frameRef}
         style={{ "--side-width": `${sideWidth}px`, "--code-width": `${codeWidth}px`, "--code-height": `${codeHeight}px` } as CSSProperties}
       >
@@ -786,11 +790,13 @@ export function Composer({
                           const created = createRoutine(armed)
                           setProgram((value) => addRoutine(value, created))
                           setSelected(created.id)
+                          setArmed(null)
                           return
                         }
                         const step = createStep(armed)
                         setProgram((value) => insertStep(value, slot.path, step))
                         setSelected(step.id)
+                        setArmed(null)
                         return
                       }
                       if (selected) setProgram((value) => moveStep(value, selected, slot.path))
@@ -806,6 +812,7 @@ export function Composer({
                       place(slot.path, event.dataTransfer.getData("text/plain"))
                       setHot(null)
                       setDragging(false)
+                      setArmed(null)
                     }}
                   >
                     +

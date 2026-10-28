@@ -72,7 +72,9 @@ type Fragment = {
   bounds: Rect
 }
 
-const GAP = 56
+const OPEN_GAP = 56
+const CLOSED_GAP = 22
+let listGap = CLOSED_GAP
 const SLOT_W = 120
 const SLOT_H = 28
 const SIDE = 32
@@ -101,13 +103,14 @@ function boxSize(label: string, figure: string): { width: number; height: number
 
 function slotAt(axis: number, gapTop: number, path: SlotPath, index: number): DropSlot {
   const here = { ...path, index }
+  const height = Math.min(SLOT_H, Math.max(8, listGap - 6))
   return {
     key: slotKey(here),
     path: here,
     x: axis - SLOT_W / 2,
-    y: gapTop + (GAP - SLOT_H) / 2,
+    y: gapTop + (listGap - height) / 2,
     width: SLOT_W,
-    height: SLOT_H,
+    height,
   }
 }
 
@@ -197,19 +200,19 @@ function layoutList(steps: Step[], axis: number, top: number, path: SlotPath, cl
   const placed: PlacedNode[] = []
   if (steps.length === 0) {
     const entry = { x: axis, y: top }
-    const exit = { x: axis, y: top + GAP }
+    const exit = { x: axis, y: top + listGap }
     const fragment = {
       placed,
       wires: [line([entry, exit], null, closeArrow)],
       slots,
       entry,
-      aim: { x: axis, y: top + GAP / 2 },
+      aim: { x: axis, y: top + listGap / 2 },
       exit,
       bounds: enclose({ placed, slots, wires: [line([entry, exit], null, closeArrow)], extra: [entry, exit] }),
     }
     return fragment
   }
-  let cursor = top + GAP
+  let cursor = top + listGap
   let previous: Point | null = null
   const children: Fragment[] = []
   for (let index = 0; index < steps.length; index += 1) {
@@ -222,9 +225,9 @@ function layoutList(steps: Step[], axis: number, top: number, path: SlotPath, cl
     wires.push(line([from, child.aim], null, true))
     previous = child.exit
     slots.push(slotAt(axis, child.exit.y, path, index + 1))
-    cursor = child.exit.y + GAP
+    cursor = child.exit.y + listGap
   }
-  const exit = { x: axis, y: previous ? previous.y + GAP : top + GAP }
+  const exit = { x: axis, y: previous ? previous.y + listGap : top + listGap }
   if (previous) wires.push(line([previous, exit], null, closeArrow))
   const entry = { x: axis, y: top }
   return {
@@ -436,8 +439,9 @@ function layoutStep(step: Step, axis: number, top: number): Fragment {
   }
 }
 
-export function layoutProgram(program: Program, locale: Dialect = "es"): Scene {
+export function layoutProgram(program: Program, locale: Dialect = "es", spread = false): Scene {
   spoken = locale
+  listGap = spread ? OPEN_GAP : CLOSED_GAP
   const main = layoutMain(program)
   const routines = program.routines.map(layoutRoutine)
   if (routines.length === 0) return main
