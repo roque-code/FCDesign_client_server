@@ -17,8 +17,9 @@ import { Workbench } from "./workbench/Workbench"
 export function App() {
   const [account, setAccount] = useState<Account | null>(null)
   const [ready, setReady] = useState(false)
-  const [screen, setScreen] = useState<"editor" | "lab" | "compose" | "languages" | "communities">("editor")
+  const [screen, setScreen] = useState<"editor" | "lab" | "compose" | "nassi" | "languages" | "communities">("editor")
   const [diagramRequest, setDiagramRequest] = useState<DiagramRequest | null>(null)
+  const [nassiRequest, setNassiRequest] = useState<DiagramRequest | null>(null)
   const [editorFocus, setEditorFocus] = useState<{ projectId: string; algorithmId: string; token: number } | null>(null)
   const [locale, setLocale] = useState<Locale>(readStoredLocale)
   const [notice, setNotice] = useState("")
@@ -150,6 +151,7 @@ export function App() {
     await api.logout()
     setAccount(null)
     setDiagramRequest(null)
+    setNassiRequest(null)
     setEditorFocus(null)
     setScreen("editor")
   }
@@ -162,6 +164,11 @@ export function App() {
 function openCompose(payload: { name?: string; source?: string; semicolons: boolean }) {
   setDiagramRequest({ ...payload, token: Date.now() })
   setScreen("compose")
+}
+
+function openNassi(payload: { name?: string; source?: string; semicolons: boolean }) {
+  setNassiRequest({ ...payload, token: Date.now() })
+  setScreen("nassi")
 }
 
   function openInEditor(target: { projectId: string; algorithmId: string }) {
@@ -197,6 +204,7 @@ function openCompose(payload: { name?: string; source?: string; semicolons: bool
           onOpenLanguages={() => setScreen("languages")}
           onOpenCommunities={() => setScreen("communities")}
           onOpenCompose={openCompose}
+          onOpenNassi={openNassi}
           focus={editorFocus}
           onLocale={applyLocale}
         />
@@ -212,6 +220,9 @@ function openCompose(payload: { name?: string; source?: string; semicolons: bool
       )}
       <div className="screen-slot" hidden={screen !== "compose"}>
         <Composer account={account} onAccount={holdAccount} active={screen === "compose"} incoming={diagramRequest} onBack={backToEditor} onOpenInEditor={openInEditor} />
+      </div>
+      <div className="screen-slot" hidden={screen !== "nassi"}>
+        <Composer variant="ns" account={account} onAccount={holdAccount} active={screen === "nassi"} incoming={nassiRequest} onBack={backToEditor} onOpenInEditor={openInEditor} />
       </div>
     </>
   )

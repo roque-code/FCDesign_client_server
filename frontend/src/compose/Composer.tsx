@@ -11,6 +11,7 @@ import { highlightSource } from "../editor/highlight"
 import { labelAnchor } from "../diagram/figures"
 import { ShapeGlyph, SwitchGlyph } from "../diagram/glyphs"
 import { keywordSet } from "../words"
+import { NsIcon, Structogram } from "./Structogram"
 import { importSource } from "./import"
 import { layoutProgram } from "./layout"
 import {
@@ -47,6 +48,7 @@ import {
 import "./composer.css"
 
 const STORAGE = "traza.composer.v1"
+const NS_STORAGE = "traza.composer.ns.v1"
 const NARROW = "(max-width: 820px)"
 const SIDE_MIN = 200
 const CODE_MIN = 220
@@ -73,22 +75,41 @@ const FIGURE_BLOCKS: Record<string, string[]> = {
   procedimiento: ["traza_procedimiento"],
   borrar: ["traza_borrar_pantalla"],
   esperar: ["traza_esperar"],
+  comentario: ["traza_comentario"],
 }
 
-const PALETTE: { kind: PaletteKind; title: MessageKey; hint: MessageKey }[] = [
+const PALETTE: { kind: PaletteKind; title: MessageKey; hint: MessageKey; nsTitle?: MessageKey }[] = [
   { kind: "definir", title: "figDefine", hint: "hintDeclare" },
   { kind: "asignar", title: "figAssign", hint: "hintProcess" },
   { kind: "leer", title: "figRead", hint: "hintInput" },
   { kind: "escribir", title: "figWrite", hint: "hintOutput" },
   { kind: "si", title: "figIf", hint: "hintDecision" },
   { kind: "mientras", title: "figWhile", hint: "hintLoop" },
-  { kind: "repetir", title: "figRepeat", hint: "hintLoop" },
+  { kind: "repetir", title: "figRepeat", nsTitle: "figUntil", hint: "hintLoop" },
   { kind: "para", title: "figFor", hint: "hintCounted" },
   { kind: "segun", title: "figSwitch", hint: "hintCases" },
   { kind: "funcion", title: "figFunction", hint: "hintOutside" },
   { kind: "procedimiento", title: "figProcedure", hint: "hintOutside" },
   { kind: "borrar", title: "figClear", hint: "hintProcess" },
   { kind: "esperar", title: "figWait", hint: "hintProcess" },
+  { kind: "comentario", title: "figComment", hint: "hintComment" },
+]
+
+const NS_ORDER: PaletteKind[] = [
+  "comentario",
+  "asignar",
+  "escribir",
+  "leer",
+  "si",
+  "segun",
+  "mientras",
+  "repetir",
+  "para",
+  "definir",
+  "borrar",
+  "esperar",
+  "funcion",
+  "procedimiento",
 ]
 
 const KNOWN: Record<string, MessageKey> = {
@@ -126,9 +147,9 @@ const KNOWN: Record<string, MessageKey> = {
   "No se pudo guardar el algoritmo.": "saveAlgorithmError",
 }
 
-function loadProgram(): Program {
+function loadProgram(storage: string): Program {
   try {
-    const raw = localStorage.getItem(STORAGE)
+    const raw = localStorage.getItem(storage)
     if (!raw) return emptyProgram()
     return parseProgram(JSON.parse(raw) as unknown) ?? emptyProgram()
   } catch {
@@ -179,6 +200,7 @@ export function Composer({
   onSource,
   preview = false,
   pasteBlocked = false,
+  variant = "flow",
 }: {
   account?: Account | null
   onAccount?: (account: Account) => void
@@ -192,11 +214,14 @@ export function Composer({
   onSource?: (source: string) => void
   preview?: boolean
   pasteBlocked?: boolean
+  variant?: "flow" | "ns"
 }) {
   const t = useT()
   const locale = useLocale()
+  const nassi = variant === "ns"
+  const storage = nassi ? NS_STORAGE : STORAGE
   const blocked = pasteBlocked || (account != null && pasteBlockedFor(account))
-  const [program, setProgram] = useState<Program>(() => (isolated ? emptyProgram() : loadProgram()))
+  const [program, setProgram] = useState<Program>(() => (isolated ? emptyProgram() : loadProgram(storage)))
   const [selected, setSelected] = useState<string | null>(null)
   const [armed, setArmed] = useState<PaletteKind | null>(null)
   const [hot, setHot] = useState<string | null>(null)
@@ -212,15 +237,19 @@ export function Composer({
   const [codeWidth, setCodeWidth] = useState(340)
   const [codeHeight, setCodeHeight] = useState(240)
   const [stacked, setStacked] = useState(() => window.matchMedia(NARROW).matches)
+  const [sheet, setSheet] = useState({ width: 584, height: 180 })
+  const sheetRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const frameRef = useRef<HTMLDivElement>(null)
   const reserved = useMemo(() => keywordSet(allKeywordDisplays()), [])
 
   const palette = useMemo(() => {
-    if (!allowedBlocks || allowedBlocks.length === 0) return PALETTE
-    const permit = new Set(allowedBlocks)
-    return PALETTE.filter((item) => (FIGURE_BLOCKS[item.kind] ?? []).some((block) => permit.has(block)))
-  }, [allowedBlocks])
+    const permit = allowedBlocks && allowedBlocks.length > 0 ? new Set(allowedBlocks) : null
+    const source = permit ? PALETTE.filter((item) => (FIGURE_BLOCKS[item.kind] ?? []).some((block) => permit.has(block))) : PALETTE
+    if (!nassi) return source
+    const rank = new Map(NS_ORDER.map((kind, index) => [kind, index]))
+    return [...source].sort((left, right) => (rank.get(left.kind) ?? 99) - (rank.get(right.kind) ?? 99))
+  }, [allowedBlocks, nassi])
   const scene = useMemo(() => layoutProgram(program, locale), [program, locale])
   const source = useMemo(() => toSource(program, semicolons, locale), [program, semicolons, locale])
   const reportSource = useRef(onSource)
@@ -232,6 +261,22 @@ export function Composer({
   const shapeKey = scene.nodes.map((node) => node.id).join("|")
 
   useEffect(() => {
+    if (!nassi) return
+    const node = sheetRef.current
+    if (!node) return
+    const update = () => {
+      const width = Math.max(1, node.offsetWidth)
+      const height = Math.max(1, node.offsetHeight)
+      setSheet((current) => (current.width === width && current.height === height ? current : { width, height }))
+    }
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [nassi, source])
+
+  useEffect(() => {
+    if (nassi) return
     const scroller = scrollRef.current
     const start = scene.nodes.find((node) => node.id === "start")
     if (!scroller || !start) return
@@ -241,7 +286,7 @@ export function Composer({
       scroller.scrollTop = 0
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [shapeKey, zoom])
+  }, [nassi, shapeKey, zoom])
 
   useEffect(() => {
     reportSource.current?.(source)
@@ -249,8 +294,8 @@ export function Composer({
 
   useEffect(() => {
     if (isolated) return
-    localStorage.setItem(STORAGE, JSON.stringify(program))
-  }, [isolated, program])
+    localStorage.setItem(storage, JSON.stringify(program))
+  }, [isolated, program, storage])
 
   useEffect(() => {
     const end = () => {
@@ -434,7 +479,7 @@ export function Composer({
     >
       <header className="topbar topbar-editor">
         <div className="brand">
-          {embedded ? null : <h1><Logo mark />{t("composeTitle")}</h1>}
+          {embedded ? null : <h1><Logo mark />{t(nassi ? "composeNs" : "composeTitle")}</h1>}
           {embedded || !account ? null : <AccountIdentity account={account} onAccount={onAccount} />}
           <label className="composer-name">
             {t("algorithm")}
@@ -487,7 +532,7 @@ export function Composer({
         </div>
       </header>
       <div
-        className={`composer${dragging ? " is-dragging" : ""}`}
+        className={`composer${dragging ? " is-dragging" : ""}${armed || current ? " is-placing" : ""}`}
         ref={frameRef}
         style={{ "--side-width": `${sideWidth}px`, "--code-width": `${codeWidth}px`, "--code-height": `${codeHeight}px` } as CSSProperties}
       >
@@ -518,7 +563,7 @@ export function Composer({
           />
           <div className="composer-block composer-palette">
             <h2>{t("figures")}</h2>
-            <p className="note">{t("figuresNote")}</p>
+            <p className="note">{nassi ? t("figuresNoteNs") : t("figuresNote")}</p>
             <div className="palette">
               {palette.map((item) => {
                 const figure = item.kind === "funcion" || item.kind === "procedimiento" ? "subprocess" : figureForKind(item.kind)
@@ -529,7 +574,7 @@ export function Composer({
                     className={armed === item.kind ? "palette-item armed" : "palette-item"}
                     draggable
                     aria-pressed={armed === item.kind}
-                    onClick={() => setArmed((current) => (current === item.kind ? null : item.kind))}
+                    onClick={() => setArmed((value) => (value === item.kind ? null : item.kind))}
                     onDoubleClick={() => append(item.kind)}
                     onDragStart={(event) => {
                       event.dataTransfer.setData("text/plain", `piece:${item.kind}`)
@@ -539,7 +584,9 @@ export function Composer({
                     }}
                   >
                     <span className="palette-glyph" aria-hidden="true">
-                      {figure === "switch" ? (
+                      {nassi ? (
+                        <NsIcon kind={item.kind} locale={locale} />
+                      ) : figure === "switch" ? (
                         <span className="shape shape-switch">
                           <SwitchGlyph width={120} height={64} cases={[{ label: "1", width: 60 }, { label: null, width: 60 }]} />
                         </span>
@@ -550,7 +597,7 @@ export function Composer({
                       )}
                     </span>
                     <span>
-                      <strong>{t(item.title)}</strong>
+                      <strong>{t(nassi && item.nsTitle ? item.nsTitle : item.title)}</strong>
                       <small>{t(item.hint)}</small>
                     </span>
                   </button>
@@ -588,17 +635,54 @@ export function Composer({
         />
         <div className="composer-canvas">
           <div className="composer-zoom">
-            <button type="button" onClick={() => setZoom((value) => Math.max(0.45, Math.round((value - 0.1) * 10) / 10))}>
-              −
-            </button>
-            <button type="button" onClick={() => setZoom(1)}>
-              {Math.round(zoom * 100)}%
-            </button>
-            <button type="button" onClick={() => setZoom((value) => Math.min(1.6, Math.round((value + 0.1) * 10) / 10))}>
-              +
-            </button>
+            <div className="composer-zoom-controls">
+              <button type="button" onClick={() => setZoom((value) => Math.max(0.45, Math.round((value - 0.1) * 10) / 10))}>
+                −
+              </button>
+              <button type="button" onClick={() => setZoom(1)}>
+                {Math.round(zoom * 100)}%
+              </button>
+              <button type="button" onClick={() => setZoom((value) => Math.min(1.6, Math.round((value + 0.1) * 10) / 10))}>
+                +
+              </button>
+            </div>
           </div>
           <div className="composer-scroll" ref={scrollRef}>
+            {nassi ? (
+              <div className="composer-stage" style={{ width: sheet.width * zoom, height: sheet.height * zoom }}>
+                <div
+                  className="composer-scene"
+                  style={{ width: sheet.width, height: sheet.height, transform: `scale(${zoom})` }}
+                  onClick={() => setSelected(null)}
+                >
+                  <div className="ns-sheet" ref={sheetRef}>
+                    <Structogram
+                      program={program}
+                      locale={locale}
+                      selected={selected}
+                      armed={armed}
+                      preview={preview}
+                      dragging={dragging}
+                      hot={hot}
+                      hint={(path) => slotHint(path, Boolean(selected) && !armed, t)}
+                      onSelect={setSelected}
+                      onHot={setHot}
+                      onPlace={(path, data) => {
+                        place(path, data)
+                        setDragging(false)
+                        setHot(null)
+                      }}
+                      onDragPiece={() => setDragging(true)}
+                      onDragDone={() => {
+                        setDragging(false)
+                        setHot(null)
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : null}
+            {nassi ? null : (
             <div className="composer-stage" style={{ width: scene.width * zoom, height: scene.height * zoom }}>
               <div
                 className="composer-scene"
@@ -725,6 +809,7 @@ export function Composer({
                 ))}
               </div>
             </div>
+            )}
           </div>
         </div>
         <button
@@ -993,6 +1078,19 @@ function Inspector({
         </>
       ) : null}
       {step?.kind === "borrar" ? <p className="note">{t("clearsConsole")}</p> : null}
+      {step?.kind === "comentario" ? (
+        <label>
+          {t("commentWord")}
+          <textarea
+            rows={3}
+            value={step.text}
+            onChange={(event) => {
+              const text = event.target.value
+              onChange((item) => (item.kind === "comentario" ? { ...item, text } : item))
+            }}
+          />
+        </label>
+      ) : null}
       {step?.kind === "libre" ? (
         <label>
           {t("instruction")}

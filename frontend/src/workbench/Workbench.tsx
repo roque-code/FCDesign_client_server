@@ -68,6 +68,7 @@ export function Workbench({
   onOpenLanguages,
   onOpenCommunities,
   onOpenCompose,
+  onOpenNassi,
   focus,
   onLocale,
 }: {
@@ -78,6 +79,7 @@ export function Workbench({
   onOpenLanguages: () => void
   onOpenCommunities: () => void
   onOpenCompose: (payload: { name?: string; source?: string; semicolons: boolean }) => void
+  onOpenNassi: (payload: { name?: string; source?: string; semicolons: boolean }) => void
   focus: { projectId: string; algorithmId: string; token: number } | null
   onLocale: (locale: Locale) => void
 }) {
@@ -1107,6 +1109,21 @@ export function Workbench({
             }}
           >
             {t("compose")}
+          </button>
+          )}
+          {can("compose") && (
+          <button
+            className="top-action"
+            type="button"
+            onClick={() => {
+              const current = algorithms.find((item) => item.id === algorithmId)
+              onOpenNassi({
+                semicolons: requireSemicolons,
+                ...(algorithmId ? { name: current?.name ?? t("diagramFallback"), source } : {}),
+              })
+            }}
+          >
+            {t("composeNs")}
           </button>
           )}
           {account.role === "teacher" && can("communities") && (

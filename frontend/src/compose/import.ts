@@ -41,7 +41,7 @@ const CLOSERS = new Set([
   "de",
 ])
 
-const BOUNDARIES = new Set([...STARTERS, ...CLOSERS, "entonces", "hacer", "funcion", "subproceso"])
+const BOUNDARIES = new Set([...STARTERS, ...CLOSERS, "entonces", "hacer", "funcion", "subproceso", "//"])
 
 const INFIX = new Set(["+", "-", "*", "/", "%", "^", "<", ">", "=", "<>", "<=", ">=", "!=", "y", "o", "mod", "div"])
 
@@ -59,8 +59,10 @@ function tokenize(source: string): Token[] {
       continue
     }
     if (source.startsWith("//", i)) {
-      i = source.indexOf("\n", i)
-      if (i < 0) break
+      const end = source.indexOf("\n", i)
+      const stop = end < 0 ? source.length : end
+      tokens.push({ canon: "//", raw: source.slice(i + 2, stop).trim() })
+      i = stop
       continue
     }
     if (source.startsWith("/*", i)) {
@@ -148,6 +150,10 @@ class Parser {
     while (!this.eof()) {
       this.skipSemicolons()
       if (this.eof()) break
+      if (this.is("//")) {
+        this.index += 1
+        continue
+      }
       if (this.is("funcion") || this.is("subproceso")) {
         routines.push(this.parseRoutine())
         continue
@@ -219,6 +225,11 @@ class Parser {
   }
 
   private parseStatement(): Step {
+    if (this.is("//")) {
+      const text = this.current.raw
+      this.index += 1
+      return { id: newId(), kind: "comentario", text }
+    }
     if (this.is("definir")) return this.parseDefinir()
     if (this.is("dimension")) return this.parseLibre(false)
     if (this.is("leer")) return this.parseLeer()

@@ -8,6 +8,7 @@ export type StepKind =
   | "leer"
   | "borrar"
   | "esperar"
+  | "comentario"
   | "si"
   | "mientras"
   | "repetir"
@@ -24,6 +25,7 @@ export type Step =
   | { id: string; kind: "leer"; text: string }
   | { id: string; kind: "borrar" }
   | { id: string; kind: "esperar"; text: string }
+  | { id: string; kind: "comentario"; text: string }
   | { id: string; kind: "si"; condition: string; then: Step[]; else: Step[] }
   | { id: string; kind: "mientras"; condition: string; body: Step[] }
   | { id: string; kind: "repetir"; condition: string; body: Step[] }
@@ -56,6 +58,7 @@ const KINDS = new Set<StepKind>([
   "leer",
   "borrar",
   "esperar",
+  "comentario",
   "si",
   "mientras",
   "repetir",
@@ -138,6 +141,8 @@ export function createStep(kind: StepKind): Step {
       return { id, kind }
     case "esperar":
       return { id, kind, text: "1" }
+    case "comentario":
+      return { id, kind, text: "nota" }
     case "libre":
       return { id, kind, text: "instruccion", call: false }
     case "si":
@@ -460,6 +465,8 @@ export function caption(step: Step, locale: Dialect = "es"): string {
       return say(locale, "Borrar Pantalla", "Clear Screen")
     case "esperar":
       return `${say(locale, "Esperar", "Wait")} ${clean(step.text) || "…"} ${say(locale, "Segundos", "Seconds")}`
+    case "comentario":
+      return `// ${clean(step.text) || "…"}`
     case "libre":
       return spellText(locale, clean(step.text) || "…")
     case "si":
@@ -507,6 +514,9 @@ function writeStep(step: Step, level: number, lines: string[], semicolons: boole
       return
     case "esperar":
       lines.push(`${indent}${say(locale, "Esperar", "Wait")} ${clean(step.text) || "…"} ${say(locale, "Segundos", "Seconds")}${stop}`)
+      return
+    case "comentario":
+      lines.push(`${indent}// ${clean(step.text) || "…"}`)
       return
     case "libre":
       lines.push(`${indent}${spellText(locale, clean(step.text) || "…")}${stop}`)
@@ -588,7 +598,14 @@ export function issues(program: Program): string[] {
       if (step.kind === "asignar" && (!clean(step.destination) || !clean(step.expression))) {
         notes.push("Falta completar una asignación.")
       }
-      if ((step.kind === "escribir" || step.kind === "leer" || step.kind === "esperar" || step.kind === "libre") && !clean(step.text)) {
+      if (
+        (step.kind === "escribir" ||
+          step.kind === "leer" ||
+          step.kind === "esperar" ||
+          step.kind === "libre" ||
+          step.kind === "comentario") &&
+        !clean(step.text)
+      ) {
         notes.push("Hay una figura sin texto.")
       }
       if (step.kind === "para" && (!clean(step.variable) || !clean(step.from) || !clean(step.to))) {
@@ -623,7 +640,7 @@ function isStep(value: unknown): value is Step {
   const kind = value.kind
   if (kind === "definir") return typeof value.names === "string" && typeof value.typeName === "string"
   if (kind === "asignar") return typeof value.destination === "string" && typeof value.expression === "string"
-  if (kind === "escribir" || kind === "leer" || kind === "esperar") return typeof value.text === "string"
+  if (kind === "escribir" || kind === "leer" || kind === "esperar" || kind === "comentario") return typeof value.text === "string"
   if (kind === "libre") return typeof value.text === "string" && typeof value.call === "boolean"
   if (kind === "borrar") return true
   if (kind === "si") {

@@ -253,6 +253,16 @@ FinAlgoritmo
     expect(toSource(result.program)).not.toContain(", total '-':")
   })
 
+  it("recupera un comentario de línea y lo escribe sin punto y coma", () => {
+    const source = ["// titulo", "Algoritmo Notas", "    // preparar", '    Escribir "hola";', "FinAlgoritmo", ""].join("\n")
+    const program = importSource(source).program
+    expect(program.body[0]).toMatchObject({ kind: "comentario", text: "preparar" })
+    expect(program.body[1]).toMatchObject({ kind: "escribir", text: '"hola"' })
+    const again = toSource(program)
+    expect(again).toContain("    // preparar\n")
+    expect(again).not.toContain("// preparar;")
+  })
+
   it("avisa si el texto no trae un algoritmo", () => {
     expect(() => importSource('Escribir "Hola";\n')).toThrow(/fuera del algoritmo/)
   })
