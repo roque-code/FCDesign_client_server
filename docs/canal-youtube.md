@@ -508,14 +508,14 @@ Uso. La cuenta estudiante ya resolvió, fuera de este corte o en un plano previo
 
 Uso. **Comunidades**, interruptores del grupo. Después, un plano del alumno con **Traducir** apagado y el aviso «Tu docente desactivó la traducción de código.» Otro plano con pegar bloqueado: se escribe una letra y se rechaza el pegado. Cierra en la ventana de escritorio, con la misma interfaz.
 
-**Énfasis.** El interruptor **Traducción de código para este grupo** y **Bloquear pegar texto en este grupo**. Decir que también existen por alumno: **Traducción** y **Bloquear pegar**. El apagado no puede encender una función que el nivel ya tiene cerrada. En el escritorio, la misma pantalla; validar, traducir, ejecutar y depurar ocurren en la máquina, y la cuenta sigue en el servidor.
+**Énfasis.** El interruptor **Traducción de código para este grupo** y **Bloquear pegar código en el editor y en el reto**. Decir que también existen por alumno: **Traducción** y **Bloquear pegar**. El apagado no puede encender una función que el nivel ya tiene cerrada. En el escritorio, la misma pantalla; validar, traducir, ejecutar y depurar ocurren en la máquina, y la cuenta sigue en el servidor.
 
 **Guion.**
 
 > En la comunidad hay dos interruptores.
 > **Traducción de código para este grupo** deja o quita **Traducir**. Lo apago.
 > Con la cuenta del alumno, el botón ya no arma el otro lenguaje. La pantalla dice que el docente desactivó la traducción de código. El algoritmo se sigue validando y ejecutando aquí.
-> **Bloquear pegar texto en este grupo** impide pegar. Escribir sigue permitido. Lo pruebo: una letra entra y el texto pegado no.
+> **Bloquear pegar código en el editor y en el reto** impide pegar. Escribir sigue permitido. Lo pruebo: una letra entra y el texto pegado no.
 > Los mismos controles están en la fila de un alumno, por si el grupo entero no debe quedar igual.
 > Estos interruptores no abren una función que el nivel de la cuenta tenga cerrada.
 > La aplicación de escritorio abre esta misma interfaz en una ventana. La cuenta, los proyectos y el laboratorio siguen en el servidor. Validar, traducir, ejecutar y depurar no salen de la máquina.

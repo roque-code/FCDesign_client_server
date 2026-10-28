@@ -78,7 +78,7 @@ Escribir saludo
 
 El alumno responde una pregunta corta y después arma el programa con bloques, con el diagrama o con código. La salida del programa tiene que coincidir con la salida esperada, carácter por carácter, en todos los casos. Si falta uno, el reto no se cierra. Cada `Escribir` termina en un salto de línea. Si la salida que escribes no termina en salto de línea, el sistema agrega uno. Al terminar, el alumno ve cómo lo armó. El docente ve esa respuesta aunque el intento siga abierto.
 
-La pregunta admite 240 caracteres. Hace falta al menos una respuesta aceptada y caben hasta doce. En esas respuestas no importan las mayúsculas ni los espacios. Las entradas son opcionales: una por cada `Leer`, en el orden en que el programa las pide, hasta doce. Si el programa no lee datos, deja las entradas vacías.
+La pregunta admite 240 caracteres. Hace falta al menos una respuesta aceptada y caben hasta doce. En esas respuestas no importan las mayúsculas ni los espacios. Las entradas son opcionales: una por cada `Leer`, en el orden en que el programa las pide, hasta 40. Si el programa no lee datos, deja las entradas vacías.
 
 **Limitar la caja de herramientas** elige los bloques que el alumno ve y puede usar. Si lo dejas sin marcar, la caja trae todos. Si lo marcas, elige al menos uno: un bloque que no esté en la lista no aparece y, si el alumno lo usa, la comprobación lo rechaza. Incluye también los bloques de valor que el programa necesita. Para escribir un número hace falta **Número entero** o **Número real**, y para un texto hace falta **Texto**.
 
@@ -194,7 +194,7 @@ Además: `pregunta`, `respuestas` y los casos `caso1_entradas`, `caso1_salida`, 
 
 `respuestas` separa las opciones con `|`. Hace falta al menos una.
 
-Cada caso tiene su salida. Las entradas de un caso se separan con `|`; si el programa no lee, `caso1_entradas` queda vacío. Los casos empiezan en 1 y no dejan huecos. Hace falta al menos un caso y caben seis. El reto abre código, diagrama y bloques, con la caja de herramientas completa.
+Cada caso tiene su salida. Las entradas de un caso se separan con `|`; si el programa no lee, `caso1_entradas` queda vacío. Un caso admite hasta 40 entradas. Los casos empiezan en 1 y no dejan huecos. En el CSV hace falta al menos un caso y caben seis. En el formulario, **Validar con casos de entrada y salida** se puede apagar: el reto se guarda sin casos y el alumno no tiene que coincidir con una salida. El reto abre código, diagrama y bloques, con la caja de herramientas completa.
 
 Cada `Leer` del laboratorio también muestra el dato en su propia línea. La salida esperada es el texto completo, con esas líneas y después lo que escribe el programa. Si no termina en salto de línea, el sistema agrega uno.
 

@@ -1,6 +1,6 @@
 # Diccionario de datos
 
-Fecha de referencia: 2026-10-26. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. Los niveles viven en `billing_plan` y `billing_subscription`. El cupo del día vive en `billing_dailyexecution`. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
+Fecha de referencia: 2026-10-27. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. Los niveles viven en `billing_plan` y `billing_subscription`. El cupo del día vive en `billing_dailyexecution`. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
 
 La base se llama `traza` y, con los contenedores levantados, escucha en `127.0.0.1:5434`. El usuario de desarrollo es `traza`. No es la base del contenedor anterior `traza-pg` del puerto `5433`.
 
@@ -462,7 +462,7 @@ Un reto del catálogo puesto dentro de una ruta de docente, con ventana de fecha
 | Campo | Tipo | Nulo | Descripción |
 | --- | --- | --- | --- |
 | `id` | `uuid` | NO | Clave |
-| `path_id` | `uuid` | NO | Ruta. El reto no se repite en la misma ruta |
+| `path_id` | `uuid` | NO | Ruta. El mismo reto puede estar dos veces. `learning.0018` quitó esa unicidad |
 | `challenge_id` | `uuid` | NO | Reto |
 | `position` | `integer` | NO | Orden. Único dentro de la ruta |
 | `opens_at` | `timestamptz` | SÍ | Desde cuándo se abre. Nulo si no hay inicio |
