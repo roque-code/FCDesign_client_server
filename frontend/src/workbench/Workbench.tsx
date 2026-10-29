@@ -114,6 +114,10 @@ export function Workbench({
   const [debugHeight, setDebugHeight] = useState(220)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [functionsOpen, setFunctionsOpen] = useState(false)
+  const [joinOpen, setJoinOpen] = useState(false)
+  const [joinCode, setJoinCode] = useState("")
+  const [joinError, setJoinError] = useState("")
+  const [joinMessage, setJoinMessage] = useState("")
   const [students, setStudents] = useState<ClassroomStudent[]>([])
   const [reviewId, setReviewId] = useState<number | null>(null)
   const [reviewLoading, setReviewLoading] = useState(false)
@@ -157,6 +161,7 @@ export function Workbench({
   const consoleRef = useRef<HTMLPreElement>(null)
   const settingsRef = useRef<HTMLDivElement>(null)
   const functionsRef = useRef<HTMLDivElement>(null)
+  const joinRef = useRef<HTMLDivElement>(null)
   const haltRef = useRef(false)
   const workspaceRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<HTMLElement>(null)
@@ -230,17 +235,23 @@ export function Workbench({
   }, [account, onAccount])
 
   useEffect(() => {
-    if (!settingsOpen && !functionsOpen) return
+    if (!settingsOpen && !functionsOpen && !joinOpen) return
     function close(event: MouseEvent) {
       const target = event.target as Node
-      if (settingsRef.current?.contains(target) || functionsRef.current?.contains(target)) return
+      if (
+        settingsRef.current?.contains(target) ||
+        functionsRef.current?.contains(target) ||
+        joinRef.current?.contains(target)
+      ) return
       setSettingsOpen(false)
       setFunctionsOpen(false)
+      setJoinOpen(false)
     }
     function onKey(event: KeyboardEvent) {
       if (event.key !== "Escape") return
       setSettingsOpen(false)
       setFunctionsOpen(false)
+      setJoinOpen(false)
     }
     document.addEventListener("mousedown", close)
     document.addEventListener("keydown", onKey)
@@ -248,7 +259,7 @@ export function Workbench({
       document.removeEventListener("mousedown", close)
       document.removeEventListener("keydown", onKey)
     }
-  }, [settingsOpen, functionsOpen])
+  }, [settingsOpen, functionsOpen, joinOpen])
 
   useEffect(() => {
     const node = consoleRef.current
@@ -1126,6 +1137,59 @@ export function Workbench({
             {t("composeNs")}
           </button>
           )}
+          {(account.role === "student" || account.role === "teacher") && (
+            <div className="functions" ref={joinRef}>
+              <button
+                className="top-action"
+                type="button"
+                aria-expanded={joinOpen}
+                onClick={() => {
+                  setSettingsOpen(false)
+                  setFunctionsOpen(false)
+                  setJoinError("")
+                  setJoinMessage("")
+                  setJoinOpen((open) => !open)
+                }}
+              >
+                {t("joinCommunity")}
+              </button>
+              {joinOpen && (
+                <form
+                  className="functions-menu"
+                  role="dialog"
+                  aria-label={t("joinCommunityTitle")}
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    setJoinError("")
+                    setJoinMessage("")
+                    void api.joinCommunity(joinCode.trim()).then((joined) => {
+                      setJoinMessage(t("joinedCommunity", { name: joined.name }))
+                      setJoinCode("")
+                    }).catch((caught: unknown) => {
+                      setJoinError(caught instanceof ApiError ? translatedMessage(caught.message) : t("joinFailed"))
+                    })
+                  }}
+                >
+                  <h2>{t("joinCommunityTitle")}</h2>
+                  <p className="note">{t("joinCommunityNote")}</p>
+                  <label>
+                    {t("joinCode")}
+                    <input
+                      value={joinCode}
+                      autoComplete="off"
+                      spellCheck={false}
+                      maxLength={12}
+                      onChange={(event) => setJoinCode(event.target.value)}
+                      required
+                    />
+                  </label>
+                  {joinMessage ? <p className="note">{joinMessage}</p> : null}
+                  {joinError ? <p className="error">{joinError}</p> : null}
+                  <button className="primary" type="submit">{t("joinCommunity")}</button>
+                </form>
+              )}
+            </div>
+          )}
           {account.role === "teacher" && can("communities") && (
             <button
               className="top-action"
@@ -1133,6 +1197,7 @@ export function Workbench({
               onClick={() => {
                 setSettingsOpen(false)
                 setFunctionsOpen(false)
+                setJoinOpen(false)
                 onOpenCommunities()
               }}
             >

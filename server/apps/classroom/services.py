@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import secrets
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -14,6 +16,21 @@ from apps.classroom.models import Community, Membership
 from config.errors import DomainError
 
 NOT_FOUND = "not_found"
+_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+_CODE_LENGTH = 6
+
+
+def new_join_code() -> str:
+    return "".join(secrets.choice(_CODE_ALPHABET) for _ in range(_CODE_LENGTH))
+
+
+def _clean_code(value: object) -> str:
+    if not isinstance(value, str):
+        raise DomainError("El código no es válido.")
+    code = "".join(character for character in value.upper() if character.isalnum())
+    if len(code) != _CODE_LENGTH or any(character not in _CODE_ALPHABET for character in code):
+        raise DomainError("El código no es válido.")
+    return code
 
 
 def require_teacher(user: User) -> None:
@@ -57,6 +74,7 @@ def community_summary(community: Community) -> dict[str, object]:
     return {
         "id": str(community.id),
         "name": community.name,
+        "join_code": community.join_code,
         "student_count": students,
         "teacher_count": teachers,
         "translation_enabled": community.translation_enabled,
@@ -92,6 +110,7 @@ def community_detail(community: Community) -> dict[str, object]:
     return {
         "id": str(community.id),
         "name": community.name,
+        "join_code": community.join_code,
         "student_count": len(students),
         "teacher_count": len(teachers),
         "translation_enabled": community.translation_enabled,
@@ -120,12 +139,21 @@ def create_community(user: User, data: dict, ip_address: str | None) -> Communit
     if user.communities.count() >= settings.MAX_COMMUNITIES_PER_TEACHER:
         raise DomainError("Llegaste al máximo de comunidades.")
     name = clean_label(data.get("name"), field="El nombre", limit=80, required=True)
-    community = Community(owner=user, name=name)
-    try:
-        with transaction.atomic():
-            community.save()
-    except IntegrityError as exc:
-        raise DomainError("Ya tienes una comunidad con ese nombre.") from exc
+    if user.communities.filter(name=name).exists():
+        raise DomainError("Ya tienes una comunidad con ese nombre.")
+    community: Community | None = None
+    for _attempt in range(8):
+        community = Community(owner=user, name=name, join_code=new_join_code())
+        try:
+            with transaction.atomic():
+                community.save()
+            break
+        except IntegrityError as exc:
+            if user.communities.filter(name=name).exists():
+                raise DomainError("Ya tienes una comunidad con ese nombre.") from exc
+            community = None
+    if community is None:
+        raise DomainError("No se pudo generar el código.")
     record(
         "community.create",
         actor=user,
@@ -149,6 +177,60 @@ def delete_community(user: User, community_id, ip_address: str | None) -> None:
         metadata={},
         ip_address=ip_address,
     )
+
+
+def regenerate_join_code(user: User, community_id, ip_address: str | None) -> Community:
+    community = get_community(user, community_id)
+    previous = community.join_code
+    for _attempt in range(8):
+        community.join_code = new_join_code()
+        try:
+            community.save(update_fields=["join_code", "updated_at"])
+            break
+        except IntegrityError:
+            community.join_code = previous
+    else:
+        raise DomainError("No se pudo generar el código.")
+    record(
+        "community.code",
+        actor=user,
+        object_type="community",
+        object_id=str(community.id),
+        metadata={},
+        ip_address=ip_address,
+    )
+    return community
+
+
+@transaction.atomic
+def join_community(user: User, data: dict, ip_address: str | None) -> dict[str, object]:
+    if user.profile.role not in (Profile.STUDENT, Profile.TEACHER):
+        raise DomainError("Usa una cuenta de alumno para unirte.", status_code=403)
+    code = _clean_code(data.get("code"))
+    try:
+        community = Community.objects.select_for_update().get(join_code=code)
+    except Community.DoesNotExist as exc:
+        raise DomainError(
+            "Ese código no corresponde a una comunidad.",
+            code=NOT_FOUND,
+            status_code=404,
+        ) from exc
+    if community.owner_id == user.pk:
+        raise DomainError("Esta comunidad es tuya. Comparte el código con tus alumnos.")
+    if Membership.objects.filter(community=community, user=user).exists():
+        raise DomainError("Ya estás en esta comunidad.")
+    if community.memberships.count() >= settings.MAX_MEMBERS_PER_COMMUNITY:
+        raise DomainError("La comunidad llegó al máximo de personas.")
+    Membership.objects.create(community=community, user=user)
+    record(
+        "community.member_join",
+        actor=user,
+        object_type="community",
+        object_id=str(community.id),
+        metadata={"user_id": user.pk},
+        ip_address=ip_address,
+    )
+    return {"id": str(community.id), "name": community.name}
 
 
 def _registered(user_id: object) -> User:

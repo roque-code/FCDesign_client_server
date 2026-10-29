@@ -9,8 +9,10 @@ from apps.classroom.services import (
     create_community,
     delete_community,
     get_community,
+    join_community,
     list_communities,
     person_payload,
+    regenerate_join_code,
     remove_member,
     search_people,
     set_community_paste,
@@ -34,6 +36,18 @@ class CommunityListView(APIView):
             client_ip(request),
         )
         return Response(community_detail(community), status=201)
+
+
+class CommunityJoinView(APIView):
+    def post(self, request: Request) -> Response:
+        joined = join_community(current_user(request), object_body(request.data), client_ip(request))
+        return Response(joined, status=201)
+
+
+class CommunityCodeView(APIView):
+    def post(self, request: Request, community_id) -> Response:
+        community = regenerate_join_code(current_user(request), community_id, client_ip(request))
+        return Response(community_detail(community))
 
 
 class CommunityDetailView(APIView):

@@ -474,6 +474,7 @@ a.manual-download:hover, button.manual-download:hover { background: var(--hover)
 }
 
 .community-head,
+.community-code,
 .community-add,
 .community-roster,
 .community-teachers,
@@ -486,6 +487,28 @@ a.manual-download:hover, button.manual-download:hover { background: var(--hover)
 
 .member-scroll,
 .community-teachers { min-width: 0; container-type: inline-size; }
+
+.community-code {
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--accent) 6%, var(--sheet));
+}
+
+.community-code-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.join-code {
+  font-family: ui-monospace, monospace;
+  font-size: 1.35rem;
+  letter-spacing: 0.16em;
+}
+
+.community-code-row button { flex: none; }
 
 .roster-tools { display: grid; gap: 0.35rem; }
 

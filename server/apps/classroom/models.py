@@ -16,6 +16,7 @@ class Community(models.Model):
         related_name="communities",
     )
     name = models.CharField(max_length=80)
+    join_code = models.CharField(max_length=8, unique=True)
     translation_enabled = models.BooleanField(default=True)
     paste_enabled = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

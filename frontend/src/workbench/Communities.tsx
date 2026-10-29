@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 
 import { api, ApiError, type Account, type Community, type CommunitySummary, type Person } from "../api"
 import { translatedMessage, useT } from "../i18n"
@@ -30,14 +30,10 @@ export function CommunitiesPanel({
   const [selectedId, setSelectedId] = useState("")
   const [detail, setDetail] = useState<Community | null>(null)
   const [name, setName] = useState("")
-  const [query, setQuery] = useState("")
-  const [people, setPeople] = useState<Person[]>([])
-  const [searched, setSearched] = useState("")
   const [memberQuery, setMemberQuery] = useState("")
   const [page, setPage] = useState(0)
-  const [focusAdd, setFocusAdd] = useState(false)
+  const [copied, setCopied] = useState(false)
   const [error, setError] = useState("")
-  const searchRef = useRef<HTMLInputElement>(null)
 
   async function loadList(prefer?: string) {
     const page = await api.communities()
@@ -61,12 +57,6 @@ export function CommunitiesPanel({
   }, [selectedId])
 
   useEffect(() => {
-    if (!focusAdd || !detail || detail.id !== selectedId) return
-    searchRef.current?.focus()
-    setFocusAdd(false)
-  }, [focusAdd, detail, selectedId])
-
-  useEffect(() => {
     if (!selectedId) return
     let alive = true
     void api.community(selectedId).then((item) => {
@@ -87,26 +77,6 @@ export function CommunitiesPanel({
     return () => document.removeEventListener("keydown", onKey)
   }, [onBack])
 
-  useEffect(() => {
-    const text = query.trim()
-    if (!selectedId || text.length < 2) {
-      setPeople([])
-      setSearched("")
-      return
-    }
-    const handle = window.setTimeout(() => {
-      void api.searchPeople(text, selectedId).then((page) => {
-        setPeople(page.results)
-        setSearched(text)
-      }).catch((caught: unknown) => {
-        setPeople([])
-        setSearched(text)
-        setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("searchError"))
-      })
-    }, 250)
-    return () => window.clearTimeout(handle)
-  }, [query, selectedId])
-
   async function create(event: FormEvent) {
     event.preventDefault()
     setError("")
@@ -114,7 +84,6 @@ export function CommunitiesPanel({
       const created = await api.createCommunity(name.trim())
       setName("")
       setDetail(created)
-      setFocusAdd(true)
       await loadList(created.id)
     } catch (caught) {
       setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("communityCreateError"))
@@ -127,23 +96,32 @@ export function CommunitiesPanel({
     setError("")
     try {
       await api.deleteCommunity(detail.id)
-      setQuery("")
       await loadList()
     } catch (caught) {
       setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("communityDeleteError"))
     }
   }
 
-  async function add(person: Person) {
-    if (!selectedId || person.member) return
-    setError("")
+  async function copyCode() {
+    if (!detail) return
     try {
-      await api.addMember(selectedId, person.id)
-      setPeople((rows) => rows.map((item) => (item.id === person.id ? { ...item, member: true } : item)))
-      setDetail(await api.community(selectedId))
-      setCommunities((await api.communities()).results)
+      await navigator.clipboard.writeText(detail.join_code)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1600)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  async function renewCode() {
+    if (!detail) return
+    if (!window.confirm(t("newJoinCodeConfirm"))) return
+    setError("")
+    setCopied(false)
+    try {
+      remember(await api.renewJoinCode(detail.id))
     } catch (caught) {
-      setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("addError"))
+      setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("renewCodeError"))
     }
   }
 
@@ -152,7 +130,6 @@ export function CommunitiesPanel({
     setError("")
     try {
       await api.removeMember(selectedId, person.id)
-      setPeople((rows) => rows.map((item) => (item.id === person.id ? { ...item, member: false } : item)))
       setDetail(await api.community(selectedId))
       setCommunities((await api.communities()).results)
     } catch (caught) {
@@ -253,7 +230,7 @@ export function CommunitiesPanel({
                     aria-current={item.id === selectedId}
                     onClick={() => {
                       setSelectedId(item.id)
-                      setQuery("")
+                      setCopied(false)
                     }}
                   >
                     <strong>{item.name}</strong>
@@ -294,33 +271,14 @@ export function CommunitiesPanel({
                   </div>
                   {error && <p className="error">{error}</p>}
                 </div>
-                <section className="community-add">
-                  <label>
-                    {t("addPeople")}
-                    <input
-                      ref={searchRef}
-                      aria-label={t("searchPeople")}
-                      value={query}
-                      placeholder={t("searchPlaceholder")}
-                      onChange={(event) => setQuery(event.target.value)}
-                    />
-                  </label>
-                  {searched !== "" && searched === query.trim() && people.length === 0 && (
-                    <p className="note">{t("noAccounts")}</p>
-                  )}
-                  <ul className="people-results">
-                    {people.map((person) => (
-                      <li key={person.id}>
-                        <span>
-                          <strong>{person.display_name}</strong>
-                          <small>{person.email} · {person.role === "teacher" ? t("teacher") : t("student")}</small>
-                        </span>
-                        <button type="button" disabled={person.member} onClick={() => void add(person)}>
-                          {person.member ? t("alreadyIn") : t("add")}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                <section className="community-code">
+                  <h4>{t("joinCode")}</h4>
+                  <p className="note">{t("joinCodeNote")}</p>
+                  <div className="community-code-row">
+                    <strong className="join-code">{detail.join_code}</strong>
+                    <button type="button" onClick={() => void copyCode()}>{copied ? t("copied") : t("copy")}</button>
+                    <button type="button" onClick={() => void renewCode()}>{t("newJoinCode")}</button>
+                  </div>
                 </section>
                 <section className="community-roster">
                   <div className="roster-tools">

@@ -181,6 +181,7 @@ export type Person = {
 export type CommunitySummary = {
   id: string
   name: string
+  join_code: string
   student_count: number
   teacher_count: number
   translation_enabled: boolean
@@ -895,6 +896,13 @@ export const api = {
   community: (id: string) => request<Community>(`/api/v1/communities/${id}/`),
   createCommunity: (name: string) =>
     request<Community>("/api/v1/communities/", { method: "POST", body: JSON.stringify({ name }) }),
+  joinCommunity: (code: string) =>
+    request<{ id: string; name: string }>("/api/v1/communities/join/", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    }),
+  renewJoinCode: (id: string) =>
+    request<Community>(`/api/v1/communities/${id}/code/`, { method: "POST" }),
   deleteCommunity: (id: string) => request<void>(`/api/v1/communities/${id}/`, { method: "DELETE" }),
   addMember: (communityId: string, userId: number) =>
     request<Person>(`/api/v1/communities/${communityId}/members/`, {

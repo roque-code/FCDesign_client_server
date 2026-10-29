@@ -391,3 +391,49 @@ def test_el_docente_bloquea_pegar_en_el_grupo_o_en_un_alumno(client):
         format="json",
     )
     assert invalid.status_code == 400
+
+
+def test_el_alumno_entra_con_el_codigo_de_la_comunidad(client):
+    register(client, email="codigo-profe@ejemplo.test", display_name="Profe Código", role="teacher")
+    student, _student = _session("codigo-ana@ejemplo.test", display_name="Ana Código")
+    colleague, _colleague = _session(
+        "codigo-colega@ejemplo.test", display_name="Colega Código", role="teacher"
+    )
+    created = client.post("/api/v1/communities/", {"name": "Grupo Código"}, format="json")
+    assert created.status_code == 201, created.content
+    code = created.json()["join_code"]
+    assert len(code) == 6
+    assert created.json()["students"] == []
+
+    joined = student.post("/api/v1/communities/join/", {"code": f" {code[:3]}-{code[3:]} "}, format="json")
+    assert joined.status_code == 201, joined.content
+    assert joined.json()["name"] == "Grupo Código"
+    again = student.post("/api/v1/communities/join/", {"code": code.lower()}, format="json")
+    assert again.status_code == 400
+    own = client.post("/api/v1/communities/join/", {"code": code}, format="json")
+    assert own.status_code == 400
+    missing = student.post("/api/v1/communities/join/", {"code": "234567"}, format="json")
+    assert missing.status_code == 404
+    short = student.post("/api/v1/communities/join/", {"code": "AB"}, format="json")
+    assert short.status_code == 400
+
+    colleague_joined = colleague.post("/api/v1/communities/join/", {"code": code}, format="json")
+    assert colleague_joined.status_code == 201, colleague_joined.content
+    detail = client.get(f"/api/v1/communities/{created.json()['id']}/")
+    assert [row["email"] for row in detail.json()["students"]] == ["codigo-ana@ejemplo.test"]
+    assert [row["email"] for row in detail.json()["teachers"]] == ["codigo-colega@ejemplo.test"]
+
+    renewed = client.post(f"/api/v1/communities/{created.json()['id']}/code/", format="json")
+    assert renewed.status_code == 200, renewed.content
+    fresh = renewed.json()["join_code"]
+    assert fresh != code
+    stale = student.post("/api/v1/communities/join/", {"code": code}, format="json")
+    assert stale.status_code == 404
+    stranger, _stranger = _session("codigo-beto@ejemplo.test", display_name="Beto Código")
+    entered = stranger.post("/api/v1/communities/join/", {"code": fresh}, format="json")
+    assert entered.status_code == 201, entered.content
+    refused = stranger.post(
+        f"/api/v1/communities/{created.json()['id']}/code/",
+        format="json",
+    )
+    assert refused.status_code == 403

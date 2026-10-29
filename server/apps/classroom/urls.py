@@ -3,7 +3,9 @@ from django.urls import path
 from apps.classroom.views import (
     ClassroomStudentListView,
     ClassroomStudentProjectsView,
+    CommunityCodeView,
     CommunityDetailView,
+    CommunityJoinView,
     CommunityListView,
     MemberDetailView,
     MemberListView,
@@ -12,7 +14,13 @@ from apps.classroom.views import (
 
 urlpatterns = [
     path("communities/", CommunityListView.as_view(), name="communities"),
+    path("communities/join/", CommunityJoinView.as_view(), name="community-join"),
     path("communities/<uuid:community_id>/", CommunityDetailView.as_view(), name="community"),
+    path(
+        "communities/<uuid:community_id>/code/",
+        CommunityCodeView.as_view(),
+        name="community-code",
+    ),
     path(
         "communities/<uuid:community_id>/members/",
         MemberListView.as_view(),
