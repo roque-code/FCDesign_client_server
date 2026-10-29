@@ -7,9 +7,11 @@ import { ChallengeBell } from "./ChallengeBell"
 export function AccountIdentity({
   account,
   onAccount,
+  stats = "all",
 }: {
   account: Account
   onAccount?: (account: Account) => void
+  stats?: "all" | "days"
 }) {
   const t = useT()
   const [open, setOpen] = useState(false)
@@ -46,28 +48,41 @@ export function AccountIdentity({
         </span>
       </div>
       <div className="standing">
-        <span className="stat" title={t("pointsTitle", { points: account.points })}>
-          <PointsMark points={account.points} />
-          <strong>{account.points}</strong>
-          <small>{t("points")}</small>
-        </span>
-        <span className="stat" title={t("rankTitle", { rank: account.rank })}>
-          <RankMark rank={account.rank} />
-          <strong>{account.rank}</strong>
-          <small>{t("place")}</small>
-        </span>
-        {account.plan?.days_remaining !== null && account.plan ? (
-          <span className="stat" title={t("daysLeft", { days: account.plan.days_remaining })}>
-            <DaysMark days={account.plan.days_remaining} />
-            <strong>{account.plan.days_remaining}</strong>
+        {stats === "all" ? (
+          <span className="stat" title={t("pointsTitle", { points: account.points })}>
+            <PointsMark points={account.points} />
+            <strong>{account.points}</strong>
+            <small>{t("points")}</small>
+          </span>
+        ) : null}
+        {stats === "all" ? (
+          <span className="stat" title={t("rankTitle", { rank: account.rank })}>
+            <RankMark rank={account.rank} />
+            <strong>{account.rank}</strong>
+            <small>{t("place")}</small>
+          </span>
+        ) : null}
+        {stats === "days" || (account.plan?.days_remaining !== null && account.plan) ? (
+          <span
+            className="stat"
+            title={
+              account.plan?.days_remaining != null
+                ? t("daysLeft", { days: account.plan.days_remaining })
+                : t("noPaymentDue")
+            }
+          >
+            <DaysMark days={account.plan?.days_remaining ?? 30} />
+            <strong>{account.plan?.days_remaining ?? "—"}</strong>
             <small>{t("daysShort")}</small>
           </span>
         ) : null}
-        <span className="stat" title={runsTitle}>
-          <RunsMark left={runsLeft} />
-          <strong>{runsLeft == null ? "∞" : runsLeft}</strong>
-          <small>{t("runsShort")}</small>
-        </span>
+        {stats === "all" ? (
+          <span className="stat" title={runsTitle}>
+            <RunsMark left={runsLeft} />
+            <strong>{runsLeft == null ? "∞" : runsLeft}</strong>
+            <small>{t("runsShort")}</small>
+          </span>
+        ) : null}
       </div>
       {open ? (
         <ProfileDialog

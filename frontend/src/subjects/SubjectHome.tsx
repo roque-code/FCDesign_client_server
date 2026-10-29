@@ -10,13 +10,11 @@ import "./subject.css"
 export function SubjectHome({
   account,
   onAccount,
-  onLogout,
   onOpenCommunities,
   onEnter,
 }: {
   account: Account
   onAccount: (account: Account) => void
-  onLogout: () => void
   onOpenCommunities: () => void
   onEnter: (id: SubjectId) => void
 }) {
@@ -54,7 +52,7 @@ export function SubjectHome({
           <h1>
             <Logo />
           </h1>
-          <AccountIdentity account={account} onAccount={onAccount} />
+          <AccountIdentity account={account} onAccount={onAccount} stats="days" />
         </div>
         <div className="actions">
           {canJoin ? (
@@ -118,9 +116,6 @@ export function SubjectHome({
               {t("communities")}
             </button>
           ) : null}
-          <button className="top-leave" type="button" onClick={onLogout}>
-            {t("leave")}
-          </button>
         </div>
       </header>
       <div className="subject-home">

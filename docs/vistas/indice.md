@@ -16,3 +16,5 @@ Fecha de referencia: 2026-10-28. Describen Aulivana-FCDdesign tal como está en 
 | C4 | [diagrama-c4.md](diagrama-c4.md) |
 | UML | [diagrama-uml.md](diagrama-uml.md) |
 | Secuencia | [diagrama-de-secuencia.md](diagrama-de-secuencia.md) |
+
+El análisis de lo que la aplicación y la base deben cumplir está en [analisis-de-requerimientos.md](../analisis-de-requerimientos.md).

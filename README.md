@@ -38,6 +38,7 @@ El mapa del sistema que corre hoy está en [arquitectura](docs/arquitectura.md).
 | [Manual del alumno](docs/manual-alumno/Manual-del-alumno.docx) | Cada menú del alumno, con captura y ejemplo |
 | [Manual del docente](docs/manual-docente/Manual-del-docente.docx) | Comunidades, banco, rutas, avance, operadores y descarga de retos |
 | [AST](docs/ast.md) | Nodos, ámbitos y diagnósticos |
+| [Análisis de requerimientos](docs/analisis-de-requerimientos.md) | Requerimientos de la aplicación y de la base de datos |  
 | [Modelo de datos](docs/modelo-de-datos.md) | Entidades Django, índices y borrado |
 | [Diccionario de datos](docs/diccionario-de-datos.md) | Tablas, campos, tipos y relaciones para armar consultas |
 | [Ejecución](docs/ejecucion.md) | Intérprete, depurador y aislamiento |

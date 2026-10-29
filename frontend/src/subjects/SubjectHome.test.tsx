@@ -44,7 +44,6 @@ function home(role: Account["role"], communities = false): string {
       <SubjectHome
         account={account(role, communities)}
         onAccount={() => undefined}
-        onLogout={() => undefined}
         onOpenCommunities={() => undefined}
         onEnter={() => undefined}
       />
@@ -76,6 +75,10 @@ describe("pantalla de materias", () => {
     expect(html.match(/<button[^>]*class="subject-card"/g)?.length).toBe(1)
     expect(html).toContain("Unirme")
     expect(html).not.toContain(">Comunidades<")
+    expect(html).not.toContain("Salir")
+    expect(html).not.toContain("puntos")
+    expect(html).not.toContain("puesto")
+    expect(html).not.toContain("ejec.")
   })
 
   it("ofrece comunidades al docente que puede gestionarlas", () => {

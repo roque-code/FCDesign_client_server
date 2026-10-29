@@ -239,7 +239,6 @@ function openNassi(payload: { name?: string; source?: string; semicolons: boolea
       <SubjectHome
         account={account}
         onAccount={holdAccount}
-        onLogout={() => void logout()}
         onOpenCommunities={() => setHomeView("communities")}
         onEnter={enterSubject}
       />
