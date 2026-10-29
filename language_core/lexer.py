@@ -305,7 +305,11 @@ class Lexer:
             lexeme += self._advance()
             kind = TokenKind.NEQ
         elif ch == "=":
-            kind = TokenKind.EQ
+            if self._peek() == "=":
+                lexeme += self._advance()
+                kind = TokenKind.EQ
+            else:
+                kind = TokenKind.ASSIGN
         elif ch == "+":
             kind = TokenKind.PLUS
         elif ch == "-":

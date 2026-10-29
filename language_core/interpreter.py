@@ -680,7 +680,7 @@ class Interpreter:
         if left.type_name == right.type_name and left.type_name in ("cadena", "caracter", "logico"):
             if left.type_name == "logico" and operator not in ("eq", "neq"):
                 self._fail(
-                    "E0306", "Un lógico solo se compara con = o <>.", span, "Usa Verdadero y Falso."
+                    "E0306", "Un lógico solo se compara con == o <>.", span, "Usa Verdadero y Falso."
                 )
             return _ordered(operator, left.value, right.value)
         self._fail("E0306", "Estos valores no se pueden comparar entre sí.", span, None)
@@ -775,7 +775,7 @@ class Interpreter:
                 "E0304",
                 "La condición debe ser un valor lógico.",
                 span,
-                "Compara con =, < o >, o usa Verdadero y Falso.",
+                "Compara con ==, < o >, o usa Verdadero y Falso.",
             )
 
     def _require_int(self, value: Value, span: SourceSpan, message: str) -> int:

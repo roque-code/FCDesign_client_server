@@ -84,6 +84,12 @@ def test_symbols_and_boolean_literals() -> None:
     assert TokenKind.NEQ in kinds
     assert TokenKind.LTE in kinds
     assert TokenKind.GTE in kinds
+    compared = lex("a = 1 == 2\n")
+    symbols = [token for token in compared.tokens if token.kind is not TokenKind.EOF]
+    assert symbols[1].kind is TokenKind.ASSIGN
+    assert symbols[1].lexeme == "="
+    assert symbols[3].kind is TokenKind.EQ
+    assert symbols[3].lexeme == "=="
     logic = lex("Verdadero Falso\n")
     assert logic.tokens[0].value is True
     assert logic.tokens[1].value is False

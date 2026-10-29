@@ -206,7 +206,7 @@ export function guessingGame(): Program {
       {
         id: "si2",
         kind: "si",
-        condition: "num_secreto = num_ingresado",
+        condition: "num_secreto == num_ingresado",
         then: [{ id: "ok", kind: "escribir", text: '"Exacto! Usted adivino en ", 11 - intentos, " intentos."' }],
         else: [{ id: "no", kind: "escribir", text: '"El numero era ", num_secreto' }],
       },

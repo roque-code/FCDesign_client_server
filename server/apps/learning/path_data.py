@@ -451,7 +451,7 @@ PATH: dict[str, object] = {
                     "restrictions": {
                         "lock_build": True,
                         "question": "¿Qué símbolo guarda un valor en una variable?",
-                        "accepted": ["<-"],
+                        "accepted": ["<-", "="],
                         "required_blocks": ["traza_definir", "traza_asignar", "traza_escribir"],
                     },
                     "cases": [
@@ -465,7 +465,7 @@ PATH: dict[str, object] = {
                     ],
                     "hints": _hints(
                         (1, "El texto va entre una definición y una escritura."),
-                        (2, "El símbolo de asignación no es el igual de una comparación."),
+                        (2, "Puedes asignar con <- o con =. Para comparar si dos valores son iguales se usa ==."),
                         (
                             5,
                             "Esta es la solución explicada: define saludo como cadena, "

@@ -208,6 +208,7 @@ class LanguageProfile:
     require_semicolons: bool = True
     require_declarations: bool = True
     implicit_widening: bool = True
+    # Se conserva para perfiles ya guardados. = asigna y == compara en todos los perfiles.
     allow_equals_assignment: bool = False
     allow_globals: bool = False
     beginner_warnings: bool = True

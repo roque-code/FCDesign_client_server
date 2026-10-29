@@ -94,12 +94,30 @@ def test_semicolon_rules() -> None:
     assert not any(item.code == "E0210" for item in flexible)
 
 
-def test_equals_is_not_assignment_in_strict_profile() -> None:
-    source = "Algoritmo X\nDefinir n Como Entero;\nn = 1;\nFinAlgoritmo\n"
-    strict = _program(source)[1]
-    flexible = _program(source, FLEXIBLE)[1]
-    assert any(item.code == "E0203" for item in strict)
+def test_equals_assigns_and_double_equals_compares() -> None:
+    assigned = "Algoritmo X\nDefinir n Como Entero;\nn = 1;\nFinAlgoritmo\n"
+    strict = _program(assigned)[1]
+    flexible = _program(assigned, FLEXIBLE)[1]
+    assert not any(item.code == "E0203" for item in strict)
     assert not any(item.code == "E0203" for item in flexible)
+    compared = (
+        "Algoritmo X\nDefinir n Como Entero;\nn <- 1;\n"
+        "Si n == 1 Entonces\nEscribir n;\nFinSi\nFinAlgoritmo\n"
+    )
+    program, diagnostics = _program(compared)
+    assert program is not None
+    assert not any(item.severity == "error" for item in diagnostics)
+    mistaken = "Algoritmo X\nDefinir n Como Entero;\nn == 1;\nFinAlgoritmo\n"
+    assert any(item.code == "E0203" for item in _program(mistaken)[1])
+    compared = (
+        "Algoritmo X\nDefinir n Como Entero;\nn <- 1;\n"
+        "Si n = 1 Entonces\nEscribir n;\nFinSi\nFinAlgoritmo\n"
+    )
+    compared_diags = _program(compared)[1]
+    assert any(
+        item.code == "E0203" and "==" in item.message for item in compared_diags
+    )
+    assert not any("no es una sentencia válida" in item.message for item in compared_diags)
 
 
 def test_chained_comparison_is_rejected() -> None:

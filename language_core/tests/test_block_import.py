@@ -60,7 +60,7 @@ Algoritmo Laboratorio
     FinPara
     Repetir
         n <- n - 1;
-    Hasta Que n = 0
+    Hasta Que n == 0
     Si ok Y NO Falso Entonces
         Escribir Concatenar(texto, "!");
     FinSi
@@ -191,7 +191,7 @@ Algoritmo Adivina_Numero
         Leer num_ingresado
     FinMientras
 
-    Si num_secreto=num_ingresado Entonces
+    Si num_secreto==num_ingresado Entonces
         Escribir "Exacto! Usted adivino en ",11-intentos," intentos."
     Sino
         Escribir "El numero era: ",num_secreto

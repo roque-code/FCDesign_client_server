@@ -43,7 +43,7 @@ const CLOSERS = new Set([
 
 const BOUNDARIES = new Set([...STARTERS, ...CLOSERS, "entonces", "hacer", "funcion", "subproceso", "//"])
 
-const INFIX = new Set(["+", "-", "*", "/", "%", "^", "<", ">", "=", "<>", "<=", ">=", "!=", "y", "o", "mod", "div"])
+const INFIX = new Set(["+", "-", "*", "/", "%", "^", "<", ">", "==", "<>", "<=", ">=", "!=", "y", "o", "mod", "div"])
 
 export function importSource(source: string): ImportResult {
   return new Parser(tokenize(source)).parseFile()
@@ -78,7 +78,14 @@ function tokenize(source: string): Token[] {
       continue
     }
     const pair = source.slice(i, i + 2)
-    if (pair === "<-" || pair === "<>" || pair === "<=" || pair === ">=" || pair === "!=") {
+    if (
+      pair === "<-" ||
+      pair === "<>" ||
+      pair === "<=" ||
+      pair === ">=" ||
+      pair === "!=" ||
+      pair === "=="
+    ) {
       tokens.push({ canon: pair, raw: pair })
       i += 2
       continue
@@ -193,7 +200,7 @@ class Parser {
     let result = ""
     if (kind === "funcion") {
       result = this.readName("el resultado de la función")
-      this.expect("<-", "<-")
+      this.expectAssign()
     }
     const name = this.readName(kind === "funcion" ? "el nombre de la función" : "el nombre del procedimiento")
     this.expect("(", "(")
@@ -285,8 +292,8 @@ class Parser {
   }
 
   private parseAsignar(): Step {
-    const destination = this.readUntil((token) => token.canon === "<-")
-    this.expect("<-", "<-")
+    const destination = this.readUntil((token) => token.canon === "<-" || token.raw === "=")
+    this.expectAssign()
     const expression = this.readExpr()
     if (!destination || !expression) throw new Error("Falta completar una asignación.")
     return { id: newId(), kind: "asignar", destination, expression }
@@ -375,7 +382,7 @@ class Parser {
     if (this.eof() || !isIdentStart(this.current.raw[0] ?? "")) throw new Error("Falta la variable del Para.")
     const variable = this.current.raw
     this.index += 1
-    this.expect("<-", "<-")
+    this.expectAssign()
     const from = this.readUntil((token) => token.canon === "hasta")
     this.expect("hasta", "Hasta")
     const to = this.readUntil((token) => token.canon === "hacer" || token.canon === "con")
@@ -496,7 +503,7 @@ class Parser {
     for (let i = this.index; i < this.tokens.length; i += 1) {
       const token = this.tokens[i]
       if (depth === 0) {
-        if (token.canon === "<-") return true
+        if (token.canon === "<-" || token.raw === "=") return true
         if (token.raw === ";" || BOUNDARIES.has(token.canon)) return false
       }
       if (token.raw === "(" || token.raw === "[") depth += 1
@@ -519,6 +526,15 @@ class Parser {
 
   private skipSemicolons() {
     while (this.isRaw(";")) this.index += 1
+  }
+
+  private expectAssign() {
+    if (!this.eof() && (this.current.canon === "<-" || this.current.raw === "=")) {
+      this.index += 1
+      return
+    }
+    const found = this.eof() ? "el final del texto" : `«${this.current.raw}»`
+    throw new Error(`Se esperaba <- o = y se encontró ${found}.`)
   }
 
   private expect(canon: string, label: string) {

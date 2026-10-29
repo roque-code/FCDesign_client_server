@@ -230,7 +230,7 @@ FinAlgoritmo
 
 
 def test_un_error_no_genera_codigo() -> None:
-    result = translate_source("Algoritmo Roto\nFinAlgoritmo\nSi 1 = 1 Entonces\n")
+    result = translate_source("Algoritmo Roto\nFinAlgoritmo\nSi 1 == 1 Entonces\n")
     assert any(item.severity == "error" for item in result.diagnostics)
     assert result.translations == ()
 

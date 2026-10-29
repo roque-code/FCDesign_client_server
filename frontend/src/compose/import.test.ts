@@ -22,7 +22,7 @@ const MAYOR = `Algoritmo Mayor
     Si a > b Entonces
         Escribir a;
     Sino
-        Si a = b Entonces
+        Si a == b Entonces
             Escribir "iguales";
         Sino
             Escribir b;
@@ -147,7 +147,7 @@ FinAlgoritmo
     FinSegun
     Repetir
         Leer dato;
-    Hasta Que dato = 0;
+    Hasta Que dato == 0;
     Para i <- 0 Hasta 4 Con Paso 2 Hacer
         Escribir i;
     FinPara
@@ -157,7 +157,7 @@ FinAlgoritmo
     expect(source).toContain("Segun opcion Hacer")
     expect(source).toContain("2, 3:")
     expect(source).toContain('Escribir "otro";')
-    expect(source).toContain("Hasta Que dato = 0")
+    expect(source).toContain("Hasta Que dato == 0")
     expect(source).toContain("Para i <- 0 Hasta 4 Con Paso 2 Hacer")
   })
 

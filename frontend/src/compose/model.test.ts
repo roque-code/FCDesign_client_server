@@ -64,7 +64,7 @@ describe("pseudocódigo del diagrama", () => {
         Escribir "Le quedan ", intentos, " intentos.";
         Leer num_ingresado;
     FinMientras
-    Si num_secreto = num_ingresado Entonces
+    Si num_secreto == num_ingresado Entonces
         Escribir "Exacto! Usted adivino en ", 11 - intentos, " intentos.";
     Sino
         Escribir "El numero era ", num_secreto;

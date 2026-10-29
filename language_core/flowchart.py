@@ -46,7 +46,7 @@ _ATOM = 100
 _BINARY: dict[str, tuple[str, int, str]] = {
     "or": ("O", 20, "left"),
     "and": ("Y", 30, "left"),
-    "eq": ("=", 50, "none"),
+    "eq": ("==", 50, "none"),
     "neq": ("<>", 50, "none"),
     "lt": ("<", 50, "none"),
     "lte": ("<=", 50, "none"),

@@ -179,7 +179,7 @@ def check_condition(type_name: TypeName) -> TypeIssue | None:
         "error",
         "E0304",
         "La condición debe ser un valor lógico.",
-        "Compara con =, < o >, o usa Verdadero y Falso.",
+        "Compara con ==, < o >, o usa Verdadero y Falso.",
     )
 
 
@@ -243,7 +243,7 @@ def _comparison_type(
                 TypeIssue(
                     "warning",
                     "W0501",
-                    "Comparar reales con = puede fallar por el redondeo.",
+                    "Comparar reales con == puede fallar por el redondeo.",
                     "Si buscas un resultado aproximado, compara una diferencia pequeña.",
                 )
             )
@@ -257,7 +257,7 @@ def _comparison_type(
             "error",
             "E0306",
             "Estos valores no se pueden comparar entre sí.",
-            "Compara números con números, cadenas con cadenas o lógicos con = y <>.",
+            "Compara números con números, cadenas con cadenas o lógicos con == y <>.",
         ),
     )
 

@@ -22,7 +22,7 @@ from config.errors import DomainError
 from language_core.grammar import STRICT
 
 MISSING_END = """Algoritmo Roto
-    Si 1 = 1 Entonces
+    Si 1 == 1 Entonces
         Escribir "hola";
 FinAlgoritmo
 """

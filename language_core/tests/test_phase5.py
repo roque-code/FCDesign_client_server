@@ -55,19 +55,19 @@ def test_condicional_marca_la_linea_del_si_y_une_las_ramas() -> None:
 Algoritmo Demo
     Definir a Como Entero;
     a <- 1;
-    Si a = 1 Entonces
+    Si a == 1 Entonces
         Escribir a;
     Sino
         Escribir 0;
     FinSi
 FinAlgoritmo
 """)
-    decision = _node(graph, "a = 1")
+    decision = _node(graph, "a == 1")
     assert decision.kind == "decision"
     assert decision.figure == "decision"
     assert decision.span is not None
     assert decision.span.start_line == 5
-    assert _labels(graph, "a = 1") == {"Sí", "No"}
+    assert _labels(graph, "a == 1") == {"Sí", "No"}
     join = next(node for node in graph.nodes if node.kind == "join")
     targets = {
         edge.target
@@ -80,12 +80,12 @@ FinAlgoritmo
 def test_si_sin_sino_lleva_el_no_al_join() -> None:
     graph = _graph("""
 Algoritmo Demo
-    Si 1 = 1 Entonces
+    Si 1 == 1 Entonces
         Escribir 1;
     FinSi
 FinAlgoritmo
 """)
-    assert _labels(graph, "1 = 1") == {"Sí", "No"}
+    assert _labels(graph, "1 == 1") == {"Sí", "No"}
     no = next(edge for edge in graph.edges if edge.label == "No")
     assert next(node for node in graph.nodes if node.id == no.target).kind == "join"
 
@@ -115,10 +115,10 @@ Algoritmo Demo
     n <- 0;
     Repetir
         n <- n + 1;
-    Hasta Que n = 3
+    Hasta Que n == 3
 FinAlgoritmo
 """)
-    decision = _node(graph, "n = 3")
+    decision = _node(graph, "n == 3")
     body = _node(graph, "n <- n + 1")
     assert body.id < decision.id
     back = next(edge for edge in graph.edges if edge.source == decision.id and edge.label == "No")
@@ -268,19 +268,19 @@ def test_ciclos_vacios_siguen_teniendo_retorno() -> None:
     graph = _graph("""
 Algoritmo Demo
     Definir i Como Entero;
-    Mientras 1 = 0 Hacer
+    Mientras 1 == 0 Hacer
     FinMientras
     Repetir
-    Hasta Que 1 = 1
+    Hasta Que 1 == 1
     Para i <- 1 Hasta 1 Hacer
     FinPara
 FinAlgoritmo
 """)
-    while_node = _node(graph, "1 = 0")
+    while_node = _node(graph, "1 == 0")
     assert any(
         edge.source == while_node.id and edge.target == while_node.id for edge in graph.edges
     )
-    repeat = _node(graph, "1 = 1")
+    repeat = _node(graph, "1 == 1")
     assert any(
         edge.source == repeat.id and edge.target == repeat.id and edge.label == "No"
         for edge in graph.edges

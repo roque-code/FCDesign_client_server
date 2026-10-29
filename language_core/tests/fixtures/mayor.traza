@@ -5,7 +5,7 @@ Algoritmo Mayor
     Si a > b Entonces
         Escribir a;
     Sino
-        Si a = b Entonces
+        Si a == b Entonces
             Escribir "iguales";
         Sino
             Escribir b;

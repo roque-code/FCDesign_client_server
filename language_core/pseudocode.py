@@ -64,7 +64,7 @@ BINARY_SYMBOL: dict[str, str] = {
     "idiv": "DIV",
     "mod": "MOD",
     "pow": "^",
-    "eq": "=",
+    "eq": "==",
     "neq": "<>",
     "lt": "<",
     "lte": "<=",

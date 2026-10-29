@@ -510,20 +510,21 @@ class Parser:
             return CallStmt(call, call.span)
         target = self._finish_lvalue(name)
         if self._check(TokenKind.EQ):
-            if not self.profile.allow_equals_assignment:
-                self._error(
-                    "E0203",
-                    "El signo = compara. Para asignar se usa <-.",
-                    self._peek().span,
-                    "Cambia = por <-.",
-                )
+            self._error(
+                "E0203",
+                "El signo == compara. Para asignar se usa <- o =.",
+                self._peek().span,
+                "Cambia == por <- o =.",
+            )
             self._advance()
-        elif not self._match(TokenKind.ASSIGN):
+            self._expression()
+            return None
+        if not self._match(TokenKind.ASSIGN):
             self._error(
                 "E0201",
-                "Se esperaba <- para asignar, o ( para llamar.",
+                "Se esperaba <- o = para asignar, o ( para llamar.",
                 self._peek().span,
-                "Una asignación se escribe edad <- 18;",
+                "Una asignación se escribe edad <- 18; o edad = 18;",
             )
             return None
         value = self._expression()
@@ -711,6 +712,22 @@ class Parser:
         if left is None:
             return self._missing_expr(self._peek().span)
         while True:
+            if self._check(TokenKind.ASSIGN):
+                arrow = self._peek().lexeme == "<-"
+                self._error(
+                    "E0203",
+                    "El signo <- asigna y no va dentro de una expresión."
+                    if arrow
+                    else "El signo = asigna. Para comparar se usa ==.",
+                    self._peek().span,
+                    "Saca la asignación de la condición." if arrow else "Cambia = por ==.",
+                )
+                mark = self._advance()
+                right = self._expression(BP_REL)
+                left = BinaryExpr(
+                    "eq", left, right, merge_spans(left.span, right.span or mark.span)
+                )
+                break
             infix = self._infix()
             if infix is None:
                 break
@@ -890,24 +907,23 @@ class Parser:
         return LiteralExpr("logico", False, "?", span)
 
     def _expect_assign(self) -> None:
-        if self._check(TokenKind.EQ) and self.profile.allow_equals_assignment:
-            self._advance()
+        if self._match(TokenKind.ASSIGN):
             return
         if self._check(TokenKind.EQ):
             self._error(
                 "E0203",
-                "El signo = compara. Para asignar se usa <-.",
+                "El signo == compara. Para asignar se usa <- o =.",
                 self._peek().span,
-                "Cambia = por <-.",
+                "Cambia == por <- o =.",
             )
             self._advance()
             return
         if not self._match(TokenKind.ASSIGN):
             self._error(
                 "E0201",
-                "Se esperaba <-.",
+                "Se esperaba <- o =.",
                 self._peek().span,
-                "La asignación se escribe con <-.",
+                "La asignación se escribe con <- o =.",
             )
 
     def _expect_name(self, message: str) -> tuple[str | None, SourceSpan | None]:

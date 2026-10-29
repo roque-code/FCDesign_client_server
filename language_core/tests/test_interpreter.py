@@ -120,7 +120,7 @@ def test_if_while_repeat_and_for() -> None:
 Algoritmo P
     Definir n, i Como Entero;
     n <- 0;
-    Si n = 0 Entonces
+    Si n == 0 Entonces
         Escribir "cero";
     Sino
         Escribir "otro";
@@ -131,7 +131,7 @@ Algoritmo P
     Escribir n;
     Repetir
         n <- n + 1;
-    Hasta Que n = 4
+    Hasta Que n == 4
     Escribir n;
     Para i <- 1 Hasta 3 Hacer
         Escribir i;
@@ -380,3 +380,21 @@ Algoritmo P
 FinAlgoritmo
 """)
     assert result.output == "Falso\n"
+
+
+def test_equals_assigns_and_double_equals_compares() -> None:
+    result = run("""
+Algoritmo P
+    Definir n Como Entero;
+    n = 1;
+    n <- n + 1;
+    Si n == 2 Entonces
+        Escribir "si";
+    Sino
+        Escribir "no";
+    FinSi
+FinAlgoritmo
+""")
+    assert result.status == "completed"
+    assert result.diagnostics == ()
+    assert result.output == "si\n"

@@ -7,7 +7,7 @@ SOURCE = """
 Algoritmo Demo
     Definir a Como Entero;
     a <- 1;
-    Si a = 1 Entonces
+    Si a == 1 Entonces
         Escribir a;
     FinSi
 FinAlgoritmo
@@ -35,7 +35,7 @@ def test_flowchart_returns_the_graph_and_caches_it(client):
     assert "decision" in kinds
     assert "join" in kinds
     decision = next(node for node in body["graph"]["nodes"] if node["kind"] == "decision")
-    assert decision["text"] == "a = 1"
+    assert decision["text"] == "a == 1"
     assert decision["line"] == 5
     stored = Algorithm.objects.get(id=algorithm_id).flowchart
     assert stored["source_hash"]

@@ -657,7 +657,7 @@ export function defineTrazaBlocks(locale: Dialect = "es"): void {
           type: "field_dropdown",
           name: "OPERADOR",
           options: [
-            ["=", "eq"],
+            ["==", "eq"],
             ["<>", "neq"],
             ["<", "lt"],
             ["<=", "lte"],

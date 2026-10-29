@@ -29,7 +29,7 @@ FinAlgoritmo
 """
 
 BRANCH = """Algoritmo Demo
-    Si 1 = 1 Entonces
+    Si 1 == 1 Entonces
         Escribir "si";
     FinSi
 FinAlgoritmo

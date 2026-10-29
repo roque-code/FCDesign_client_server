@@ -743,7 +743,7 @@ class _Writer:
             self._fail(
                 "L0002",
                 "El operador de comparación no es válido.",
-                "Elige =, <>, <, <=, > o >=.",
+                "Elige ==, <>, <, <=, > o >=.",
             )
         left_block = _child(block, "IZQUIERDA")
         if left_block is not None and left_block.get("type") == "traza_relacional":

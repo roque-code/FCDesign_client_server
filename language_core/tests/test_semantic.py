@@ -47,7 +47,7 @@ Algoritmo X
     Definir r Como Real;
     Definir extra Como Entero;
     r <- 1.5;
-    Escribir r = 1.5;
+    Escribir r == 1.5;
 FinAlgoritmo
 """
     found = codes(source)
@@ -119,7 +119,7 @@ Algoritmo X
     Definir s Como Cadena;
     n <- 1;
     s <- "a";
-    Escribir n = s;
+    Escribir n == s;
 FinAlgoritmo
 """
     assert "E0306" in codes(source)

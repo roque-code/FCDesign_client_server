@@ -33,7 +33,7 @@ FinAlgoritmo
     Si a > b Entonces
         Escribir a;
     Sino
-        Si a = b Entonces
+        Si a == b Entonces
             Escribir "iguales";
         Sino
             Escribir b;
@@ -131,7 +131,7 @@ FinAlgoritmo
     Leer buscado;
     encontrado <- 0;
     Para i <- 1 Hasta 4 Hacer
-        Si datos[i] = buscado Entonces
+        Si datos[i] == buscado Entonces
             encontrado <- i;
         FinSi
     FinPara

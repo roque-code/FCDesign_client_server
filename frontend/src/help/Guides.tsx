@@ -30,7 +30,13 @@ const MANUALS: Record<"language" | "student" | "teacher", Manual> = {
 }
 
 const GROUPS: { title: MessageKey; items: { es: string; en: string; text: MessageKey }[] }[] = [
-  { title: "opGroupAssign", items: [{ es: "<-", en: "<-", text: "opAssign" }] },
+  {
+    title: "opGroupAssign",
+    items: [
+      { es: "<-", en: "<-", text: "opAssign" },
+      { es: "=", en: "=", text: "opAssign" },
+    ],
+  },
   {
     title: "opGroupMath",
     items: [
@@ -47,7 +53,7 @@ const GROUPS: { title: MessageKey; items: { es: string; en: string; text: Messag
   {
     title: "opGroupCompare",
     items: [
-      { es: "=", en: "=", text: "opEq" },
+      { es: "==", en: "==", text: "opEq" },
       { es: "<>", en: "<>", text: "opNotEq" },
       { es: "!=", en: "!=", text: "opNotEqAlt" },
       { es: "<", en: "<", text: "opLt" },

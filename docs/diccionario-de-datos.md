@@ -1,6 +1,6 @@
 # Diccionario de datos
 
-Fecha de referencia: 2026-10-27. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. Los niveles viven en `billing_plan` y `billing_subscription`. El cupo del día vive en `billing_dailyexecution`. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
+Fecha de referencia: 2026-10-28. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. Los niveles viven en `billing_plan` y `billing_subscription`. El cupo del día vive en `billing_dailyexecution`. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
 
 La base se llama `traza` y, con los contenedores levantados, escucha en `127.0.0.1:5434`. El usuario de desarrollo es `traza`. No es la base del contenedor anterior `traza-pg` del puerto `5433`.
 
@@ -349,6 +349,7 @@ No hay actividades ni entregas. Una comunidad solo agrupa cuentas que ya existen
 | `name` | `varchar(80)` | NO | Nombre visible |
 | `translation_enabled` | `boolean` | NO | Si los alumnos heredan la traducción de código. Nace en verdadero |
 | `paste_enabled` | `boolean` | NO | Si los alumnos heredan el permiso de pegar. Nace en verdadero |
+| `join_code` | `varchar(8)` | NO | Código único de 6 caracteres. `classroom.0004`. El alumno lo escribe en Unirme. Uno nuevo invalida el anterior |
 | `created_at` | `timestamptz` | NO | Alta |
 | `updated_at` | `timestamptz` | NO | Último cambio |
 
