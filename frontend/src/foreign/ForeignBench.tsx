@@ -23,6 +23,7 @@ import { pasteBlockedFor } from "../paste"
 import { saveDownload } from "../saveFile"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
+import { LeaveSubjectButton } from "../subjects/leave"
 import { runLanguageCases } from "./cases"
 import { ForeignEditor } from "./ForeignEditor"
 import { FOREIGN_LANGUAGES, LANGUAGE_LABELS, type ForeignLanguage } from "./keywords"
@@ -375,6 +376,7 @@ export function ForeignBench({
           <AccountIdentity account={account} onAccount={onAccount} />
         </div>
         <div className="actions">
+          <LeaveSubjectButton />
           <button className="top-leave" type="button" onClick={onBack}>
             {t("backToEditor")}
           </button>

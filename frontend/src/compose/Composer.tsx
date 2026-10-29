@@ -7,6 +7,7 @@ import { pasteBlockedFor, refusePaste } from "../paste"
 import { saveDownload } from "../saveFile"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
+import { LeaveSubjectButton } from "../subjects/leave"
 import { highlightSource } from "../editor/highlight"
 import { labelAnchor } from "../diagram/figures"
 import { ShapeGlyph, SwitchGlyph } from "../diagram/glyphs"
@@ -499,6 +500,7 @@ export function Composer({
           </label>
         </div>
         <div className="actions">
+          {embedded ? null : <LeaveSubjectButton />}
           {embedded ? null : (
             <button
               type="button"

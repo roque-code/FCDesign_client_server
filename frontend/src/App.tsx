@@ -11,6 +11,9 @@ import { inInstalledApp, installedLocal, launchSearch, rememberAccess } from "./
 import { AccountOnly } from "./shell/AccountOnly"
 import { LegalFooter } from "./shell/LegalFooter"
 import { Logo } from "./shell/Logo"
+import { openSubject, type SubjectId } from "./subjects/catalog"
+import { LeaveSubjectProvider } from "./subjects/leave"
+import { SubjectHome } from "./subjects/SubjectHome"
 import { CommunitiesPanel } from "./workbench/Communities"
 import { Workbench } from "./workbench/Workbench"
 
@@ -18,6 +21,8 @@ export function App() {
   const [account, setAccount] = useState<Account | null>(null)
   const [ready, setReady] = useState(false)
   const [screen, setScreen] = useState<"editor" | "lab" | "compose" | "nassi" | "languages" | "communities">("editor")
+  const [subject, setSubject] = useState<SubjectId | null>(null)
+  const [homeView, setHomeView] = useState<"pick" | "communities">("pick")
   const [diagramRequest, setDiagramRequest] = useState<DiagramRequest | null>(null)
   const [nassiRequest, setNassiRequest] = useState<DiagramRequest | null>(null)
   const [editorFocus, setEditorFocus] = useState<{ projectId: string; algorithmId: string; token: number } | null>(null)
@@ -43,6 +48,8 @@ export function App() {
       )
       setReady(true)
       setScreen("editor")
+      setSubject(null)
+      setHomeView("pick")
     }
     window.addEventListener("traza-session-end", onEnd)
     function onNotice(event: Event) {
@@ -118,6 +125,20 @@ export function App() {
   }, [account])
 
   useEffect(() => {
+    if (!account || account.role === "admin") return
+    if (!inInstalledApp() && !account.access?.browser_app) return
+    let ignore = false
+    void api.preferences().then((preference) => {
+      if (ignore) return
+      document.documentElement.dataset.theme = preference.theme === "dark" ? "dark" : "light"
+      applyLocale(preference.locale === "en" ? "en" : "es")
+    }).catch(() => undefined)
+    return () => {
+      ignore = true
+    }
+  }, [account?.id, account?.role, account?.access?.browser_app, applyLocale])
+
+  useEffect(() => {
     if (!account) return
     const timer = window.setInterval(() => {
       void api.presence().catch(() => undefined)
@@ -153,6 +174,20 @@ export function App() {
     setDiagramRequest(null)
     setNassiRequest(null)
     setEditorFocus(null)
+    setScreen("editor")
+    setSubject(null)
+    setHomeView("pick")
+  }
+
+  function leaveSubject() {
+    setSubject(null)
+    setHomeView("pick")
+    setScreen("editor")
+  }
+
+  function enterSubject(id: SubjectId) {
+    if (!openSubject(id) || id !== "fundamentos") return
+    setSubject("fundamentos")
     setScreen("editor")
   }
 
@@ -192,8 +227,25 @@ function openNassi(payload: { name?: string; source?: string; semicolons: boolea
     <AdminHome account={account} onAccount={holdAccount} onLogout={() => void logout()} />
   ) : !inInstalledApp() && !account.access?.browser_app ? (
     <AccountOnly account={account} onAccount={holdAccount} onLogout={() => void logout()} />
+  ) : subject !== "fundamentos" ? (
+    homeView === "communities" ? (
+      <CommunitiesPanel
+        account={account}
+        onAccount={holdAccount}
+        onBack={() => setHomeView("pick")}
+        backTo="subjects"
+      />
+    ) : (
+      <SubjectHome
+        account={account}
+        onAccount={holdAccount}
+        onLogout={() => void logout()}
+        onOpenCommunities={() => setHomeView("communities")}
+        onEnter={enterSubject}
+      />
+    )
   ) : (
-    <>
+    <LeaveSubjectProvider leave={leaveSubject}>
       <div className="screen-slot" hidden={screen !== "editor"}>
         <Workbench
           key={account.id}
@@ -224,7 +276,7 @@ function openNassi(payload: { name?: string; source?: string; semicolons: boolea
       <div className="screen-slot" hidden={screen !== "nassi"}>
         <Composer variant="ns" account={account} onAccount={holdAccount} active={screen === "nassi"} incoming={nassiRequest} onBack={backToEditor} onOpenInEditor={openInEditor} />
       </div>
-    </>
+    </LeaveSubjectProvider>
   )
   return (
     <LocaleProvider locale={locale}>

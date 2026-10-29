@@ -42,6 +42,7 @@ import {
 } from "../runtime"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
+import { LeaveSubjectButton } from "../subjects/leave"
 import { TranslateDialog } from "./TranslateDialog"
 import { stdlibHelp } from "./stdlibHelp"
 
@@ -1070,6 +1071,7 @@ export function Workbench({
           <AccountIdentity account={account} onAccount={onAccount} />
         </div>
         <div className="actions">
+          <LeaveSubjectButton />
           <button
             className="top-action"
             type="button"

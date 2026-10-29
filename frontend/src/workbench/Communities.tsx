@@ -4,6 +4,7 @@ import { api, ApiError, type Account, type Community, type CommunitySummary, typ
 import { translatedMessage, useT } from "../i18n"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
+import { LeaveSubjectButton } from "../subjects/leave"
 
 const PAGE = 15
 
@@ -20,10 +21,12 @@ export function CommunitiesPanel({
   account,
   onAccount,
   onBack,
+  backTo = "editor",
 }: {
   account: Account
   onAccount: (account: Account) => void
   onBack: () => void
+  backTo?: "editor" | "subjects"
 }) {
   const t = useT()
   const [communities, setCommunities] = useState<CommunitySummary[]>([])
@@ -203,8 +206,9 @@ export function CommunitiesPanel({
           <AccountIdentity account={account} onAccount={onAccount} />
         </div>
         <div className="actions">
+          <LeaveSubjectButton />
           <button className="top-leave" type="button" onClick={onBack}>
-            {t("backToEditor")}
+            {t(backTo === "subjects" ? "backToSubjects" : "backToEditor")}
           </button>
         </div>
       </header>

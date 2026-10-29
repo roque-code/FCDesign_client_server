@@ -5,6 +5,7 @@ import { pasteBlockedFor } from "../paste"
 import { useT } from "../i18n"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
+import { LeaveSubjectButton } from "../subjects/leave"
 import { BankView } from "./BankView"
 import { ChallengePlay } from "./ChallengePlay"
 import { PathHome } from "./PathHome"
@@ -39,6 +40,7 @@ export function LearningLab({
           <AccountIdentity account={account} onAccount={onAccount} />
         </div>
         <div className="actions">
+          <LeaveSubjectButton />
           <button
             className="top-action"
             type="button"

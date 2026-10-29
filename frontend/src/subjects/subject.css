@@ -1,0 +1,90 @@
+.subject-home {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 1.75rem 1.25rem 2.5rem;
+  background:
+    radial-gradient(ellipse 70% 42% at 50% -10%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 62%),
+    var(--paper);
+}
+
+.subject-home-inner {
+  width: min(52rem, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.subject-home h2 {
+  margin: 0.4rem 0 0;
+  font-size: 1.55rem;
+}
+
+.subject-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15.5rem, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.35rem;
+}
+
+button.subject-card,
+.subject-card {
+  display: grid;
+  gap: 0.4rem;
+  justify-items: start;
+  align-content: start;
+  width: 100%;
+  margin: 0;
+  padding: 1rem 1.05rem;
+  border-radius: 14px;
+  background: var(--sheet);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-weight: 500;
+  text-align: left;
+  box-shadow: none;
+}
+
+button.subject-card:hover {
+  background: var(--sheet);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+}
+
+.subject-card strong {
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+
+.subject-card span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.subject-card .subject-enter {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.subject-card-quiet {
+  background: var(--panel);
+  cursor: default;
+}
+
+.subject-shell .brand h1 { flex: none; }
+
+@media (max-width: 720px) {
+  .subject-shell {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: auto;
+  }
+
+  .subject-shell .topbar-editor { align-items: flex-start; }
+
+  .subject-shell .brand {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+  }
+}
