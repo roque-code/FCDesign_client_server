@@ -143,7 +143,7 @@ Se crea una versión al guardar de forma explícita, al restaurar una versión a
 | config | JSON validado por un esquema |
 | is_system | verdadero para los perfiles de fábrica; no se borran |
 
-El esquema de `config` repite las banderas de `LanguageProfile` del núcleo: `index_base`, `require_semicolons`, `require_declarations`, `implicit_widening`, `allow_equals_assignment`, `allow_globals`, `beginner_warnings`, `keyword_aliases`, límites de instrucciones, tiempo, profundidad, celdas y tamaño de salida.
+El esquema de `config` repite las banderas de `LanguageProfile` del núcleo: `index_base`, `require_semicolons`, `require_declarations`, `implicit_widening`, `allow_equals_assignment` (se guarda, y ya no decide el signo: `=` asigna en todos los perfiles), `allow_globals`, `beginner_warnings`, `keyword_aliases`, límites de instrucciones, tiempo, profundidad, celdas y tamaño de salida.
 
 ## 4. Ejecución
 

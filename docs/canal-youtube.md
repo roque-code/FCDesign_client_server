@@ -231,7 +231,7 @@ Uso. Algoritmo **Área de un triángulo**.
 > Pulsa **Ejecutar**. La consola escribe `Ingrese la base:` y se queda esperando.
 > Escribe `10` y pulsa **Enviar**. Ese dato ya fue aceptado y se ve en la consola.
 > Después pide la altura. Escribe `4` y **Enviar**.
-> La asignación usa `<-`. El área guarda la base por la altura, dividido entre dos.
+> La asignación usa `<-` o `=`. El área guarda la base por la altura, dividido entre dos.
 > La última línea de la consola es `El area es 20`.
 > Lo que `Escribir` produce y lo que un `Leer` acepta aparecen en orden. Si un dato no corresponde al tipo, no se pinta como valor aceptado.
 > Si el texto no cuadra, el siguiente video muestra dónde lo dice **Validar**.
@@ -257,7 +257,7 @@ Uso. Una copia de **Hola mundo**, o el mismo algoritmo con un error preparado: q
 
 Uso. Algoritmo **Número mayor**. Dos pasadas: `8` y `3`, luego `4` y `4`.
 
-**Énfasis.** El rombo. La rama verdadera sale por la derecha y la falsa por la izquierda. Cada llegada a otra figura entra por el centro del lado superior. En el texto, `Si`, `Entonces`, `Sino` y `FinSi`. Decir que `=` compara y `<-` asigna, señalando `a = b`.
+**Énfasis.** El rombo. La rama verdadera sale por la derecha y la falsa por la izquierda. Cada llegada a otra figura entra por el centro del lado superior. En el texto, `Si`, `Entonces`, `Sino` y `FinSi`. Decir que `==` compara y que `<-` o `=` asignan, señalando `a == b`.
 
 **Guion.**
 
@@ -266,7 +266,7 @@ Uso. Algoritmo **Número mayor**. Dos pasadas: `8` y `3`, luego `4` y `4`.
 > En el diagrama, el rombo es el `Si`. La condición verdadera sigue por la derecha. La falsa, por la izquierda.
 > Hay un `Si` dentro del `Sino`: si no es mayor, pregunta si son iguales.
 > Segunda pasada. **Ejecutar**, envía `4` y `4`. La consola escribe `iguales`.
-> En el texto, `=` compara. No asigna. Asignar es `<-`.
+> En el texto, `==` compara. No asigna. Asignar es `<-` o `=`.
 > `FinSi` cierra cada decisión. **Validar** avisa si falta.
 > Cuando la misma acción se repite, el ciclo es **Para**.
 
@@ -441,7 +441,7 @@ Uso. **Laboratorio**, ruta **Fundamentos**. Un reto corto de cada tipo, o los cu
 
 Uso. **Configuración**, **Manuales**, **Funciones** y **Operadores**. Volver a español antes de cortar, si se mostró el inglés.
 
-**Énfasis.** El cambio de idioma en las palabras del editor y en una figura del diagrama, con un algoritmo ya guardado que no se reescribe. **Manual del lenguaje** y **Manual del alumno**, abiertos dentro de la aplicación, y **Descargar PDF**. En **Operadores**, `<-` aparte de `=`, y el orden `^`, luego `* / DIV MOD`, luego `+` y `-`.
+**Énfasis.** El cambio de idioma en las palabras del editor y en una figura del diagrama, con un algoritmo ya guardado que no se reescribe. **Manual del lenguaje** y **Manual del alumno**, abiertos dentro de la aplicación, y **Descargar PDF**. En **Operadores**, `<-` y `=` juntos en asignación, `==` en comparación, y el orden `^`, luego `* / DIV MOD`, luego `+` y `-`.
 
 **Guion.**
 
@@ -451,7 +451,7 @@ Uso. **Configuración**, **Manuales**, **Funciones** y **Operadores**. Volver a 
 > Un algoritmo que ya estaba guardado no se reescribe: se muestra en la grafía elegida y, al guardar, conserva la que tenía. Uno nuevo, con el idioma en inglés, se guarda con las palabras en inglés.
 > **Manuales** abre el PDF aquí mismo. El alumno ve el manual del lenguaje y el del alumno. **Descargar PDF** lo guarda. En la aplicación de escritorio, descargar abre el diálogo del sistema.
 > **Funciones** lista la biblioteca. Se usan en una expresión.
-> **Operadores** explica cada símbolo. `<-` asigna y no va dentro de una expresión. `=` compara. `^` liga más fuerte que la multiplicación, y esa más fuerte que la suma.
+> **Operadores** explica cada símbolo. `<-` y `=` asignan y no van dentro de una expresión. `==` compara. `^` liga más fuerte que la multiplicación, y esa más fuerte que la suma.
 > Con esto se cierra la serie de quien aprende. La siguiente es para quien da la clase.
 
 ### 20. Una comunidad con cuentas ya registradas

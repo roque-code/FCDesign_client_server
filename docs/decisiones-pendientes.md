@@ -110,7 +110,7 @@ Recomendación: sin Celery. Redis como bus. El navegador recibe eventos por SSE 
 
 - El núcleo no importa Django.
 - No hay `eval` ni `exec`.
-- `<-` asigna y `=` compara, en el perfil estricto.
+- `<-` y `=` asignan. `==` compara. El perfil no cambia ese signo.
 - El ámbito es el de la subrutina, no el del bloque, y no hay globales.
 - Hay un solo `Algoritmo` por archivo. Las subrutinas van fuera, antes o después.
 - El proceso web de producción no interpreta código de usuarios. En los contenedores de desarrollo tampoco: lo hace el runner. En la máquina, sin compose, el editor sí ejecuta dentro de Django, con límites, y la pantalla lo dice. `config.settings.production` sigue sin cargarse.

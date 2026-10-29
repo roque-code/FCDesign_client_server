@@ -103,7 +103,7 @@ BlockBinding
 
 Ese índice vive en la foto del workspace, no en el árbol. Si mañana cambian los bloques, el AST no migra.
 
-Perfil del laboratorio: estricto, punto y coma obligatorio, índices desde 1, declaración obligatoria, `<-` asigna y `=` compara. Esas banderas ya existen. El laboratorio no ofrece el menú de punto y coma ni de base de índices del editor.
+Perfil del laboratorio: estricto, punto y coma obligatorio, índices desde 1 y declaración obligatoria. `<-` y `=` asignan. `==` compara. El laboratorio no ofrece el menú de punto y coma ni de base de índices del editor.
 
 ## 6. Estrategia de transformación
 

@@ -16,4 +16,4 @@ El tipo Real y las reglas de asignación definen el comportamiento que verá el 
 
 ## Consecuencias
 
-La salida de los decimales es predecible. `Sen`, `Cos` y `Tan` existen y reciben el ángulo en radianes. Un perfil flexible puede relajar banderas sin otra gramática. Cada algoritmo puede, además, guardar si el punto y coma es obligatorio y si la base de los índices es 1 o 0.
+La salida de los decimales es predecible. `Sen`, `Cos` y `Tan` existen y reciben el ángulo en radianes. Un perfil flexible puede relajar banderas sin otra gramática. Cada algoritmo puede, además, guardar si el punto y coma es obligatorio y si la base de los índices es 1 o 0. Después, `=` también asigna y la igualdad se escribe `==`, en todos los perfiles.

@@ -64,7 +64,7 @@ En la máquina, sin este compose, no hay runner ni Mailpit. Django ejecuta el in
 2. El pseudocódigo se ejecuta recorriendo un AST. No se usa `eval` ni `exec`. Traducir a otro lenguaje emite un programa y no lo corre.
 3. El texto del estudiante se conserva. Las palabras clave se reconocen sin importar mayúsculas ni acentos, y también en su grafía inglesa. El canónico interno sigue en español. Los identificadores sí distinguen acentos. Cambiar el idioma de la cuenta no reescribe un fuente ya guardado.
 4. El perfil estricto es el predeterminado.
-5. La asignación se escribe `<-`. El signo `=` compara.
+5. La asignación se escribe `<-` o `=`. La igualdad se escribe `==`. Ninguno de los dos signos de asignación va dentro de una expresión.
 6. Cada error lleva código estable, severidad, posición, fragmento y, cuando se puede, una sugerencia.
 7. En los contenedores y en la configuración de producción el proceso web no interpreta código de usuarios. Lo hace `runner`.
 8. El laboratorio y el editor comparten el mismo AST, el mismo intérprete y el mismo sobre de eventos. Blockly no ejecuta.
@@ -356,7 +356,7 @@ En el banco de trabajo, **Repaso** abre los proyectos de un alumno de sus comuni
 
 El perfil viaja como dato. `grammar.py` publica palabras, operadores y opciones. El lexer, la semántica, el intérprete y el editor leen esa tabla.
 
-El perfil estricto, por defecto, usa índices desde 1, punto y coma en las sentencias simples, declaración obligatoria, ensanche solo de Entero hacia Real, `<-` para asignar, sin globales dentro de las subrutinas, y un escalar que se lee solo después de asignarlo.
+El perfil estricto, por defecto, usa índices desde 1, punto y coma en las sentencias simples, declaración obligatoria, ensanche solo de Entero hacia Real, sin globales dentro de las subrutinas, y un escalar que se lee solo después de asignarlo. `<-` y `=` asignan en todos los perfiles. `==` compara. La bandera `allow_equals_assignment` se conserva en el perfil guardado y ya no cambia el análisis. `learning.0019` pasó a `==` el `=` suelto de los algoritmos y retos ya guardados, para que esa comparación siguiera comparando. `<-`, `<=`, `>=`, `!=`, `<>` y `==` no se tocaron. El diagrama dibuja la asignación con `<-` y la igualdad con `==`. El texto del editor no se reescribe por abrirlo.
 
 Cada algoritmo guarda `language_options`. Vacío significa usar el perfil. Hoy persisten `require_semicolons` e `index_base` (`1` o `0`). Cambiarlas revalida el fuente y cambia la ejecución, el depurador y el diagrama. **Configuración** las edita para el algoritmo abierto. El laboratorio no ofrece ese menú: trabaja con el perfil estricto.
 
@@ -482,7 +482,7 @@ La ventana tiene proyectos a la izquierda, el editor y la consola en el centro, 
 - **Repaso** abre, en solo lectura, los proyectos de un alumno de las comunidades del docente.
 - **Actualizar** vuelve a cargar proyectos, algoritmos y comunidades desde el servidor.
 - **Funciones** lista la biblioteca.
-- **Operadores** abre asignación, aritmética, comparación, lógica y paréntesis, con el orden de ligadura. No cambia el fuente.
+- **Operadores** abre asignación, aritmética, comparación, lógica y paréntesis, con el orden de ligadura. `<-` y `=` quedan en asignación. `==` queda en comparación. No cambia el fuente.
 - **Manuales** abre el PDF del lenguaje y el del alumno dentro de la aplicación. El docente ve además el suyo. **Ver** lo muestra en la ventana. **Descargar PDF** lo guarda. Los archivos salen de `docs/` y el cliente los publica en `/manuals/`.
 - **Configuración** reúne idioma, cuerpo, tema, punto y coma y base de índices. El idioma es de la cuenta. El punto y coma y la base de índices, del algoritmo abierto.
 - Cada proyecto y cada algoritmo se renombra, se descarga como `{nombre}.txt` y el algoritmo se puede eliminar.

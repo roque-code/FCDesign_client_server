@@ -130,7 +130,7 @@ export function GuideButtons({ role }: { role: AccountRole }) {
                 <h3>{t(group.title)}</h3>
                 <ul>
                   {group.items.map((item) => (
-                    <li key={item.text}>
+                    <li key={`${item.es}-${item.text}`}>
                       <code>{locale === "en" ? item.en : item.es}</code>
                       <p>{t(item.text)}</p>
                     </li>

@@ -133,7 +133,7 @@ algoritmo = "Algoritmo" , identificador , bloque , "FinAlgoritmo" ;
 
 subrutina = funcion | procedimiento ;
 
-funcion = "Funcion" , identificador , "<-" , identificador ,
+funcion = "Funcion" , identificador , ( "<-" | "=" ) , identificador ,
           "(" , [ parametros ] , ")" , bloque , "FinFuncion" ;
 
 procedimiento = "SubProceso" , identificador ,
@@ -166,7 +166,7 @@ dimension = "Dimension" , decl_dim , { "," , decl_dim } ;
 decl_dim  = identificador , "[" , expresion , { "," , expresion } , "]" ,
             [ "Como" , tipo ] ;
 
-asignacion = destino , "<-" , expresion ;
+asignacion = destino , ( "<-" | "=" ) , expresion ;
 destino    = identificador , [ "[" , expresion , { "," , expresion } , "]" ] ;
 
 leer     = "Leer" , destino , { "," , destino } ;
@@ -186,7 +186,7 @@ caso  = expresion , { "," , expresion } , ":" , bloque ;
 
 mientras = "Mientras" , expresion , "Hacer" , bloque , "FinMientras" ;
 repetir  = "Repetir" , bloque , "Hasta" , "Que" , expresion ;
-para     = "Para" , identificador , "<-" , expresion , "Hasta" , expresion ,
+para     = "Para" , identificador , ( "<-" | "=" ) , expresion , "Hasta" , expresion ,
            [ "Con" , "Paso" , expresion ] , "Hacer" , bloque , "FinPara" ;
 
 expresion  = disyuncion ;
@@ -194,7 +194,7 @@ disyuncion = conjuncion , { "O" , conjuncion } ;
 conjuncion = negacion , { "Y" , negacion } ;
 negacion   = { "NO" } , comparacion ;
 comparacion = suma , [ relacional , suma ] ;
-relacional = "=" | "<>" | "!=" | "<" | "<=" | ">" | ">=" ;
+relacional = "==" | "<>" | "!=" | "<" | "<=" | ">" | ">=" ;
 suma       = termino , { ( "+" | "-" ) , termino } ;
 termino    = unario_o_potencia , { ( "*" | "/" | "DIV" | "MOD" | "%" ) , unario_o_potencia } ;
 primario   = literal | destino | llamada | "(" , expresion , ")" ;
@@ -209,15 +209,16 @@ Un `Sino` seguido de `Si` es un condicional anidado. No hay palabra clave `SinoS
 
 - Hay exactamente un `Algoritmo`. Cero o más de uno es error semántico de programa, con el tramo del encabezado sobrante o del fin de archivo.
 - Las subrutinas están al nivel del archivo, nunca dentro de `Algoritmo` ni de otra subrutina.
-- El nombre que está a la izquierda de `<-` en `Funcion resultado <- Sumar(a, b)` es la variable de retorno. `Sumar` es el nombre invocable.
+- El nombre que está a la izquierda de `<-` o de `=` en `Funcion resultado <- Sumar(a, b)` es la variable de retorno. `Sumar` es el nombre invocable. `Funcion resultado = Sumar(a, b)` es la misma cabecera.
 - Si el modo del parámetro se omite, es `Por Valor`.
 - `Segun` no hace caída de un caso al siguiente. `2, 3:` es un solo caso con dos etiquetas.
 - `De Otro Modo` aparece como máximo una vez y al final.
 - Las etiquetas de `Segun` deben ser literales. Un número con signo cuenta: `-1` y `-2.5` se comparan como esos valores. Una cuenta, como `1 + 0`, sigue siendo error. El parser acepta la expresión para poder decir «la etiqueta debe ser un literal».
 - El punto y coma es opcional para el parser. En el perfil estricto, y en un algoritmo que no haya cambiado la opción, su ausencia en una sentencia simple es el error `E0210`. Un algoritmo puede guardar `require_semicolons` en falso: el punto y coma sigue siendo válido y deja de ser obligatorio.
 - `;;` y una sentencia vacía son `E0211`.
-- `=` no asigna en el perfil estricto. Si aparece donde iría `<-`, la sugerencia es usar `<-`.
-- Un perfil flexible puede tratar `=` como asignación solo en posición de sentencia. Dentro de una expresión, `=` sigue comparando.
+- `<-` y `=` asignan. Valen en una sentencia, en `Para` y en la cabecera de `Funcion`. Dentro de una expresión son `E0203`: hay que comparar con `==`, o sacar la asignación de la condición.
+- `==` compara. Si se escribe donde iría una asignación, el error `E0203` pide cambiarlo por `<-` o por `=`.
+- El perfil no cambia estos signos. `allow_equals_assignment` sigue en el perfil guardado y el parser no lo consulta. `learning.0019` cambió por `==` cada `=` suelto de los algoritmos y retos ya guardados. Así la comparación anterior sigue comparando. No altera `<-`, `<=`, `>=`, `!=`, `<>` ni un `==` que ya estuviera escrito.
 
 ## 5. Precedencia y asociatividad
 
@@ -230,7 +231,7 @@ De mayor a menor ligadura:
 | 3 | `+` y `-` unarios | — | el del operando |
 | 4 | `*`, `/`, `DIV`, `MOD`, `%` | izquierda | `/` es Real; `DIV` y `MOD` son Entero |
 | 5 | `+`, `-` binarios | izquierda | numérico, o error en estricto si hay cadenas |
-| 6 | `=`, `<>`, `!=`, `<`, `<=`, `>`, `>=` | no encadenan | Lógico |
+| 6 | `==`, `<>`, `!=`, `<`, `<=`, `>`, `>=` | no encadenan | Lógico |
 | 7 | `NO` | — | Lógico |
 | 8 | `Y` | izquierda | Lógico |
 | 9 | `O` | izquierda | Lógico |
@@ -245,7 +246,7 @@ Consecuencias:
 
 `!=` es sinónimo de `<>`. `%` es sinónimo de `MOD`.
 
-El botón **Operadores** del editor muestra esta lista y el mismo orden: `^`, luego `* / DIV MOD`, luego `+` y `-`, luego las comparaciones, y al final `NO`, `Y` y `O`. `<-` asigna y no va dentro de una expresión. Con el idioma en inglés, el panel escribe `Div`, `Mod`, `Not`, `And` y `Or`.
+El botón **Operadores** del editor abre asignación, aritmética, comparación, lógica y paréntesis. En asignación lista `<-` y `=`. En comparación, la igualdad es `==`. El orden de una expresión sigue esta tabla: `^`, luego `* / DIV MOD`, luego `+` y `-`, luego las comparaciones, y al final `NO`, `Y` y `O`. `<-` y `=` no van dentro de una expresión. Con el idioma en inglés, el panel escribe `Div`, `Mod`, `Not`, `And` y `Or`. Los signos no cambian.
 
 ## 6. Tipos
 
@@ -290,10 +291,10 @@ En el perfil estricto, un escalar no tiene valor hasta que se asigna. Leerlo ant
 - Aritmética: Entero y Real. Si uno es Real, el otro se ensancha.
 - `DIV` y `MOD`: ambos operandos Entero. El divisor cero es `E0402`.
 - División `/` con divisor cero: `E0402`.
-- `DIV` y `MOD` truncan hacia cero. `-7 DIV 2` es `-3`. `-7 MOD 2` es `-1`. Se cumple `a = (a DIV b) * b + (a MOD b)`.
+- `DIV` y `MOD` truncan hacia cero. `-7 DIV 2` es `-3`. `-7 MOD 2` es `-1`. Se cumple `a == (a DIV b) * b + (a MOD b)`.
 - `^`: si la base y el exponente son Entero y el exponente es mayor o igual que cero, el resultado es Entero. Si el exponente es negativo, el resultado es Real. `0^0` es `E0403`. Una base negativa elevada a un Real no entero es `E0403`.
-- Comparar números entre sí está permitido. Comparar cadenas es lexicográfico por punto de código. Comparar caracteres es por punto de código. Un Lógico solo admite `=` y `<>` frente a otro Lógico.
-- Comparar Real con `=` emite la advertencia `W0501`: la igualdad decimal puede fallar tras una división. No se bloquea la ejecución.
+- Comparar números entre sí está permitido. Comparar cadenas es lexicográfico por punto de código. Comparar caracteres es por punto de código. Un Lógico solo admite `==` y `<>` frente a otro Lógico.
+- Comparar Real con `==` emite la advertencia `W0501`: la igualdad decimal puede fallar tras una división. No se bloquea la ejecución.
 - `Y`, `O` y `NO` exigen Lógico. Se evalúan en cortocircuito: el operando que no hace falta no se ejecuta ni puede fallar.
 
 ### Arreglos
@@ -407,7 +408,7 @@ Familias:
 | Prefijo | Familia | Ejemplos |
 | --- | --- | --- |
 | E01 | Léxico | carácter extraño, cadena sin cerrar, comentario sin cerrar |
-| E02 | Sintaxis | falta `FinSi`, falta `FinMientras`, paréntesis o corchete abierto, `=` usado para asignar |
+| E02 | Sintaxis | falta `FinSi`, falta `FinMientras`, paréntesis o corchete abierto, `==` usado para asignar, `=` o `<-` dentro de una expresión |
 | E03 | Semántica | no declarada, declarada dos veces, tipo incompatible, función inexistente, aridad incorrecta, retorno ausente, código inalcanzable |
 | E04 | Ejecución | escalar sin valor, división entre cero, potencia inválida, índice fuera de rango, paso cero, entrada incompatible, límite de instrucciones, límite de profundidad |
 | W05 | Advertencias | igualdad de reales, `Para` que no entra, variable asignada y no usada |
