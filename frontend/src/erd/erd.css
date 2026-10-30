@@ -1,0 +1,385 @@
+.erd-shell {
+  background: var(--paper);
+  outline: none;
+}
+
+.erd-shell > .erd-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 19rem;
+}
+
+.erd-project {
+  display: flex;
+  flex: 1 1 18rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.erd-project input,
+.erd-project select {
+  width: 9.5rem;
+  max-width: 100%;
+  padding: 0.32rem 0.5rem;
+  border-radius: 8px;
+}
+
+.erd-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.86rem;
+}
+
+.erd-canvas-wrap {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--sheet);
+}
+
+.erd-canvas-host {
+  position: absolute;
+  inset: 0;
+}
+
+.erd-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  background: var(--sheet);
+  user-select: none;
+}
+
+.erd-canvas text { font-family: inherit; }
+
+.erd-canvas-wrap.is-move .erd-canvas { cursor: grab; }
+.erd-canvas-wrap.is-move .erd-node { cursor: grab; }
+.erd-canvas-wrap.is-link .erd-canvas,
+.erd-canvas-wrap.is-link .erd-node,
+.erd-canvas-wrap.is-link .erd-hit { cursor: crosshair; }
+.erd-canvas-wrap.is-panning .erd-canvas,
+.erd-canvas-wrap.is-panning .erd-node { cursor: grabbing; }
+
+.erd-zoom {
+  position: absolute;
+  z-index: 2;
+  top: 0.65rem;
+  left: 0.65rem;
+  display: flex;
+  gap: 0.3rem;
+}
+
+.erd-zoom button {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 8px;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--sheet) 90%, transparent);
+}
+
+.erd-status {
+  position: absolute;
+  z-index: 2;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.65rem;
+  margin: 0;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--sheet) 92%, transparent);
+  color: var(--muted);
+  font-size: 0.84rem;
+  pointer-events: none;
+}
+
+.erd-status.is-error { color: var(--danger); }
+
+.erd-palette {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+}
+
+.erd-palette-scroll {
+  min-height: 0;
+  overflow: auto;
+  padding: 0.8rem 0.75rem 0.4rem;
+  display: grid;
+  align-content: start;
+  gap: 0.9rem;
+}
+
+.erd-palette h2,
+.erd-inspector h2 {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.erd-palette .note {
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.erd-tools,
+.erd-figures {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.erd-palette button.erd-tool,
+.erd-palette button.erd-figure {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.28rem 0.45rem;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--sheet);
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-align: left;
+  box-shadow: none;
+}
+
+.erd-palette button.erd-figure { cursor: grab; touch-action: none; }
+
+.erd-palette button.erd-tool[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.erd-glyph,
+.erd-icon { display: block; flex: none; }
+
+.erd-icon { color: var(--ink); }
+
+.erd-icon rect,
+.erd-icon ellipse,
+.erd-icon line,
+.erd-icon polygon,
+.erd-icon path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.erd-icon .erd-icon-fill { fill: currentColor; stroke: none; }
+
+.erd-shape :is(rect, ellipse, polygon) {
+  fill: var(--erd-fill, var(--sheet));
+  stroke: var(--erd-stroke, var(--ink));
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+
+.erd-shape.entity {
+  --erd-stroke: #2563eb;
+  --erd-fill: color-mix(in srgb, #2563eb 9%, var(--sheet));
+}
+
+.erd-shape.relationship {
+  --erd-stroke: #dc2626;
+  --erd-fill: color-mix(in srgb, #dc2626 9%, var(--sheet));
+}
+
+.erd-shape.attribute,
+.erd-shape.isa {
+  --erd-stroke: var(--ink);
+  --erd-fill: var(--sheet);
+}
+
+.erd-shape.derived ellipse { stroke-dasharray: 5 3; }
+
+.erd-shape text {
+  fill: var(--ink);
+  stroke: none;
+  font-weight: 700;
+}
+
+:root[data-theme="dark"] .erd-shape.entity {
+  --erd-stroke: #93c5fd;
+  --erd-fill: color-mix(in srgb, #93c5fd 14%, var(--sheet));
+}
+
+:root[data-theme="dark"] .erd-shape.relationship {
+  --erd-stroke: #fca5a5;
+  --erd-fill: color-mix(in srgb, #fca5a5 12%, var(--sheet));
+}
+
+.erd-select {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.4;
+  stroke-dasharray: 5 4;
+  pointer-events: none;
+}
+
+.erd-node.is-pending .erd-select { stroke-dasharray: none; }
+
+.erd-label text { fill: var(--ink); }
+.erd-label line { stroke: var(--ink); stroke-width: 1.3; }
+
+.erd-link line:not(.erd-hit) {
+  stroke: var(--ink);
+  stroke-width: 1.7;
+  fill: none;
+}
+
+.erd-link.is-selected line:not(.erd-hit) { stroke: var(--accent); }
+
+.erd-arrow { fill: var(--ink); stroke: none; }
+.erd-link.is-selected .erd-arrow { fill: var(--accent); }
+
+.erd-link .erd-hit {
+  stroke: transparent;
+  stroke-width: 18;
+  fill: none;
+  pointer-events: stroke;
+  vector-effect: non-scaling-stroke;
+}
+
+.erd-line-delete { cursor: pointer; }
+.erd-line-delete circle { fill: var(--sheet); stroke: var(--danger); stroke-width: 1.5; }
+.erd-line-delete text { fill: var(--danger); font-weight: 700; pointer-events: none; }
+
+.erd-draft {
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  stroke-dasharray: 5 4;
+  fill: none;
+}
+
+.erd-tag rect { fill: var(--sheet); stroke: var(--line); stroke-width: 1; }
+.erd-tag text { fill: var(--ink); }
+.erd-role { fill: var(--muted); font-style: italic; pointer-events: none; }
+.erd-empty { fill: var(--muted); pointer-events: none; }
+
+.erd-inspector {
+  flex: none;
+  max-height: 48%;
+  overflow: auto;
+  padding: 0.75rem;
+  border-top: 1px solid var(--line);
+  background: var(--sheet);
+  display: grid;
+  align-content: start;
+  gap: 0.45rem;
+}
+
+.erd-inspector label {
+  display: grid;
+  gap: 0.22rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.erd-inspector input[type="text"],
+.erd-inspector select {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+}
+
+.erd-inspector .erd-check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--ink);
+  font-size: 0.88rem;
+}
+
+.erd-inspector .erd-check input { width: auto; }
+
+.erd-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.erd-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.erd-presets button {
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  color: var(--ink);
+}
+
+.erd-inspector .danger { justify-self: start; }
+
+.erd-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.erd-lines li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.erd-lines span {
+  min-width: 0;
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.erd-lines button {
+  flex: none;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+.erd-ghost {
+  position: fixed;
+  z-index: 30;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 8px 16px rgba(16, 24, 40, 0.18));
+}
+
+@media (max-width: 800px) {
+  .erd-shell > .erd-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(9.5rem, 36vh) minmax(0, 1fr);
+  }
+
+  .erd-palette {
+    order: -1;
+    border-left: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .erd-figures { grid-template-columns: 1fr 1fr; }
+}

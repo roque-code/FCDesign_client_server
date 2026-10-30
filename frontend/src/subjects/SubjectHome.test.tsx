@@ -52,11 +52,12 @@ function home(role: Account["role"], communities = false): string {
 }
 
 describe("pantalla de materias", () => {
-  it("solo abre Fundamentos", () => {
+  it("abre Fundamentos y Bases de datos", () => {
     expect(SUBJECTS.map((item) => item.id)).toEqual(["fundamentos", "bases", "objetos", "software"])
-    expect(SUBJECTS.filter((item) => item.open).map((item) => item.id)).toEqual(["fundamentos"])
+    expect(SUBJECTS.filter((item) => item.open).map((item) => item.id)).toEqual(["fundamentos", "bases"])
     expect(openSubject("fundamentos")?.id).toBe("fundamentos")
-    expect(openSubject("bases")).toBeNull()
+    expect(openSubject("bases")?.id).toBe("bases")
+    expect(openSubject("objetos")).toBeNull()
   })
 
   it("muestra la cuenta, la campana, los días de pago y el logo", () => {
@@ -69,10 +70,11 @@ describe("pantalla de materias", () => {
     expect(html).toContain("Elige una materia")
     expect(html).toContain("Fundamentos")
     expect(html).toContain("Bases de datos")
+    expect(html).toContain("notación de Chen")
     expect(html).toContain("Programación orientada a objetos")
     expect(html).toContain("Ingeniería de software")
     expect(html).toContain("Todavía no se abre.")
-    expect(html.match(/<button[^>]*class="subject-card"/g)?.length).toBe(1)
+    expect(html.match(/<button[^>]*class="subject-card"/g)?.length).toBe(2)
     expect(html).toContain("Unirme")
     expect(html).not.toContain(">Comunidades<")
     expect(html).not.toContain("Salir")

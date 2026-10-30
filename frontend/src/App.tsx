@@ -4,6 +4,7 @@ import { api, ApiError, asAccount, ensureCsrf, isAccount, type Account } from ".
 import { AuthScreen } from "./auth/AuthScreen"
 import { AdminHome } from "./admin/AdminHome"
 import { Composer, type DiagramRequest } from "./compose/Composer"
+import { ErStudio } from "./erd/ErStudio"
 import { LocaleProvider, readStoredLocale, storeLocale, translate, translatedMessage, type Locale } from "./i18n"
 import { ForeignBench } from "./foreign/ForeignBench"
 import { LearningLab } from "./learning/LearningLab"
@@ -186,8 +187,9 @@ export function App() {
   }
 
   function enterSubject(id: SubjectId) {
-    if (!openSubject(id) || id !== "fundamentos") return
-    setSubject("fundamentos")
+    if (!openSubject(id)) return
+    if (id !== "fundamentos" && id !== "bases") return
+    setSubject(id)
     setScreen("editor")
   }
 
@@ -227,6 +229,10 @@ function openNassi(payload: { name?: string; source?: string; semicolons: boolea
     <AdminHome account={account} onAccount={holdAccount} onLogout={() => void logout()} />
   ) : !inInstalledApp() && !account.access?.browser_app ? (
     <AccountOnly account={account} onAccount={holdAccount} onLogout={() => void logout()} />
+  ) : subject === "bases" ? (
+    <LeaveSubjectProvider leave={leaveSubject}>
+      <ErStudio account={account} onAccount={holdAccount} />
+    </LeaveSubjectProvider>
   ) : subject !== "fundamentos" ? (
     homeView === "communities" ? (
       <CommunitiesPanel

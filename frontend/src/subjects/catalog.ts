@@ -9,7 +9,7 @@ export type SubjectNameKey =
 export type SubjectSpec = {
   id: SubjectId
   nameKey: SubjectNameKey
-  noteKey?: "subjectFundamentosNote"
+  noteKey?: "subjectFundamentosNote" | "subjectBasesNote"
   open: boolean
 }
 
@@ -20,7 +20,7 @@ export const SUBJECTS: readonly SubjectSpec[] = [
     noteKey: "subjectFundamentosNote",
     open: true,
   },
-  { id: "bases", nameKey: "subjectBases", open: false },
+  { id: "bases", nameKey: "subjectBases", noteKey: "subjectBasesNote", open: true },
   { id: "objetos", nameKey: "subjectObjects", open: false },
   { id: "software", nameKey: "subjectSoftware", open: false },
 ]

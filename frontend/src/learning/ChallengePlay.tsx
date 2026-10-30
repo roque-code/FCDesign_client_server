@@ -18,6 +18,7 @@ import { FOREIGN_LANGUAGES, LANGUAGE_LABELS, type ForeignLanguage } from "../for
 import { keepTypedText, refusePaste } from "../paste"
 import { inInstalledApp, localImport } from "../runtime"
 import { BlockWorkspace } from "./BlockWorkspace"
+import { indentText } from "./indent"
 import { SolutionCard } from "./SolutionCard"
 import { formatClock, formatWhen, stagesFor, type StageName } from "./trace"
 
@@ -68,7 +69,6 @@ function AttemptHistory({ records }: { records: LabAttemptRecord[] }) {
 function messageOf(error: unknown, fallback: string): string {
   return error instanceof ApiError ? translatedMessage(error.message) : fallback
 }
-
 export function ChallengePlay({
   challengeId,
   pathId,
@@ -712,6 +712,14 @@ export function ChallengePlay({
                     rows={12}
                     onPaste={pasteBlocked ? refusePaste : undefined}
                     onDrop={pasteBlocked ? refusePaste : undefined}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Tab" || event.altKey || event.ctrlKey || event.metaKey) return
+                      event.preventDefault()
+                      const area = event.currentTarget
+                      const next = indentText(area.value, area.selectionStart, area.selectionEnd, event.shiftKey)
+                      setLangSource(next.value)
+                      window.requestAnimationFrame(() => area.setSelectionRange(next.start, next.end))
+                    }}
                     onChange={(event) =>
                       setLangSource((current) => (pasteBlocked ? keepTypedText(current, event.target.value) : event.target.value))
                     }
