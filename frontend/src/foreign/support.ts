@@ -3,6 +3,7 @@ import { EditorView } from "@codemirror/view"
 import { tags } from "@lezer/highlight"
 import type { Extension } from "@codemirror/state"
 
+import { foreignCompletion } from "./completion"
 import { nextIndent } from "./indent"
 import { hashComment, keywordsFor, type ForeignLanguage } from "./keywords"
 import { pullToken, type ScanMode } from "./scan"
@@ -33,6 +34,7 @@ export function foreignSupport(language: ForeignLanguage): Extension {
     languageData: {
       indentOnInput: /^\s*[}\])]$/u,
       commentTokens: language === "python" ? { line: "#" } : { line: "//", block: { open: "/*", close: "*/" } },
+      autocomplete: foreignCompletion(language),
     },
   })
   const indent = indentService.of((context, pos) => {

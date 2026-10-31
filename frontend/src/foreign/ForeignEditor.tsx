@@ -1,3 +1,4 @@
+import { acceptCompletion, hasNextSnippetField, hasPrevSnippetField, nextSnippetField, prevSnippetField } from "@codemirror/autocomplete"
 import { indentWithTab } from "@codemirror/commands"
 import { indentUnit } from "@codemirror/language"
 import { EditorState, Prec } from "@codemirror/state"
@@ -9,7 +10,22 @@ import { blockBulkPaste, trustedEdit } from "../editor/pasteGuard"
 import type { ForeignLanguage } from "./keywords"
 import { foreignSupport } from "./support"
 
-const tabIndent = Prec.highest(keymap.of([indentWithTab]))
+const tabIndent = Prec.highest(
+  keymap.of([
+    {
+      key: "Tab",
+      run: (view) => {
+        if (acceptCompletion(view)) return true
+        if (hasNextSnippetField(view.state)) return nextSnippetField(view)
+        return Boolean(indentWithTab.run?.(view))
+      },
+      shift: (view) => {
+        if (hasPrevSnippetField(view.state)) return prevSnippetField(view)
+        return Boolean(indentWithTab.shift?.(view))
+      },
+    },
+  ]),
+)
 
 export function ForeignEditor({
   language,

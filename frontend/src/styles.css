@@ -1417,6 +1417,13 @@ button.fold {
 .cm-snippetFieldPosition { border-left: 2px solid var(--accent); }
 .cm-tooltip.cm-tooltip-autocomplete > ul { max-height: 18rem; min-width: 16rem; }
 .cm-tooltip.cm-tooltip-autocomplete .cm-completionLabel { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; }
+.foreign-editor .cm-snippetField {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: 3px;
+}
+.cm-foreign-help { max-width: 26rem; display: grid; gap: 0.35rem; padding: 0.2rem 0.1rem; }
+.cm-foreign-help code { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 0.82rem; white-space: pre-wrap; }
+.cm-foreign-help p { margin: 0; font-size: 0.85rem; line-height: 1.35; }
 
 .debug-grid { display: grid; gap: 0.35rem; }
 .debug-grid h3 { margin: 0.2rem 0 0; font-size: 0.95rem; }
