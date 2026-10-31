@@ -14,11 +14,10 @@ import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
 import { Composer } from "../compose/Composer"
 import { CodeEditor } from "../editor/CodeEditor"
 import { runLanguageCases } from "../foreign/cases"
+import { ForeignEditor } from "../foreign/ForeignEditor"
 import { FOREIGN_LANGUAGES, LANGUAGE_LABELS, type ForeignLanguage } from "../foreign/keywords"
-import { keepTypedText, refusePaste } from "../paste"
 import { inInstalledApp, localImport } from "../runtime"
 import { BlockWorkspace } from "./BlockWorkspace"
-import { indentText } from "./indent"
 import { SolutionCard } from "./SolutionCard"
 import { formatClock, formatWhen, stagesFor, type StageName } from "./trace"
 
@@ -703,28 +702,16 @@ export function ChallengePlay({
                     ))}
                   </select>
                 </label>
-                <label>
-                  {t("languagePaste")}
-                  <textarea
-                    className="language-source"
-                    value={langSource}
-                    spellCheck={false}
-                    rows={12}
-                    onPaste={pasteBlocked ? refusePaste : undefined}
-                    onDrop={pasteBlocked ? refusePaste : undefined}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Tab" || event.altKey || event.ctrlKey || event.metaKey) return
-                      event.preventDefault()
-                      const area = event.currentTarget
-                      const next = indentText(area.value, area.selectionStart, area.selectionEnd, event.shiftKey)
-                      setLangSource(next.value)
-                      window.requestAnimationFrame(() => area.setSelectionRange(next.start, next.end))
-                    }}
-                    onChange={(event) =>
-                      setLangSource((current) => (pasteBlocked ? keepTypedText(current, event.target.value) : event.target.value))
-                    }
+                <div className="language-field">
+                  <span>{t("languagePaste")}</span>
+                  <ForeignEditor
+                    language={langId}
+                    source={langSource}
+                    onChange={setLangSource}
+                    pasteBlocked={pasteBlocked}
+                    label={t("languagePaste")}
                   />
-                </label>
+                </div>
                 {pasteBlocked ? <p className="note">{t("pasteBlockedNote")}</p> : null}
                 <button type="submit" className="primary" disabled={busy || langSource.trim() === ""}>
                   {t("prove")}

@@ -1,8 +1,9 @@
-import { HighlightStyle, StreamLanguage, syntaxHighlighting } from "@codemirror/language"
+import { HighlightStyle, StreamLanguage, getIndentUnit, indentService, syntaxHighlighting } from "@codemirror/language"
 import { EditorView } from "@codemirror/view"
 import { tags } from "@lezer/highlight"
 import type { Extension } from "@codemirror/state"
 
+import { nextIndent } from "./indent"
 import { hashComment, keywordsFor, type ForeignLanguage } from "./keywords"
 import { pullToken, type ScanMode } from "./scan"
 
@@ -29,9 +30,25 @@ export function foreignSupport(language: ForeignLanguage): Extension {
       state.mode = next.mode
       return next.kind
     },
+    languageData: {
+      indentOnInput: /^\s*[}\])]$/u,
+      commentTokens: language === "python" ? { line: "#" } : { line: "//", block: { open: "/*", close: "*/" } },
+    },
+  })
+  const indent = indentService.of((context, pos) => {
+    const current = context.lineAt(pos, 1)
+    let above = context.lineAt(pos, -1)
+    if (above.from === current.from) {
+      if (pos === 0) return 0
+      above = context.lineAt(pos - 1, -1)
+    }
+    while (above.text.trim() === "" && above.from > 0) above = context.lineAt(above.from - 1, -1)
+    const previous = above.text.trim() === "" ? null : above.text
+    return nextIndent(previous, current.text, language, context.state.tabSize, getIndentUnit(context.state))
   })
   return [
     mode,
+    indent,
     syntaxHighlighting(highlight),
     EditorView.theme({
       "&": { background: "var(--sheet)", color: "var(--ink)", height: "100%" },
