@@ -66,6 +66,8 @@ def main() -> None:
     )
     built = work / "dist" / f"traza-host{suffix}"
     target = BINARIES / f"traza-host-{name}{suffix}"
+    # macOS mata un ejecutable sobrescrito en el mismo archivo: la firma en caché ya no coincide.
+    target.unlink(missing_ok=True)
     shutil.copy2(built, target)
     target.chmod(0o755)
     print(target)

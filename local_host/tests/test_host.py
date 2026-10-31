@@ -9,7 +9,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
-from local_host.proxy import ApiProxy
+from local_host.proxy import ApiProxy, _stamp_origin
 from local_host.serve import LocalServer
 
 SOURCE = """Algoritmo Demo
@@ -198,3 +198,13 @@ def test_an_unsafe_call_fetches_csrf_when_the_jar_is_empty() -> None:
         assert csrf == "token-fijo"
     finally:
         httpd.shutdown()
+
+
+def test_el_proxy_dice_de_que_sitio_viene_la_escritura() -> None:
+    headers = {"referer": "tauri://localhost/", "Content-Type": "application/json"}
+    _stamp_origin(headers, "https://fcdesign.aulivana.com")
+    assert headers == {
+        "Content-Type": "application/json",
+        "Origin": "https://fcdesign.aulivana.com",
+        "Referer": "https://fcdesign.aulivana.com/",
+    }

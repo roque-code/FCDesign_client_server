@@ -12,6 +12,7 @@ import urllib.error
 import urllib.request
 
 from local_host.engine import HostError
+from local_host.foreign_run import ssl_context
 
 _HOP = frozenset(
     {
@@ -34,7 +35,10 @@ class ApiProxy:
     def __init__(self, origin: str) -> None:
         self.origin = origin.rstrip("/")
         self._jar = http.cookiejar.CookieJar()
-        self._opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self._jar))
+        self._opener = urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(self._jar),
+            urllib.request.HTTPSHandler(context=ssl_context()),
+        )
         self._lock = threading.Lock()
 
     def forward(
@@ -55,6 +59,7 @@ class ApiProxy:
         with self._lock:
             if chosen in _UNSAFE:
                 self._prime_csrf()
+                _stamp_origin(outbound, self.origin)
             _stamp_csrf(outbound, _csrf(self._jar))
             request = urllib.request.Request(
                 url, data=request_body, headers=outbound, method=chosen
@@ -82,6 +87,15 @@ class ApiProxy:
             exc.read()
         except (urllib.error.URLError, TimeoutError) as exc:
             raise HostError("No se alcanzó el servidor.", code="conflict", status=409) from exc
+
+
+def _stamp_origin(headers: dict[str, str], origin: str) -> None:
+    """Por HTTPS, Django rechaza una escritura que no diga de qué sitio viene."""
+    stale = [key for key in headers if key.lower() in {"origin", "referer"}]
+    for key in stale:
+        del headers[key]
+    headers["Origin"] = origin
+    headers["Referer"] = f"{origin}/"
 
 
 def _stamp_csrf(headers: dict[str, str], token: str) -> None:
