@@ -5,6 +5,65 @@ import { useT } from "../i18n"
 import { acknowledge, noticeDiff, type ChallengeNotice, type SeenMark } from "./challengeNotices"
 
 const STORAGE = "aulivana.challenge-notices."
+const EVERY = 60_000
+const FRESH = 10_000
+
+type Listener = (paths: LabPath[] | null) => void
+
+// Cada pantalla abierta monta su campana; todas comparten una sola consulta.
+const listeners = new Set<Listener>()
+let timer = 0
+let inflight: Promise<void> | null = null
+let pulledAt = 0
+let latest: LabPath[] | null = null
+let owner = 0
+
+function pull(force: boolean): void {
+  if (inflight || (!force && Date.now() - pulledAt < FRESH)) return
+  inflight = api
+    .labPaths()
+    .then(
+      (payload) => {
+        pulledAt = Date.now()
+        latest = payload.results
+        for (const listener of listeners) listener(payload.results)
+      },
+      () => {
+        for (const listener of listeners) listener(null)
+      },
+    )
+    .finally(() => {
+      inflight = null
+    })
+}
+
+function onFocus() {
+  if (document.visibilityState === "hidden") return
+  pull(false)
+}
+
+function subscribe(userId: number, listener: Listener): () => void {
+  if (owner !== userId) {
+    owner = userId
+    latest = null
+    pulledAt = 0
+  }
+  listeners.add(listener)
+  if (listeners.size === 1) {
+    timer = window.setInterval(() => pull(true), EVERY)
+    window.addEventListener("focus", onFocus)
+    document.addEventListener("visibilitychange", onFocus)
+  }
+  if (latest && Date.now() - pulledAt < FRESH) listener(latest)
+  pull(false)
+  return () => {
+    listeners.delete(listener)
+    if (listeners.size > 0) return
+    window.clearInterval(timer)
+    window.removeEventListener("focus", onFocus)
+    document.removeEventListener("visibilitychange", onFocus)
+  }
+}
 
 export function ChallengeBell({ userId }: { userId: number }) {
   const t = useT()
@@ -16,34 +75,17 @@ export function ChallengeBell({ userId }: { userId: number }) {
   const [notices, setNotices] = useState<ChallengeNotice[]>([])
 
   useEffect(() => {
-    let cancelled = false
-    async function refresh() {
-      try {
-        const payload = await api.labPaths()
-        if (cancelled) return
-        const result = noticeDiff(readSeen(userId), payload.results)
-        writeSeen(userId, result.seen)
-        seenRef.current = result.seen
-        pathsRef.current = payload.results
-        setNotices(result.notices)
-      } catch {
-        if (!cancelled) setNotices([])
+    return subscribe(userId, (paths) => {
+      if (paths === null) {
+        setNotices([])
+        return
       }
-    }
-    void refresh()
-    const timer = window.setInterval(() => void refresh(), 60_000)
-    const onFocus = () => {
-      if (document.visibilityState === "hidden") return
-      void refresh()
-    }
-    window.addEventListener("focus", onFocus)
-    document.addEventListener("visibilitychange", onFocus)
-    return () => {
-      cancelled = true
-      window.clearInterval(timer)
-      window.removeEventListener("focus", onFocus)
-      document.removeEventListener("visibilitychange", onFocus)
-    }
+      const result = noticeDiff(readSeen(userId), paths)
+      writeSeen(userId, result.seen)
+      seenRef.current = result.seen
+      pathsRef.current = paths
+      setNotices(result.notices)
+    })
   }, [userId])
 
   useEffect(() => {

@@ -40,7 +40,7 @@ fn server_fetch(
         return Err("La ruta no es de la API.".into());
     }
     let endpoint = format!("{}/local/v1/proxy", bridge.origin);
-    let response = ureq::post(&endpoint)
+    let sent = ureq::post(&endpoint)
         .set("Authorization", &format!("Bearer {}", bridge.token))
         .set("Content-Type", "application/json")
         .send_json(serde_json::json!({
@@ -48,9 +48,17 @@ fn server_fetch(
             "method": method,
             "body": body,
             "headers": headers,
-        }))
-        .map_err(|error| error.to_string())?;
-    response.into_json().map_err(|error| error.to_string())
+        }));
+    match sent {
+        Ok(response) => response.into_json().map_err(|error| error.to_string()),
+        // El intérprete local responde con error cuando no alcanza el servidor; su mensaje llega a la ventana.
+        Err(ureq::Error::Status(status, response)) => Ok(ProxyBody {
+            status,
+            body: response.into_string().unwrap_or_default(),
+            csrf: String::new(),
+        }),
+        Err(error) => Err(error.to_string()),
+    }
 }
 
 pub fn run() {
@@ -124,7 +132,10 @@ fn init_script(origin: &str, token: &str) -> String {
 
 fn start_host() -> Result<Bridge, String> {
     let token = random_token();
-    let api = std::env::var("TRAZA_API_ORIGIN").unwrap_or_else(|_| "http://3.17.151.210:18080".into());
+    let api = std::env::var("TRAZA_API_ORIGIN")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "https://fcdesign.aulivana.com".into());
     let mut command = host_command()?;
     if std::env::var("TRAZA_RUNTIME_MANIFEST")
         .ok()
