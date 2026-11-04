@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react"
 
-import { api, ApiError, type Account, type ChatGroupOption, type ChatMessage } from "../api"
+import { accessOf, api, ApiError, type Account, type ChatGroupOption, type ChatMessage } from "../api"
 import { translate, translatedMessage, useLocale, useT, type Locale } from "../i18n"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
-import { SUBJECTS, type SubjectId } from "../subjects/catalog"
+import { subjectsForMenu, type SubjectId } from "../subjects/catalog"
 
 function stamp(value: string, locale: Locale): string {
   const date = new Date(value)
@@ -33,7 +33,8 @@ export function ChatScreen({
 }) {
   const t = useT()
   const locale = useLocale()
-  const [subject, setSubject] = useState<SubjectId>("fundamentos")
+  const subjects = subjectsForMenu(accessOf(account).features, "chat")
+  const [subject, setSubject] = useState<SubjectId>(subjects[0]?.id ?? "fundamentos")
   const [groups, setGroups] = useState<ChatGroupOption[]>([])
   const [hours, setHours] = useState<number | null>(null)
   const [loaded, setLoaded] = useState(false)
@@ -49,6 +50,7 @@ export function ChatScreen({
   const stickRef = useRef(true)
 
   useEffect(() => {
+    if (subjects.length === 0) return
     let ignore = false
     async function load() {
       try {
@@ -74,7 +76,7 @@ export function ChatScreen({
       ignore = true
       window.clearInterval(timer)
     }
-  }, [subject, locale])
+  }, [subject, locale, subjects.length])
 
   useEffect(() => {
     if (!loaded) return
@@ -158,7 +160,7 @@ export function ChatScreen({
 
   const chosen = groups.find((item) => item.id === groupId) ?? null
   const person = chosen && target !== "group" ? chosen.people.find((item) => item.id === target) ?? null : null
-  const subjectName = t(SUBJECTS.find((item) => item.id === subject)?.nameKey ?? "subjectFundamentos")
+  const subjectName = t(subjects.find((item) => item.id === subject)?.nameKey ?? "subjectFundamentos")
   const destination = target === "group" ? t("chatWholeGroup") : person?.display_name ?? t("chatWholeGroup")
   const lifetime = hours == null ? "" : hours === 1 ? t("chatLifetimeOne") : t("chatLifetime", { hours })
 
@@ -230,8 +232,10 @@ export function ChatScreen({
           <p className="note">{t("chatLead")}</p>
           <label>
             {t("chatSubject")}
+            {subjects.length === 0 ? <p className="note">{t("subjectPlanLocked")}</p> : null}
             <select
               value={subject}
+              disabled={subjects.length === 0}
               onChange={(event) => {
                 setError("")
                 setQuery("")
@@ -244,7 +248,7 @@ export function ChatScreen({
                 setSubject(event.target.value as SubjectId)
               }}
             >
-              {SUBJECTS.map((item) => (
+              {subjects.map((item) => (
                 <option key={item.id} value={item.id}>
                   {t(item.nameKey)}
                 </option>

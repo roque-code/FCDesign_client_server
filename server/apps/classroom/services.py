@@ -150,6 +150,9 @@ def create_community(user: User, data: dict, ip_address: str | None) -> Communit
         raise DomainError("Llegaste al máximo de comunidades.")
     name = clean_label(data.get("name"), field="El nombre", limit=80, required=True)
     subject = community_subject(data.get("subject"), required=False)
+    from apps.billing.services import ensure_subject
+
+    ensure_subject(user, subject)
     if user.communities.filter(name=name, subject=subject).exists():
         raise DomainError("Ya tienes una comunidad con ese nombre.")
     community: Community | None = None
@@ -176,12 +179,21 @@ def create_community(user: User, data: dict, ip_address: str | None) -> Communit
     return community
 
 
-def set_community_subject(user: User, community_id, value: object, ip_address: str | None) -> Community:
+def set_community_subject(
+    user: User, community_id, value: object, ip_address: str | None
+) -> Community:
     community = get_community(user, community_id)
     subject = community_subject(value, required=True)
     if subject == community.subject:
         return community
-    if user.communities.filter(name=community.name, subject=subject).exclude(pk=community.pk).exists():
+    from apps.billing.services import ensure_subject
+
+    ensure_subject(user, subject)
+    if (
+        user.communities.filter(name=community.name, subject=subject)
+        .exclude(pk=community.pk)
+        .exists()
+    ):
         raise DomainError("Ya tienes una comunidad con ese nombre.")
     community.subject = subject
     community.save(update_fields=["subject", "updated_at"])

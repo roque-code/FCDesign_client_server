@@ -20,26 +20,41 @@ class Feature:
     key: str
     label: str
     audiences: frozenset[str]
+    group: str
+    subject: str
 
 
 FEATURES: tuple[Feature, ...] = (
-    Feature("editor", "Editor", BOTH),
-    Feature("diagram", "Ver diagrama", BOTH),
-    Feature("compose", "Armar diagrama", BOTH),
-    Feature("validate", "Validar", BOTH),
-    Feature("translate", "Traducir", BOTH),
-    Feature("languages", "Lenguajes", BOTH),
-    Feature("execute", "Ejecutar", BOTH),
-    Feature("debug", "Depurar", BOTH),
-    Feature("download", "Descargar código", BOTH),
-    Feature("paste", "Pegar", BOTH),
-    Feature("lab", "Laboratorio", BOTH),
-    Feature("lab_route", "Ruta", BOTH),
-    Feature("lab_practice", "Práctica libre", BOTH),
-    Feature("communities", "Comunidades", TEACHERS),
-    Feature("lab_bank", "Banco", TEACHERS),
-    Feature("lab_routes", "Rutas", TEACHERS),
-    Feature("lab_progress", "Avance", TEACHERS),
+    Feature("subject_fundamentos", "Fundamentos", BOTH, "subjects", "fundamentos"),
+    Feature("editor", "Editor", BOTH, "editor", "fundamentos"),
+    Feature("diagram", "Ver diagrama", BOTH, "editor", "fundamentos"),
+    Feature("compose", "Armar diagrama", BOTH, "editor", "fundamentos"),
+    Feature("nassi", "Diagrama Nassi-Shneiderman", BOTH, "editor", "fundamentos"),
+    Feature("validate", "Validar", BOTH, "editor", "fundamentos"),
+    Feature("translate", "Traducir", BOTH, "editor", "fundamentos"),
+    Feature("languages", "Lenguajes", BOTH, "editor", "fundamentos"),
+    Feature("execute", "Ejecutar", BOTH, "editor", "fundamentos"),
+    Feature("debug", "Depurar", BOTH, "editor", "fundamentos"),
+    Feature("download", "Descargar código", BOTH, "editor", "fundamentos"),
+    Feature("paste", "Pegar", BOTH, "editor", "fundamentos"),
+    Feature("lab", "Laboratorio", BOTH, "lab", "fundamentos"),
+    Feature("lab_route", "Ruta", BOTH, "lab", "fundamentos"),
+    Feature("lab_practice", "Práctica libre", BOTH, "lab", "fundamentos"),
+    Feature("lab_bank", "Banco", TEACHERS, "lab", "fundamentos"),
+    Feature("lab_routes", "Rutas", TEACHERS, "lab", "fundamentos"),
+    Feature("lab_progress", "Avance", TEACHERS, "lab", "fundamentos"),
+    Feature("subject_bases", "Bases de datos", BOTH, "subjects", "bases"),
+    Feature("subject_objetos", "Programación orientada a objetos", BOTH, "subjects", "objetos"),
+    Feature("subject_software", "Ingeniería de software", BOTH, "subjects", "software"),
+    Feature("exams_fundamentos", "Exámenes", BOTH, "menus", "fundamentos"),
+    Feature("chat_fundamentos", "Mensajes", BOTH, "menus", "fundamentos"),
+    Feature("exams_bases", "Exámenes", BOTH, "menus", "bases"),
+    Feature("chat_bases", "Mensajes", BOTH, "menus", "bases"),
+    Feature("exams_objetos", "Exámenes", BOTH, "menus", "objetos"),
+    Feature("chat_objetos", "Mensajes", BOTH, "menus", "objetos"),
+    Feature("exams_software", "Exámenes", BOTH, "menus", "software"),
+    Feature("chat_software", "Mensajes", BOTH, "menus", "software"),
+    Feature("communities", "Comunidades", TEACHERS, "classroom", "shared"),
 )
 
 _BY_KEY = {item.key: item for item in FEATURES}

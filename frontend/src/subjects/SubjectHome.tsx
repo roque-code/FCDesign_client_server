@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react"
 
 import { accessOf, api, ApiError, type Account } from "../api"
+import { examNotices } from "../exams/api"
 import { translatedMessage, useT } from "../i18n"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
-import { SUBJECTS, type SubjectId } from "./catalog"
+import { menuOn, SUBJECTS, type SubjectId } from "./catalog"
 import "./subject.css"
 
 export function SubjectHome({
@@ -12,12 +13,14 @@ export function SubjectHome({
   onAccount,
   onOpenCommunities,
   onOpenChat,
+  onOpenExams,
   onEnter,
 }: {
   account: Account
   onAccount: (account: Account) => void
   onOpenCommunities: () => void
   onOpenChat: () => void
+  onOpenExams: () => void
   onEnter: (id: SubjectId) => void
 }) {
   const t = useT()
@@ -27,8 +30,24 @@ export function SubjectHome({
   const [joinCode, setJoinCode] = useState("")
   const [joinError, setJoinError] = useState("")
   const [joinMessage, setJoinMessage] = useState("")
+  const [examUnread, setExamUnread] = useState(0)
   const canJoin = account.role === "student" || account.role === "teacher"
   const canManage = account.role === "teacher" && access.features.communities === true
+  const canExams = canJoin && menuOn(access.features, "exams")
+  const canChat = canJoin && menuOn(access.features, "chat")
+
+  useEffect(() => {
+    if (!canExams) return
+    let alive = true
+    void examNotices()
+      .then((page) => {
+        if (alive) setExamUnread(page.unread)
+      })
+      .catch(() => undefined)
+    return () => {
+      alive = false
+    }
+  }, [account.id, canExams])
 
   useEffect(() => {
     if (!joinOpen) return
@@ -57,6 +76,11 @@ export function SubjectHome({
           <AccountIdentity account={account} onAccount={onAccount} stats="days" />
         </div>
         <div className="actions">
+          {canExams ? (
+            <button className="top-action" type="button" onClick={onOpenExams}>
+              {examUnread > 0 ? t("examsWithCount", { count: examUnread }) : t("exams")}
+            </button>
+          ) : null}
           {canJoin ? (
             <div className="functions" ref={joinRef}>
               <button
@@ -113,7 +137,7 @@ export function SubjectHome({
               ) : null}
             </div>
           ) : null}
-          {canJoin ? (
+          {canChat ? (
             <button className="top-action" type="button" onClick={onOpenChat}>
               {t("chat")}
             </button>
@@ -130,20 +154,24 @@ export function SubjectHome({
           <h2>{t("subjectsTitle")}</h2>
           <p className="note">{t("subjectsLead")}</p>
           <div className="subject-grid">
-            {SUBJECTS.map((item) =>
-              item.open ? (
-                <button key={item.id} className="subject-card" type="button" onClick={() => onEnter(item.id)}>
-                  <strong>{t(item.nameKey)}</strong>
-                  {item.noteKey ? <span>{t(item.noteKey)}</span> : null}
-                  <span className="subject-enter">{t("subjectEnter")}</span>
-                </button>
-              ) : (
+            {SUBJECTS.map((item) => {
+              const allowed = access.features[`subject_${item.id}`] === true
+              if (allowed && item.open) {
+                return (
+                  <button key={item.id} className="subject-card" type="button" onClick={() => onEnter(item.id)}>
+                    <strong>{t(item.nameKey)}</strong>
+                    {item.noteKey ? <span>{t(item.noteKey)}</span> : null}
+                    <span className="subject-enter">{t("subjectEnter")}</span>
+                  </button>
+                )
+              }
+              return (
                 <article key={item.id} className="subject-card subject-card-quiet">
                   <strong>{t(item.nameKey)}</strong>
-                  <span>{t("subjectClosed")}</span>
+                  <span>{allowed ? t("subjectClosed") : t("subjectPlanLocked")}</span>
                 </article>
-              ),
-            )}
+              )
+            })}
           </div>
           <p className="note">{t("subjectsAside")}</p>
         </div>

@@ -39,6 +39,19 @@ _FREE_STUDENT = {
     "lab": True,
     "lab_route": True,
     "lab_practice": True,
+    "subject_fundamentos": True,
+    "subject_bases": True,
+    "subject_objetos": False,
+    "subject_software": False,
+    "exams_fundamentos": True,
+    "chat_fundamentos": True,
+    "exams_bases": True,
+    "chat_bases": True,
+    "exams_objetos": True,
+    "chat_objetos": True,
+    "exams_software": True,
+    "chat_software": True,
+    "nassi": False,
 }
 _FREE_TEACHER = {
     "editor": True,
@@ -58,11 +71,28 @@ _FREE_TEACHER = {
     "lab_bank": False,
     "lab_routes": False,
     "lab_progress": True,
+    "subject_fundamentos": True,
+    "subject_bases": True,
+    "subject_objetos": False,
+    "subject_software": False,
+    "exams_fundamentos": True,
+    "chat_fundamentos": True,
+    "exams_bases": True,
+    "chat_bases": True,
+    "exams_objetos": True,
+    "chat_objetos": True,
+    "exams_software": True,
+    "chat_software": True,
+    "nassi": False,
 }
 _PREMIUM_STUDENT = {key: True for key in _FREE_STUDENT}
 _PREMIUM_STUDENT["languages"] = False
+_PREMIUM_STUDENT["subject_objetos"] = False
+_PREMIUM_STUDENT["subject_software"] = False
 _PREMIUM_TEACHER = {key: True for key in _FREE_TEACHER}
 _PREMIUM_TEACHER["languages"] = False
+_PREMIUM_TEACHER["subject_objetos"] = False
+_PREMIUM_TEACHER["subject_software"] = False
 
 
 def seed_definitions() -> list[dict[str, Any]]:
@@ -295,6 +325,41 @@ def allows(user: User, *keys: str) -> bool:
     return any(features.get(key) is True for key in keys)
 
 
+_SUBJECT_FEATURE = {
+    "fundamentos": "subject_fundamentos",
+    "bases": "subject_bases",
+    "objetos": "subject_objetos",
+    "software": "subject_software",
+}
+
+
+def ensure_subject(user: User, subject: str) -> None:
+    key = _SUBJECT_FEATURE.get(subject)
+    if key is None or allows(user, key):
+        return
+    raise DomainError(
+        "Tu nivel no incluye esta materia.",
+        code="plan_forbidden",
+        status_code=403,
+    )
+
+
+def menu_subjects(user: User, kind: str) -> list[str]:
+    features = account_access(user)["access"]["features"]
+    assert isinstance(features, dict)
+    return [subject for subject in _SUBJECT_FEATURE if features.get(f"{kind}_{subject}") is True]
+
+
+def ensure_menu(user: User, kind: str, subject: str) -> None:
+    if subject in menu_subjects(user, kind):
+        return
+    raise DomainError(
+        "Tu nivel no incluye esta función.",
+        code="plan_forbidden",
+        status_code=403,
+    )
+
+
 def ensure_quota(user: User, kind: str) -> None:
     if user.profile.role == Profile.ADMIN:
         raise DomainError("Esta cuenta administra los niveles.", status_code=403)
@@ -336,7 +401,11 @@ def consume_execution(user: User) -> dict[str, int | None]:
         row.count += 1
         row.save(update_fields=["count"])
     remaining = None if limit is None else max(0, int(limit) - int(row.count))
-    return {"limit": None if limit is None else int(limit), "used": row.count, "remaining": remaining}
+    return {
+        "limit": None if limit is None else int(limit),
+        "used": row.count,
+        "remaining": remaining,
+    }
 
 
 def gate_request(request) -> None:
@@ -388,6 +457,10 @@ def _feature_for(path: str) -> tuple[str, ...] | None:
         return ("execute", "languages")
     if "/execute/" in path:
         return ("execute",)
+    if path.startswith("/api/v1/exams"):
+        return tuple(f"exams_{subject}" for subject in _SUBJECT_FEATURE)
+    if path.startswith("/api/v1/chat/"):
+        return tuple(f"chat_{subject}" for subject in _SUBJECT_FEATURE)
     if path.startswith("/api/v1/languages/"):
         return ("languages",)
     if path.startswith("/api/v1/executions/"):
@@ -427,7 +500,13 @@ def _feature_for(path: str) -> tuple[str, ...] | None:
 
 def catalog_payload() -> list[dict[str, object]]:
     return [
-        {"key": item.key, "label": item.label, "audiences": sorted(item.audiences)}
+        {
+            "key": item.key,
+            "label": item.label,
+            "group": item.group,
+            "subject": item.subject,
+            "audiences": sorted(item.audiences),
+        }
         for item in FEATURES
     ]
 

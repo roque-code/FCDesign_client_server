@@ -1,10 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react"
 
-import { api, ApiError, type Account, type Community, type CommunitySummary, type Person } from "../api"
+import { accessOf, api, ApiError, type Account, type Community, type CommunitySummary, type Person } from "../api"
 import { translatedMessage, useT } from "../i18n"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
-import { SUBJECTS, type SubjectId } from "../subjects/catalog"
+import { SUBJECTS, subjectsFor, type SubjectId } from "../subjects/catalog"
 import { LeaveSubjectButton } from "../subjects/leave"
 
 const PAGE = 15
@@ -34,7 +34,8 @@ export function CommunitiesPanel({
   const [selectedId, setSelectedId] = useState("")
   const [detail, setDetail] = useState<Community | null>(null)
   const [name, setName] = useState("")
-  const [subject, setSubject] = useState<SubjectId>("fundamentos")
+  const subjects = subjectsFor(accessOf(account).features)
+  const [subject, setSubject] = useState<SubjectId>(subjects[0]?.id ?? "fundamentos")
   const [memberQuery, setMemberQuery] = useState("")
   const [page, setPage] = useState(0)
   const [copied, setCopied] = useState(false)
@@ -225,7 +226,7 @@ export function CommunitiesPanel({
               <label>
                 {t("chatSubject")}
                 <select value={subject} onChange={(event) => setSubject(event.target.value as SubjectId)}>
-                  {SUBJECTS.map((item) => (
+                  {subjects.map((item) => (
                     <option key={item.id} value={item.id}>
                       {t(item.nameKey)}
                     </option>
@@ -283,7 +284,7 @@ export function CommunitiesPanel({
                         })
                       }}
                     >
-                      {SUBJECTS.map((item) => (
+                      {subjectsFor(accessOf(account).features, detail.subject).map((item) => (
                         <option key={item.id} value={item.id}>
                           {t(item.nameKey)}
                         </option>

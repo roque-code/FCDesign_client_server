@@ -47,6 +47,10 @@ export function AdminHome({
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
   const [panel, setPanel] = useState<"levels" | "live">("levels")
+  const [section, setSection] = useState<"plans" | "accounts" | "access">("plans")
+  const [featureSubject, setFeatureSubject] = useState<
+    "fundamentos" | "bases" | "objetos" | "software" | "shared"
+  >("fundamentos")
 
   async function load() {
     const [features, listed, gates, lifetime] = await Promise.all([
@@ -235,7 +239,50 @@ export function AdminHome({
     }
   }
 
+  const featureSubjects = ["fundamentos", "bases", "objetos", "software", "shared"] as const
+  const subjectFlag: Record<string, string> = {
+    fundamentos: "subject_fundamentos",
+    bases: "subject_bases",
+    objetos: "subject_objetos",
+    software: "subject_software",
+  }
   const visible = catalog.filter((item) => (draft ? item.audiences.includes(draft.audience) : false))
+  const inSubject = visible.filter((item) => item.subject === featureSubject && item.group !== "subjects")
+  const grouped = (["menus", "editor", "lab", "classroom"] as const)
+    .map((group) => ({ group, items: inSubject.filter((item) => item.group === group) }))
+    .filter((entry) => entry.items.length > 0)
+
+  function subjectTitle(subject: string) {
+    if (subject === "bases") return t("subjectBases")
+    if (subject === "objetos") return t("subjectObjects")
+    if (subject === "software") return t("subjectSoftware")
+    if (subject === "shared") return t("featureShared")
+    return t("subjectFundamentos")
+  }
+
+  function groupName(group: string) {
+    if (group === "menus") return t("featureGroupMenus")
+    if (group === "classroom") return t("featureGroupClassroom")
+    if (group === "lab") return t("featureGroupLab")
+    return t("featureGroupEditor")
+  }
+
+  function tally(subject: string) {
+    const items = visible.filter((item) => item.subject === subject)
+    return {
+      on: items.filter((item) => draft?.features[item.key] === true).length,
+      total: items.length,
+    }
+  }
+
+  function setGroup(keys: string[], on: boolean) {
+    setDraft((current) => {
+      if (!current) return current
+      const features = { ...current.features }
+      for (const key of keys) features[key] = on
+      return { ...current, features }
+    })
+  }
 
   return (
     <div className="shell">
@@ -271,7 +318,19 @@ export function AdminHome({
         {panel === "levels" && error ? <p className="error">{error}</p> : null}
         {panel === "levels" && notice ? <p className="note">{notice}</p> : null}
         {panel === "levels" ? (<>
-        <section>
+        <nav className="admin-sections" aria-label={t("levels")}>
+          <button type="button" aria-current={section === "plans" ? "page" : undefined} onClick={() => setSection("plans")}>
+            {t("levels")}
+          </button>
+          <button type="button" aria-current={section === "accounts" ? "page" : undefined} onClick={() => setSection("accounts")}>
+            {t("accounts")}
+          </button>
+          <button type="button" aria-current={section === "access" ? "page" : undefined} onClick={() => setSection("access")}>
+            {t("adminAccess")}
+          </button>
+        </nav>
+        {section === "access" ? (<>
+        <section className="admin-block">
           <h2>{t("signupTitle")}</h2>
           <p className="note">{t("signupHint")}</p>
           {signup ? (
@@ -295,7 +354,7 @@ export function AdminHome({
             </div>
           ) : null}
         </section>
-        <section>
+        <section className="admin-block">
           <h2>{t("chatLifetimeTitle")}</h2>
           <p className="note">{t("chatLifetimeHint")}</p>
           <form className="admin-search" onSubmit={(event) => void saveLifetime(event)}>
@@ -313,7 +372,9 @@ export function AdminHome({
             </button>
           </form>
         </section>
-        <section>
+        </>) : null}
+        {section === "plans" ? (<>
+        <section className="admin-block">
           <header className="admin-head">
             <h2>{t("levels")}</h2>
             <div>
@@ -326,6 +387,7 @@ export function AdminHome({
             </div>
           </header>
           <p className="note">{t("levelsHint")}</p>
+          <div className={draft ? "plan-studio" : undefined}>
           <div className="plan-groups">
             {(["student", "teacher"] as const).map((audience) => (
               <div key={audience}>
@@ -342,6 +404,12 @@ export function AdminHome({
                         >
                           <strong>{plan.name}</strong>
                           <span>{money(plan.price_cents, plan.currency)}</span>
+                          <span>
+                            {t("featureOnCount", {
+                              on: Object.values(plan.features).filter(Boolean).length,
+                              total: Object.keys(plan.features).length,
+                            })}
+                          </span>
                           <span>{plan.browser_allowed ? t("browserOn") : t("browserOff")}</span>
                         </button>
                       </li>
@@ -350,7 +418,6 @@ export function AdminHome({
               </div>
             ))}
           </div>
-        </section>
         {draft ? (
           <form
             className="card account-card"
@@ -409,39 +476,101 @@ export function AdminHome({
                 <span className="note">{t("maxExecutionsHint")}</span>
               </label>
             </div>
-            <label className="check-row">
-              <input
-                type="checkbox"
-                checked={draft.browser_allowed}
-                onChange={(event) => setDraft({ ...draft, browser_allowed: event.target.checked })}
-              />
-              {t("browserAccess")}
-            </label>
-            {draft.is_default ? null : (
+            <div className="admin-switches">
               <label className="check-row">
                 <input
                   type="checkbox"
-                  checked={draft.is_active}
-                  onChange={(event) => setDraft({ ...draft, is_active: event.target.checked })}
+                  checked={draft.browser_allowed}
+                  onChange={(event) => setDraft({ ...draft, browser_allowed: event.target.checked })}
                 />
-                {t("planActive")}
+                {t("browserAccess")}
               </label>
-            )}
-            <fieldset className="feature-grid">
-              <legend>{t("features")}</legend>
-              {visible.map((item) => (
-                <label key={item.key} className="check-row">
+              {draft.is_default ? null : (
+                <label className="check-row">
                   <input
                     type="checkbox"
-                    checked={draft.features[item.key] === true}
+                    checked={draft.is_active}
+                    onChange={(event) => setDraft({ ...draft, is_active: event.target.checked })}
+                  />
+                  {t("planActive")}
+                </label>
+              )}
+            </div>
+            <div className="feature-groups">
+              <h3>{t("features")}</h3>
+              <p className="note">{t("featureSubjectHint")}</p>
+              <div className="feature-subjects" role="tablist" aria-label={t("features")}>
+                {featureSubjects.map((subject) => {
+                  const count = tally(subject)
+                  return (
+                    <button
+                      key={subject}
+                      type="button"
+                      role="tab"
+                      aria-selected={featureSubject === subject}
+                      aria-pressed={featureSubject === subject}
+                      onClick={() => setFeatureSubject(subject)}
+                    >
+                      {subjectTitle(subject)}
+                      <small>{t("featureOnCount", count)}</small>
+                    </button>
+                  )
+                })}
+              </div>
+              {subjectFlag[featureSubject] ? (
+                <label className="check-row">
+                  <input
+                    type="checkbox"
+                    checked={draft.features[subjectFlag[featureSubject]] === true}
                     onChange={(event) =>
-                      setDraft({ ...draft, features: { ...draft.features, [item.key]: event.target.checked } })
+                      setDraft({
+                        ...draft,
+                        features: { ...draft.features, [subjectFlag[featureSubject]]: event.target.checked },
+                      })
                     }
                   />
-                  {item.label}
+                  {t("featureSubjectEnter")}
                 </label>
-              ))}
-            </fieldset>
+              ) : (
+                <p className="note">{t("featureSharedHint")}</p>
+              )}
+              {featureSubject === "bases" ? <p className="note">{t("featureBasesNote")}</p> : null}
+              {featureSubject === "objetos" || featureSubject === "software" ? (
+                <p className="note">{t("featureClosedSubject")}</p>
+              ) : null}
+              {grouped.map((entry) => {
+                const keys = entry.items.map((item) => item.key)
+                const on = keys.filter((key) => draft.features[key] === true).length
+                return (
+                  <section className="feature-group" key={entry.group}>
+                    <header>
+                      <div>
+                        <h3>{groupName(entry.group)}</h3>
+                        <p className="note">{t("featureOnCount", { on, total: keys.length })}</p>
+                      </div>
+                      <div className="feature-picks">
+                        <button type="button" onClick={() => setGroup(keys, true)}>{t("featureAll")}</button>
+                        <button type="button" onClick={() => setGroup(keys, false)}>{t("featureNone")}</button>
+                      </div>
+                    </header>
+                    <div className="feature-grid">
+                      {entry.items.map((item) => (
+                        <label key={item.key} className="check-row">
+                          <input
+                            type="checkbox"
+                            checked={draft.features[item.key] === true}
+                            onChange={(event) =>
+                              setDraft({ ...draft, features: { ...draft.features, [item.key]: event.target.checked } })
+                            }
+                          />
+                          {item.label}
+                        </label>
+                      ))}
+                    </div>
+                  </section>
+                )
+              })}
+            </div>
             <div className="profile-actions">
               <button type="button" onClick={() => setDraft(null)}>
                 {t("cancel")}
@@ -452,7 +581,11 @@ export function AdminHome({
             </div>
           </form>
         ) : null}
-        <section>
+          </div>
+        </section>
+        </>) : null}
+        {section === "accounts" ? (
+        <section className="admin-block">
           <header className="admin-head">
             <div>
               <h2>{t("accounts")}</h2>
@@ -552,6 +685,7 @@ export function AdminHome({
             </button>
           </div>
         </section>
+        ) : null}
         </>) : null}
       </main>
     </div>

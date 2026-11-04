@@ -19,7 +19,9 @@ def _person(email, **extra):
 
 
 def _group(teacher, name, *students, subject="fundamentos"):
-    created = teacher.post("/api/v1/communities/", {"name": name, "subject": subject}, format="json")
+    created = teacher.post(
+        "/api/v1/communities/", {"name": name, "subject": subject}, format="json"
+    )
     assert created.status_code == 201, created.content
     community_id = created.json()["id"]
     for student in students:
@@ -32,6 +34,14 @@ def _group(teacher, name, *students, subject="fundamentos"):
     return community_id
 
 
+def _allow(email, **flags):
+    from apps.accounts.models import User
+    from apps.billing.services import update_plan
+
+    plan = User.objects.get(email=email).subscription.plan
+    update_plan(plan, {"features": {**plan.features, **flags}})
+
+
 def _open(client, community_id, user_id=None, subject="fundamentos"):
     body = {"subject": subject, "community_id": community_id, "user_id": user_id}
     return client.post("/api/v1/chat/conversations/", body, format="json")
@@ -39,7 +49,9 @@ def _open(client, community_id, user_id=None, subject="fundamentos"):
 
 def test_el_mensaje_puede_ser_personal_o_para_todo_el_grupo(client):
     register(client, email="profe-chat@ejemplo.test", display_name="Profe Chat", role="teacher")
-    student, student_payload = _person("alumno-chat@ejemplo.test", display_name="Ana Chat", role="student")
+    student, student_payload = _person(
+        "alumno-chat@ejemplo.test", display_name="Ana Chat", role="student"
+    )
     classmate, classmate_payload = _person(
         "companero-chat@ejemplo.test", display_name="Leo Chat", role="student"
     )
@@ -56,7 +68,10 @@ def test_el_mensaje_puede_ser_personal_o_para_todo_el_grupo(client):
     assert board.json()["subject"] == "fundamentos"
     by_name = {item["name"]: item for item in board.json()["groups"]}
     assert sorted(by_name) == ["Grupo A", "Grupo B"]
-    assert [item["display_name"] for item in by_name["Grupo A"]["people"]] == ["Ana Chat", "Leo Chat"]
+    assert [item["display_name"] for item in by_name["Grupo A"]["people"]] == [
+        "Ana Chat",
+        "Leo Chat",
+    ]
     assert [item["display_name"] for item in by_name["Grupo B"]["people"]] == ["Ana Chat"]
 
     student_board = student.get("/api/v1/chat/board/?subject=fundamentos")
@@ -130,7 +145,9 @@ def test_el_mensaje_puede_ser_personal_o_para_todo_el_grupo(client):
         format="json",
     )
     assert blank.status_code == 400
-    missing_body = client.post(f"/api/v1/chat/conversations/{personal_id}/messages/", {}, format="json")
+    missing_body = client.post(
+        f"/api/v1/chat/conversations/{personal_id}/messages/", {}, format="json"
+    )
     assert missing_body.status_code == 400
     long = client.post(
         f"/api/v1/chat/conversations/{personal_id}/messages/",
@@ -185,8 +202,12 @@ def test_el_mensaje_puede_ser_personal_o_para_todo_el_grupo(client):
     )
     assert answered.status_code == 201
     refreshed = client.get(f"/api/v1/chat/conversations/{group_id}/messages/")
-    assert [item["body"] for item in refreshed.json()["results"]] == ["Aviso para todos", "Enterado"]
+    assert [item["body"] for item in refreshed.json()["results"]] == [
+        "Aviso para todos",
+        "Enterado",
+    ]
 
+    _allow("profe-chat@ejemplo.test", subject_software=True)
     other_group_chat = _open(client, group_a, subject="software")
     assert other_group_chat.status_code == 400
 
@@ -201,7 +222,9 @@ def test_el_mensaje_puede_ser_personal_o_para_todo_el_grupo(client):
 
 
 def test_cada_materia_tiene_sus_grupos_y_los_mensajes_nuevos_quedan_sin_leer(client):
-    register(client, email="profe-materia@ejemplo.test", display_name="Profe Materia", role="teacher")
+    register(
+        client, email="profe-materia@ejemplo.test", display_name="Profe Materia", role="teacher"
+    )
     student, student_payload = _person(
         "alumno-materia@ejemplo.test", display_name="Ana Materia", role="student"
     )
@@ -219,30 +242,40 @@ def test_cada_materia_tiene_sus_grupos_y_los_mensajes_nuevos_quedan_sin_leer(cli
     ]
     bases_board = client.get("/api/v1/chat/board/?subject=bases")
     assert [item["name"] for item in bases_board.json()["groups"]] == ["BD1"]
-    assert [item["display_name"] for item in bases_board.json()["groups"][0]["people"]] == ["Ana Materia"]
+    assert [item["display_name"] for item in bases_board.json()["groups"][0]["people"]] == [
+        "Ana Materia"
+    ]
+    _allow("profe-materia@ejemplo.test", subject_objetos=True)
     assert client.get("/api/v1/chat/board/?subject=objetos").json()["groups"] == []
 
     personal = _open(client, fundamentos, student_payload["id"])
-    assert client.post(
-        f"/api/v1/chat/conversations/{personal.json()['id']}/messages/",
-        {"body": "Solo para Ana"},
-        format="json",
-    ).status_code == 201
+    assert (
+        client.post(
+            f"/api/v1/chat/conversations/{personal.json()['id']}/messages/",
+            {"body": "Solo para Ana"},
+            format="json",
+        ).status_code
+        == 201
+    )
     group_thread = _open(client, bases, subject="bases")
-    assert client.post(
-        f"/api/v1/chat/conversations/{group_thread.json()['id']}/messages/",
-        {"body": "Aviso de bases"},
-        format="json",
-    ).status_code == 201
+    assert (
+        client.post(
+            f"/api/v1/chat/conversations/{group_thread.json()['id']}/messages/",
+            {"body": "Aviso de bases"},
+            format="json",
+        ).status_code
+        == 201
+    )
 
     student_fundamentos = student.get("/api/v1/chat/board/?subject=fundamentos").json()["groups"][0]
     ana = student_fundamentos["people"][0]
     assert ana["display_name"] == "Profe Materia"
     assert ana["unread"] == 1
     assert student_fundamentos["unread"] == 0
-    assert [item["display_name"] for item in student.get("/api/v1/chat/board/?subject=bases").json()["groups"][0]["people"]] == [
-        "Profe Materia"
-    ]
+    assert [
+        item["display_name"]
+        for item in student.get("/api/v1/chat/board/?subject=bases").json()["groups"][0]["people"]
+    ] == ["Profe Materia"]
     student_bases = student.get("/api/v1/chat/board/?subject=bases").json()["groups"][0]
     assert student_bases["unread"] == 1
     assert student_bases["people"][0]["unread"] == 0
@@ -257,31 +290,50 @@ def test_cada_materia_tiene_sus_grupos_y_los_mensajes_nuevos_quedan_sin_leer(cli
 
     teacher_board = client.get("/api/v1/chat/board/?subject=fundamentos").json()["groups"][0]
     assert teacher_board["people"][0]["unread"] == 0
-    assert next(item for item in teacher_board["people"] if item["id"] == other_payload["id"])["unread"] == 0
+    assert (
+        next(item for item in teacher_board["people"] if item["id"] == other_payload["id"])[
+            "unread"
+        ]
+        == 0
+    )
 
 
 def test_al_salir_del_grupo_ya_no_pueden_leer_la_conversacion(client):
     register(client, email="profe-sale@ejemplo.test", display_name="Profe Sale", role="teacher")
-    student, student_payload = _person("alumno-sale@ejemplo.test", display_name="Leo Sale", role="student")
+    student, student_payload = _person(
+        "alumno-sale@ejemplo.test", display_name="Leo Sale", role="student"
+    )
     community_id = _group(client, "Grupo sale", student_payload)
     personal = _open(client, community_id, student_payload["id"])
     group_thread = _open(client, community_id)
-    assert client.post(
-        f"/api/v1/chat/conversations/{personal.json()['id']}/messages/",
-        {"body": "Quedó la nota"},
-        format="json",
-    ).status_code == 201
-    assert client.post(
-        f"/api/v1/chat/conversations/{group_thread.json()['id']}/messages/",
-        {"body": "Aviso del grupo"},
-        format="json",
-    ).status_code == 201
+    assert (
+        client.post(
+            f"/api/v1/chat/conversations/{personal.json()['id']}/messages/",
+            {"body": "Quedó la nota"},
+            format="json",
+        ).status_code
+        == 201
+    )
+    assert (
+        client.post(
+            f"/api/v1/chat/conversations/{group_thread.json()['id']}/messages/",
+            {"body": "Aviso del grupo"},
+            format="json",
+        ).status_code
+        == 201
+    )
 
     removed = client.delete(f"/api/v1/communities/{community_id}/members/{student_payload['id']}/")
     assert removed.status_code == 204
 
-    assert student.get(f"/api/v1/chat/conversations/{personal.json()['id']}/messages/").status_code == 403
-    assert student.get(f"/api/v1/chat/conversations/{group_thread.json()['id']}/messages/").status_code == 403
+    assert (
+        student.get(f"/api/v1/chat/conversations/{personal.json()['id']}/messages/").status_code
+        == 403
+    )
+    assert (
+        student.get(f"/api/v1/chat/conversations/{group_thread.json()['id']}/messages/").status_code
+        == 403
+    )
     assert student.get("/api/v1/chat/board/?subject=fundamentos").json()["groups"] == []
     teacher_board = client.get("/api/v1/chat/board/?subject=fundamentos").json()["groups"]
     assert teacher_board[0]["people"] == []
@@ -314,7 +366,9 @@ def test_el_administrador_define_la_duracion_y_los_mensajes_viejos_se_borran(cli
     )
     assert old.status_code == 201
     assert fresh.status_code == 201
-    Message.objects.filter(pk=old.json()["id"]).update(created_at=timezone.now() - timedelta(hours=2))
+    Message.objects.filter(pk=old.json()["id"]).update(
+        created_at=timezone.now() - timedelta(hours=2)
+    )
 
     call_command("create_admin", email="admin-chat@ejemplo.test", password=PASSWORD, name="Ada")
     admin = APIClient(enforce_csrf_checks=True)
@@ -349,7 +403,9 @@ def test_el_administrador_define_la_duracion_y_los_mensajes_viejos_se_borran(cli
     listed = client.get(f"/api/v1/chat/conversations/{conversation_id}/messages/")
     assert [item["body"] for item in listed.json()["results"]] == ["Esto sigue"]
 
-    Message.objects.filter(pk=fresh.json()["id"]).update(created_at=timezone.now() - timedelta(hours=3))
+    Message.objects.filter(pk=fresh.json()["id"]).update(
+        created_at=timezone.now() - timedelta(hours=3)
+    )
     call_command("purge_chat_messages")
     assert Message.objects.filter(conversation_id=conversation_id).count() == 0
     board = client.get("/api/v1/chat/board/?subject=fundamentos")

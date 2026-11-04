@@ -1124,7 +1124,7 @@ export function Workbench({
             {t("compose")}
           </button>
           )}
-          {can("compose") && (
+          {can("nassi") && (
           <button
             className="top-action"
             type="button"

@@ -144,6 +144,8 @@ export function bumpRunUsage(account: Account): Account {
 export type PlanFeature = {
   key: string
   label: string
+  group: string
+  subject: string
   audiences: Role[]
 }
 

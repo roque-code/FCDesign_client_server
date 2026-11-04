@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "apps.audit",
     "apps.classroom",
     "apps.chat",
+    "apps.exams",
     "apps.learning",
 ]
 

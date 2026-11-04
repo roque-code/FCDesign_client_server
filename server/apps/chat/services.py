@@ -190,7 +190,9 @@ def latest_messages(conversation_ids: list) -> dict:
 def unread_counts(user: User, conversation_ids: list) -> dict:
     if not conversation_ids:
         return {}
-    seen = ReadCursor.objects.filter(user=user, conversation_id=OuterRef("conversation_id")).values("read_at")[:1]
+    seen = ReadCursor.objects.filter(user=user, conversation_id=OuterRef("conversation_id")).values(
+        "read_at"
+    )[:1]
     rows = (
         Message.objects.filter(conversation_id__in=conversation_ids)
         .exclude(sender=user)
@@ -203,7 +205,11 @@ def unread_counts(user: User, conversation_ids: list) -> dict:
 
 
 def mark_read(user: User, conversation: Conversation) -> None:
-    latest = conversation.messages.order_by("-created_at", "-id").values_list("created_at", flat=True).first()
+    latest = (
+        conversation.messages.order_by("-created_at", "-id")
+        .values_list("created_at", flat=True)
+        .first()
+    )
     stamp = latest or timezone.now()
     row, created = ReadCursor.objects.get_or_create(
         conversation=conversation,
@@ -215,7 +221,9 @@ def mark_read(user: User, conversation: Conversation) -> None:
         row.save(update_fields=["read_at"])
 
 
-def _person_payload(person: User, conversation: Conversation | None, last: dict, unread: dict) -> dict[str, object]:
+def _person_payload(
+    person: User, conversation: Conversation | None, last: dict, unread: dict
+) -> dict[str, object]:
     message = last.get(conversation.id) if conversation is not None else None
     return {
         "id": person.pk,
@@ -231,6 +239,10 @@ def list_board(user: User, subject: object) -> dict[str, object]:
     purge_expired()
     require_chat_user(user)
     chosen = clean_subject(subject)
+    from apps.billing.services import ensure_menu, ensure_subject
+
+    ensure_subject(user, chosen)
+    ensure_menu(user, "chat", chosen)
     groups = list(communities_for(user, chosen))
     conversations = list(
         Conversation.objects.filter(subject=chosen, community__in=groups, community__subject=chosen)
@@ -283,7 +295,9 @@ def get_conversation(user: User, conversation_id) -> Conversation:
             "community__owner__profile", "teacher__profile", "student__profile"
         ).get(pk=conversation_id)
     except (Conversation.DoesNotExist, ValueError, TypeError):
-        raise DomainError("No se encontró la conversación.", code=NOT_FOUND, status_code=404) from None
+        raise DomainError(
+            "No se encontró la conversación.", code=NOT_FOUND, status_code=404
+        ) from None
     community = conversation.community
     visible = peers(user, community)
     if conversation.kind == Conversation.PERSONAL:
@@ -291,7 +305,11 @@ def get_conversation(user: User, conversation_id) -> Conversation:
             raise DomainError("No se encontró la conversación.", code=NOT_FOUND, status_code=404)
         if visible is None:
             raise DomainError("Ya no estás en ese grupo.", status_code=403)
-        other = conversation.student_id if user.pk == conversation.teacher_id else conversation.teacher_id
+        other = (
+            conversation.student_id
+            if user.pk == conversation.teacher_id
+            else conversation.teacher_id
+        )
         if other not in {person.pk for person in visible}:
             raise DomainError("Esa persona ya no está en tus grupos.", status_code=403)
         return conversation
@@ -303,7 +321,11 @@ def get_conversation(user: User, conversation_id) -> Conversation:
 def thread_payload(conversation: Conversation, user: User) -> dict[str, object]:
     peer_id = None
     if conversation.kind == Conversation.PERSONAL:
-        peer_id = conversation.student_id if user.pk == conversation.teacher_id else conversation.teacher_id
+        peer_id = (
+            conversation.student_id
+            if user.pk == conversation.teacher_id
+            else conversation.teacher_id
+        )
     return {
         "id": str(conversation.id),
         "kind": conversation.kind,
@@ -325,14 +347,22 @@ def _open_group(subject: str, community: Community) -> Conversation:
             kind=Conversation.GROUP, subject=subject, community=community
         )
     except IntegrityError:
-        return Conversation.objects.get(kind=Conversation.GROUP, subject=subject, community=community)
+        return Conversation.objects.get(
+            kind=Conversation.GROUP, subject=subject, community=community
+        )
 
 
 @transaction.atomic
-def open_thread(user: User, subject: object, community_id: object, user_id: object) -> dict[str, object]:
+def open_thread(
+    user: User, subject: object, community_id: object, user_id: object
+) -> dict[str, object]:
     purge_expired()
     require_chat_user(user)
     chosen = clean_subject(subject)
+    from apps.billing.services import ensure_menu, ensure_subject
+
+    ensure_subject(user, chosen)
+    ensure_menu(user, "chat", chosen)
     community = load_community(user, community_id, chosen)
     if user_id is None:
         conversation = _open_group(chosen, community)

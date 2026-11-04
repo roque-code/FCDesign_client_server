@@ -6,7 +6,11 @@ import { LocaleProvider } from "../i18n"
 import { SUBJECTS, openSubject } from "./catalog"
 import { SubjectHome } from "./SubjectHome"
 
-function account(role: Account["role"], communities: boolean): Account {
+function account(
+  role: Account["role"],
+  communities: boolean,
+  extra: Record<string, boolean> = {},
+): Account {
   return {
     id: 7,
     email: "ana@example.com",
@@ -31,21 +35,31 @@ function account(role: Account["role"], communities: boolean): Account {
     },
     access: {
       browser_app: true,
-      features: { communities },
+      features: {
+        communities,
+        exams_fundamentos: true,
+        chat_fundamentos: true,
+        exams_bases: true,
+        chat_bases: true,
+        subject_fundamentos: true,
+        subject_bases: true,
+        ...extra,
+      },
       limits: { max_projects: null, max_algorithms: null, max_executions_per_day: 3 },
     },
     usage: { projects: 1, algorithms: 2, executions_today: 0 },
   }
 }
 
-function home(role: Account["role"], communities = false): string {
+function home(role: Account["role"], communities = false, extra: Record<string, boolean> = {}): string {
   return renderToStaticMarkup(
     <LocaleProvider locale="es">
       <SubjectHome
-        account={account(role, communities)}
+        account={account(role, communities, extra)}
         onAccount={() => undefined}
         onOpenCommunities={() => undefined}
         onOpenChat={() => undefined}
+        onOpenExams={() => undefined}
         onEnter={() => undefined}
       />
     </LocaleProvider>,
@@ -74,9 +88,10 @@ describe("pantalla de materias", () => {
     expect(html).toContain("notación de Chen")
     expect(html).toContain("Programación orientada a objetos")
     expect(html).toContain("Ingeniería de software")
-    expect(html).toContain("Todavía no se abre.")
+    expect(html).toContain("Tu nivel no incluye esta materia.")
     expect(html.match(/<button[^>]*class="subject-card"/g)?.length).toBe(2)
     expect(html).toContain("Unirme")
+    expect(html).toContain(">Exámenes<")
     expect(html).toContain(">Mensajes<")
     expect(html).not.toContain(">Comunidades<")
     expect(html).not.toContain("Salir")
@@ -90,5 +105,20 @@ describe("pantalla de materias", () => {
     expect(home("teacher", true)).toContain(">Mensajes<")
     expect(home("teacher", false)).not.toContain(">Comunidades<")
     expect(home("teacher", false)).toContain(">Mensajes<")
+  })
+
+  it("oculta materias, exámenes y mensajes que el nivel no incluye", () => {
+    const html = home("student", false, {
+      exams_fundamentos: false,
+      chat_fundamentos: false,
+      exams_bases: false,
+      chat_bases: false,
+      subject_fundamentos: false,
+      subject_bases: false,
+    })
+    expect(html).not.toContain(">Exámenes<")
+    expect(html).not.toContain(">Mensajes<")
+    expect(html).not.toContain("subject-enter")
+    expect(html).toContain("Tu nivel no incluye esta materia.")
   })
 })

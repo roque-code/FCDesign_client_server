@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 
-import { api, ApiError, asAccount, ensureCsrf, isAccount, type Account } from "./api"
+import { accessOf, api, ApiError, asAccount, ensureCsrf, isAccount, type Account } from "./api"
 import { AuthScreen } from "./auth/AuthScreen"
 import { AdminHome } from "./admin/AdminHome"
 import { ChatScreen } from "./chat/ChatScreen"
@@ -8,12 +8,13 @@ import { Composer, type DiagramRequest } from "./compose/Composer"
 import { ErStudio } from "./erd/ErStudio"
 import { LocaleProvider, readStoredLocale, storeLocale, translate, translatedMessage, type Locale } from "./i18n"
 import { ForeignBench } from "./foreign/ForeignBench"
+import { ExamDesk } from "./exams/ExamDesk"
 import { LearningLab } from "./learning/LearningLab"
 import { inInstalledApp, installedLocal, launchSearch, rememberAccess } from "./runtime"
 import { AccountOnly } from "./shell/AccountOnly"
 import { LegalFooter } from "./shell/LegalFooter"
 import { Logo } from "./shell/Logo"
-import { openSubject, type SubjectId } from "./subjects/catalog"
+import { menuOn, openSubject, type SubjectId } from "./subjects/catalog"
 import { LeaveSubjectProvider } from "./subjects/leave"
 import { SubjectHome } from "./subjects/SubjectHome"
 import { CommunitiesPanel } from "./workbench/Communities"
@@ -26,6 +27,7 @@ export function App() {
   const [subject, setSubject] = useState<SubjectId | null>(null)
   const [homeView, setHomeView] = useState<"pick" | "communities">("pick")
   const [chatOpen, setChatOpen] = useState(false)
+  const [examsOpen, setExamsOpen] = useState(false)
   const [diagramRequest, setDiagramRequest] = useState<DiagramRequest | null>(null)
   const [nassiRequest, setNassiRequest] = useState<DiagramRequest | null>(null)
   const [editorFocus, setEditorFocus] = useState<{ projectId: string; algorithmId: string; token: number } | null>(null)
@@ -54,6 +56,7 @@ export function App() {
       setSubject(null)
       setHomeView("pick")
       setChatOpen(false)
+      setExamsOpen(false)
     }
     window.addEventListener("traza-session-end", onEnd)
     function onNotice(event: Event) {
@@ -182,6 +185,7 @@ export function App() {
     setSubject(null)
     setHomeView("pick")
     setChatOpen(false)
+    setExamsOpen(false)
   }
 
   function leaveSubject() {
@@ -189,14 +193,17 @@ export function App() {
     setHomeView("pick")
     setScreen("editor")
     setChatOpen(false)
+    setExamsOpen(false)
   }
 
   function enterSubject(id: SubjectId) {
     if (!openSubject(id)) return
+    if (accessOf(account).features[`subject_${id}`] !== true) return
     if (id !== "fundamentos" && id !== "bases") return
     setSubject(id)
     setScreen("editor")
     setChatOpen(false)
+    setExamsOpen(false)
   }
 
   function backToEditor() {
@@ -246,6 +253,8 @@ function openNassi(payload: { name?: string; source?: string; semicolons: boolea
         onAccount={holdAccount}
         onBack={() => setChatOpen(false)}
       />
+    ) : examsOpen ? (
+      <ExamDesk account={account} onAccount={holdAccount} onBack={() => setExamsOpen(false)} />
     ) : homeView === "communities" ? (
       <CommunitiesPanel
         account={account}
@@ -258,7 +267,16 @@ function openNassi(payload: { name?: string; source?: string; semicolons: boolea
         account={account}
         onAccount={holdAccount}
         onOpenCommunities={() => setHomeView("communities")}
-        onOpenChat={() => setChatOpen(true)}
+        onOpenChat={() => {
+          if (!menuOn(accessOf(account).features, "chat")) return
+          setExamsOpen(false)
+          setChatOpen(true)
+        }}
+        onOpenExams={() => {
+          if (!menuOn(accessOf(account).features, "exams")) return
+          setChatOpen(false)
+          setExamsOpen(true)
+        }}
         onEnter={enterSubject}
       />
     )

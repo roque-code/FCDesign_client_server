@@ -151,13 +151,22 @@ def test_el_administrador_define_un_nivel_y_lo_asigna(client):
     assert enabled.status_code == 200, enabled.content
     assert enabled.json()["features"]["languages"] is True
     assert enabled.json()["features"]["execute"] is True
+    assert any(
+        item["key"] == "exams_fundamentos"
+        and item["group"] == "menus"
+        and item["subject"] == "fundamentos"
+        for item in catalog.json()["results"]
+    )
+    assert any(
+        item["key"] == "nassi" and item["group"] == "editor" and item["subject"] == "fundamentos"
+        for item in catalog.json()["results"]
+    )
 
 
 def test_sin_comunidades_el_docente_sigue_viendo_sus_proyectos(client):
     created = register(client, email="docente-editor@ejemplo.test", role="teacher")
     assert created.status_code == 201, created.content
     from apps.accounts.models import User
-    from apps.billing.models import Plan
     from apps.billing.services import update_plan
 
     user = User.objects.get(email="docente-editor@ejemplo.test")
@@ -369,3 +378,49 @@ def test_sin_tope_el_nivel_deja_seguir_ejecutando(client):
     for _index in range(4):
         ran = client.post(f"/api/v1/algorithms/{algorithm_id}/execute/")
         assert ran.status_code == 201, ran.content
+
+
+def test_el_nivel_apaga_examenes_mensajes_y_una_materia(client):
+    from apps.accounts.models import User
+    from apps.billing.services import update_plan
+
+    created = register(client, email="docente-opciones@ejemplo.test", role="teacher")
+    assert created.status_code == 201, created.content
+    assert created.json()["access"]["features"]["exams_fundamentos"] is True
+    assert created.json()["access"]["features"]["chat_bases"] is True
+    assert created.json()["access"]["features"]["nassi"] is True
+    assert created.json()["access"]["features"]["subject_fundamentos"] is True
+    user = User.objects.get(email="docente-opciones@ejemplo.test")
+    plan = user.subscription.plan
+    kept = {**plan.features, "exams_bases": False}
+    update_plan(plan, {"features": kept})
+    assert client.get("/api/v1/exams/").status_code == 200
+    assert client.get("/api/v1/chat/board/?subject=bases").status_code == 200
+    silenced = {
+        **plan.features,
+        **{
+            f"exams_{subject}": False for subject in ("fundamentos", "bases", "objetos", "software")
+        },
+        **{f"chat_{subject}": False for subject in ("fundamentos", "bases", "objetos", "software")},
+    }
+    update_plan(plan, {"features": silenced})
+    assert client.get("/api/v1/exams/").status_code == 403
+    assert client.get("/api/v1/chat/board/?subject=fundamentos").status_code == 403
+    update_plan(
+        plan,
+        {
+            "features": {
+                **plan.features,
+                "exams_fundamentos": True,
+                "chat_fundamentos": True,
+                "subject_bases": False,
+            }
+        },
+    )
+    refused = client.post(
+        "/api/v1/communities/",
+        {"name": "Sin bases", "subject": "bases"},
+        format="json",
+    )
+    assert refused.status_code == 403
+    assert refused.json()["error"]["code"] == "plan_forbidden"
