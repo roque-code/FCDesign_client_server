@@ -14,6 +14,7 @@ import { inInstalledApp, installedLocal, launchSearch, rememberAccess } from "./
 import { AccountOnly } from "./shell/AccountOnly"
 import { LegalFooter } from "./shell/LegalFooter"
 import { Logo } from "./shell/Logo"
+import { ReloadGuard } from "./shell/ReloadGuard"
 import { menuOn, openSubject, type SubjectId } from "./subjects/catalog"
 import { LeaveSubjectProvider } from "./subjects/leave"
 import { SubjectHome } from "./subjects/SubjectHome"
@@ -327,6 +328,7 @@ function openNassi(payload: { name?: string; source?: string; semicolons: boolea
         </div>
         <LegalFooter />
       </div>
+      <ReloadGuard active={ready && account !== null} />
     </LocaleProvider>
   )
 }

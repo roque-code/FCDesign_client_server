@@ -1376,6 +1376,33 @@ button.fold {
 
 .toolbar button.tool-debug:hover { filter: brightness(0.97); }
 
+.reload-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: color-mix(in srgb, var(--ink) 35%, transparent);
+}
+
+.reload-dialog {
+  display: grid;
+  gap: 0.75rem;
+  width: min(28rem, 100%);
+  padding: 1.1rem 1.2rem;
+  background: var(--sheet);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+
+.reload-dialog h2,
+.reload-dialog p { margin: 0; }
+.reload-dialog p { color: var(--muted); }
+.reload-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+
 .translate-backdrop {
   position: fixed;
   inset: 0;
