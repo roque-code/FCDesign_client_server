@@ -1,6 +1,6 @@
 # Arquitectura
 
-Estado: el editor, el laboratorio, el correo de confirmación, el idioma español o inglés, la traducción a otros lenguajes, la aplicación de escritorio, los niveles de suscripción, el bloqueo de pegar, las altas que define el administrador, las materias, los mensajes y el editor entidad-relación están en el código de desarrollo. Fecha de referencia: 2026-11-03. En el compose de desarrollo `DEBUG` sigue en verdadero. El servidor público carga `config.settings.production` y se abre en `https://fcdesign.aulivana.com`.
+Estado: el editor, el laboratorio, el correo de confirmación, el idioma español o inglés, la traducción a otros lenguajes, la aplicación de escritorio, los niveles de suscripción, el bloqueo de pegar, las altas que define el administrador, las materias, los mensajes, los exámenes y el editor entidad-relación están en el código de desarrollo. Fecha de referencia: 2026-11-03. En el compose de desarrollo `DEBUG` sigue en verdadero. El servidor público carga `config.settings.production` y se abre en `https://fcdesign.aulivana.com`.
 
 Este documento describe el sistema que corre hoy. La gramática está en [gramatica.md](gramatica.md), el árbol en [ast.md](ast.md), las tablas en [modelo-de-datos.md](modelo-de-datos.md) y el aislamiento del intérprete en [ejecucion.md](ejecucion.md).
 
@@ -16,13 +16,14 @@ Al entrar, el alumno y el docente eligen una materia. **Fundamentos** abre tres 
 | Laboratorio | `frontend/src/learning` | Ruta Fundamentos, práctica de concurso, banco de retos, rutas de un docente, práctica libre, tablero y avance |
 | Armar diagrama | `frontend/src/compose` | Figuras que se arrastran y se convierten en pseudocódigo. El resultado se abre en el editor |
 
-Fuera de Fundamentos hay tres pantallas más:
+Fuera de Fundamentos hay cuatro pantallas más:
 
 | Pantalla | Dónde vive | Qué hace |
 | --- | --- | --- |
-| Materias | `frontend/src/subjects` | Primera pantalla después de entrar. Elige la materia y tiene Unirme, Mensajes y, para el docente, Comunidades |
+| Materias | `frontend/src/subjects` | Primera pantalla después de entrar. Elige la materia y tiene Exámenes, Unirme, Mensajes y, para el docente, Comunidades |
 | Bases de datos | `frontend/src/erd` | Diagrama entidad-relación en notación de Chen. Se guarda en el navegador |
 | Mensajes | `frontend/src/chat` y `server/apps/chat` | Conversación por materia y grupo, con el docente, con un alumno o con todo el grupo |
+| Exámenes | `frontend/src/exams` y `server/apps/exams` | El docente arma, asigna y califica un examen por materia y grupo. El alumno lo resuelve y ve su nota |
 
 El núcleo cubre secuencia, `Si`, `Segun`, `Mientras`, `Repetir`, `Para`, arreglos, funciones, procedimientos, recursión y la biblioteca estándar. Quedan fuera la orientación a objetos, los archivos del pseudocódigo y la concurrencia. Las actividades y las entregas del aula no tienen tablas. Las comunidades sí: un docente agrupa cuentas que ya existen.
 
@@ -74,7 +75,7 @@ En la máquina, sin este compose, no hay runner ni Mailpit. Django ejecuta el in
 4. El perfil estricto es el predeterminado.
 5. La asignación se escribe `<-` o `=`. La igualdad se escribe `==`. Ninguno de los dos signos de asignación va dentro de una expresión.
 6. Cada error lleva código estable, severidad, posición, fragmento y, cuando se puede, una sugerencia.
-7. En los contenedores y en la configuración de producción el proceso web no interpreta código de usuarios. Lo hace `runner`.
+7. En los contenedores y en la configuración de producción el proceso web no interpreta código de usuarios. Lo hace `runner`. La excepción es calificar: los casos de un reto del laboratorio y el reto con casos de un examen corren con el intérprete dentro de Django, con los límites lógicos.
 8. El laboratorio y el editor comparten el mismo AST, el mismo intérprete y el mismo sobre de eventos. Blockly no ejecuta.
 
 ## 4. Tecnologías
@@ -129,12 +130,15 @@ fcdesign/
 │       ├── language/          perfiles y palabras clave
 │       ├── classroom/         comunidades, cada una de una materia
 │       ├── chat/              mensajes por materia y grupo, y su duración
+│       ├── exams/             exámenes, preguntas, intentos, calificación, avisos,
+│       │                      importación y exportación
 │       ├── learning/          ruta, banco, autoría, intentos, práctica y avance
 │       └── audit/
 └── frontend/src/
     ├── auth/                  alta, entrada, recuperación y enlace de confirmación
     ├── subjects/              pantalla de materias y botón Materias
     ├── chat/                  pantalla de mensajes
+    ├── exams/                 pantalla de exámenes, del docente y del alumno
     ├── erd/                   editor entidad-relación de Bases de datos
     ├── foreign/               editor de Lenguajes y sus sugerencias
     ├── workbench/             banco de trabajo y comunidades
@@ -162,6 +166,7 @@ fcdesign/
 | language | `server/apps/language` | Perfiles persistidos y la lista de palabras que consume el cliente |
 | classroom | `server/apps/classroom` | Comunidades, cada una de una materia. Sin actividades ni entregas |
 | chat | `server/apps/chat` y `frontend/src/chat` | Conversaciones, mensajes, lectura y duración de los mensajes |
+| exams | `server/apps/exams` y `frontend/src/exams` | Exámenes, preguntas, alumnos elegidos, intentos, respuestas, calificación automática y manual, avisos, CSV de notas, importación y exportación |
 | learning | `server/apps/learning` y `frontend/src/learning` | Rutas, retos, intentos, práctica libre, banco y avance |
 | audit | `server/apps/audit` | Alta, confirmación, sesión, enlaces, borrado y ejecución |
 | runner | `runner/` | Proceso que consume Redis y llama al núcleo |
@@ -172,7 +177,7 @@ El parser y el intérprete no son aplicaciones Django. [ADR 0002](adr/0002-nucle
 
 `App` pide la cookie CSRF y después `GET /api/v1/auth/me/`. Sin sesión muestra `AuthScreen`. Al entrar lee `GET /api/v1/preferences/` para aplicar el tema y el idioma. El administrador va a su pantalla. Una cuenta sin navegador, fuera de la aplicación de escritorio, ve solo su cuenta. El alumno y el docente llegan a `SubjectHome`.
 
-`SubjectHome` muestra «Elige una materia» y cuatro tarjetas, en `frontend/src/subjects/catalog.ts`. **Fundamentos** (pseudocódigo, diagrama de flujo y Nassi-Shneiderman) y **Bases de datos** (diagrama entidad-relación con notación de Chen) se abren con **Entrar**. **Programación orientada a objetos** e **Ingeniería de software** dicen «Todavía no se abre.» Arriba están el logotipo, la identidad con solo los días que faltan para pagar (un guion si no hay fecha), **Unirme**, **Mensajes** y, para un docente con la función `communities`, **Comunidades**. Esas dos últimas se abren desde ahí con «Volver a las materias». Dentro de una materia, el botón **Materias** regresa a esta pantalla. Está en el banco de trabajo, el laboratorio, Armar diagrama, Lenguajes, Comunidades y Bases de datos. Cerrar la sesión también vuelve a las materias en el siguiente ingreso.
+`SubjectHome` muestra «Elige una materia» y cuatro tarjetas, en `frontend/src/subjects/catalog.ts`. **Fundamentos** (pseudocódigo, diagrama de flujo y Nassi-Shneiderman) y **Bases de datos** (diagrama entidad-relación con notación de Chen) se abren con **Entrar**. **Programación orientada a objetos** e **Ingeniería de software** dicen «Todavía no se abre.» Una tarjeta solo se abre si el nivel tiene `subject_{materia}` en verdadero; si no, dice «Tu nivel no incluye esta materia.» Las dos materias cerradas nacen apagadas en las semillas, así que hoy muestran ese texto. Arriba están el logotipo, la identidad con solo los días que faltan para pagar (un guion si no hay fecha), **Exámenes**, **Unirme**, **Mensajes** y, para un docente con la función `communities`, **Comunidades**. Exámenes aparece si el nivel tiene `exams_{materia}` en alguna materia, y Mensajes si tiene `chat_{materia}`. Exámenes lleva el número de avisos sin leer: «Exámenes · 2». Exámenes, Mensajes y Comunidades se abren desde ahí con «Volver a las materias». Dentro de una materia, el botón **Materias** regresa a esta pantalla. Está en el banco de trabajo, el laboratorio, Armar diagrama, Lenguajes, Comunidades y Bases de datos. Cerrar la sesión también vuelve a las materias en el siguiente ingreso.
 
 Fundamentos abre el banco de trabajo, el laboratorio o armar diagrama. Las tres pantallas comparten la cuenta. Volver al editor conserva el algoritmo que estaba abierto. El banco de trabajo conserva **Unirme** y **Comunidades**.
 
@@ -262,7 +267,11 @@ Si el navegador efectivo es falso, una petición que no trae `X-Aulivana-FCDdesi
 
 Traducir y pegar siguen pudiendo apagarse por comunidad. El nivel es el techo: si el plan los tiene apagados, la comunidad no los enciende.
 
-El administrador entra por el navegador a `/api/v1/billing/`. Define precio, moneda, días, navegador, topes y funciones, y asigna un nivel a una cuenta. Puede bloquear una cuenta que no sea de administrador: se cierra su sesión y el ingreso responde «Esta cuenta está bloqueada.» `GET /api/v1/billing/sessions/` lista quién sigue con la aplicación abierta. El tiempo corre desde que entraron y una cuenta deja de aparecer si no se ha visto en 45 segundos. No usa el editor ni el laboratorio. No es `is_staff`: `/admin/` de Django sigue siendo otra puerta.
+Las funciones se agrupan por materia. `billing.0004` agregó `subject_fundamentos`, `subject_bases`, `subject_objetos`, `subject_software` y `nassi`: a los niveles que ya existían les puso Fundamentos y Bases de datos encendidas, las otras dos apagadas, y `nassi` con el mismo valor que tenía `compose`. `billing.0005` repartió Exámenes y Mensajes en `exams_{materia}` y `chat_{materia}`, una clave por materia, con el valor del interruptor único anterior, y quitó ese interruptor. Las semillas nuevas: los dos gratis entran a Fundamentos y a Bases de datos, tienen Exámenes y Mensajes en las cuatro materias y `nassi` apagado. Los dos premium encienden todo salvo `languages`, `subject_objetos` y `subject_software`. **Armar Nassi-Shneiderman** pregunta `nassi`, ya no `compose`.
+
+La API pregunta lo mismo. `ensure_subject` responde 403 `plan_forbidden` «Tu nivel no incluye esta materia.» al crear una comunidad en esa materia, al cambiarla a esa materia, al abrir los mensajes de esa materia y al crear un examen. `ensure_menu` responde 403 `plan_forbidden` «Tu nivel no incluye esta función.» si falta `exams_{materia}` o `chat_{materia}`. El middleware deja pasar `/api/v1/exams` si el nivel tiene Exámenes en alguna materia, y `/api/v1/chat/` si tiene Mensajes en alguna; el servicio revisa después la materia concreta. Las listas de exámenes, de avisos y de exámenes del alumno solo traen las materias con Exámenes. Las listas de materias de Comunidades, Mensajes y Exámenes muestran solo las que el nivel permite, más la que ya tenía la comunidad.
+
+El administrador entra por el navegador a `/api/v1/billing/`. Su pantalla tiene tres pestañas: **Niveles**, **Cuentas** y **Acceso**. Acceso reúne las altas abiertas y la duración de los mensajes. En Niveles, cada nivel muestra cuántas funciones tiene encendidas. Al abrirlo define precio, moneda, días, navegador, topes y funciones. Las funciones se eligen por materia, con una pestaña para Fundamentos, Bases de datos, Programación orientada a objetos, Ingeniería de software y En todas las materias. Cada pestaña muestra cuántas están encendidas, el interruptor «Puede entrar a esta materia» y los grupos Menús, Editor y diagramas, Laboratorio y Aula, cada uno con **Todas** y **Ninguna**. En Cuentas asigna un nivel a una cuenta. Puede bloquear una cuenta que no sea de administrador: se cierra su sesión y el ingreso responde «Esta cuenta está bloqueada.» `GET /api/v1/billing/sessions/` lista quién sigue con la aplicación abierta. El tiempo corre desde que entraron y una cuenta deja de aparecer si no se ha visto en 45 segundos. No usa el editor ni el laboratorio. No es `is_staff`: `/admin/` de Django sigue siendo otra puerta.
 
 ```bash
 cd server && python3 manage.py create_admin --email admin@ejemplo.test --password 'una-clave-larga'
@@ -270,7 +279,7 @@ cd server && python3 manage.py create_admin --email admin@ejemplo.test --passwor
 
 La contraseña pasa por el hasher. Un `INSERT` con la clave en claro no serviría para entrar.
 
-Una función de menú que todavía no existe se declara en `apps/billing/catalog.py`. La pantalla de niveles muestra el interruptor. Cada plan guarda el valor en `features`. El menú y la API preguntan la misma clave.
+Una función de menú que todavía no existe se declara en `apps/billing/catalog.py`, con su grupo (`subjects`, `menus`, `editor`, `lab` o `classroom`) y su materia, o `shared` si vale en todas. La pantalla de niveles muestra el interruptor en esa pestaña y ese grupo. Cada plan guarda el valor en `features`. El menú y la API preguntan la misma clave.
 
 ## 9. Compilación e interpretación
 
@@ -364,7 +373,7 @@ El modelo y las fases están en [laboratorio-fase-0.md](laboratorio-fase-0.md). 
 
 ## 12. Comunidades
 
-Una comunidad pertenece a un docente. Solo él la crea, la lista y la borra. **Comunidades** abre su propia pantalla: desde el banco de trabajo, con Volver al editor; desde las materias, con Volver a las materias. A la izquierda se escribe el nombre, se elige la **Materia** y se crea. A la derecha están la materia, el código, los interruptores, la búsqueda por nombre o correo, el filtro de alumnos y las páginas de 15. La lista muestra la materia de cada una. `classroom.0005` agrega `subject`: `fundamentos`, `bases`, `objetos` o `software`. Las comunidades que ya existían quedaron en `fundamentos`, y una creación sin materia también. El docente la cambia con `PATCH /api/v1/communities/{id}/` y el campo `subject`; la auditoría lo anota como `community.subject`. El nombre es único entre las suyas de la misma materia, así que Programación 1 puede existir en Fundamentos y en Bases de datos. Hay un tope de 30 comunidades y de 200 personas. No puede agregarse a sí mismo. No se crean cuentas desde la comunidad.
+Una comunidad pertenece a un docente. Solo él la crea, la lista y la borra. **Comunidades** abre su propia pantalla: desde el banco de trabajo, con Volver al editor; desde las materias, con Volver a las materias. A la izquierda se escribe el nombre, se elige la **Materia** y se crea. A la derecha están la materia, el código, los interruptores, la búsqueda por nombre o correo, el filtro de alumnos y las páginas de 15. La lista muestra la materia de cada una. `classroom.0005` agrega `subject`: `fundamentos`, `bases`, `objetos` o `software`. Las comunidades que ya existían quedaron en `fundamentos`, y una creación sin materia también. El docente la cambia con `PATCH /api/v1/communities/{id}/` y el campo `subject`; la auditoría lo anota como `community.subject`. La lista de materias solo ofrece las que el nivel del docente permite. Crear o mover una comunidad a otra materia responde «Tu nivel no incluye esta materia.» si el nivel no la tiene. El nombre es único entre las suyas de la misma materia, así que Programación 1 puede existir en Fundamentos y en Bases de datos. Hay un tope de 30 comunidades y de 200 personas. No puede agregarse a sí mismo. No se crean cuentas desde la comunidad.
 
 Al crearla, `classroom.0004` guarda `join_code`: 6 caracteres de `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`, sin I, O, 0 ni 1. El docente lo copia o pulsa **Nuevo código**; el anterior deja de servir. En el banco de trabajo, alumno y docente ven **Unirme**. Escriben ese código, sin que importen mayúsculas ni espacios, y `POST /api/v1/communities/join/` los agrega. Ese camino no pide la función `communities` del nivel. El dueño no entra al suyo. Quien ya está recibe que ya está. Una comunidad llena responde el tope de 200. Una cuenta de administrador no se une. La lista separa Alumnos y Docentes.
 
@@ -374,7 +383,7 @@ En el banco de trabajo, **Repaso** abre los proyectos de un alumno de sus comuni
 
 ## 12.1 Mensajes
 
-**Mensajes** se abre desde la pantalla de materias. Solo un alumno o un docente lo usa; otra cuenta recibe 403 «Solo un alumno o un docente puede usar los mensajes.» No pide una función del nivel, pero una cuenta sin navegador sigue sin poder abrirlo desde el navegador.
+**Mensajes** se abre desde la pantalla de materias. Solo un alumno o un docente lo usa; otra cuenta recibe 403 «Solo un alumno o un docente puede usar los mensajes.» El nivel lo enciende por materia, con `chat_{materia}`, y además tiene que incluir la materia. La lista de materias solo trae las que tienen Mensajes. Si ninguna, la lista queda apagada y dice «Tu nivel no incluye esta materia.» Una cuenta sin navegador sigue sin poder abrirlo desde el navegador.
 
 A la izquierda se elige la **Materia** y el **Grupo**. El grupo es una comunidad de esa materia. El docente ve las suyas y las de otro docente donde lo agregaron. El alumno ve aquellas donde está y cuyo dueño es docente. Debajo está **Todo el grupo** y la búsqueda: el docente busca alumnos y el alumno busca docentes. La lista de personas muestra solo a quienes tienen mensajes sin leer, salvo que se busque. Si hay algo sin leer, el grupo lleva un número entre paréntesis: los mensajes del grupo sin leer más las personas con mensajes pendientes.
 
@@ -393,6 +402,45 @@ El lienzo ocupa el centro. A la derecha están las **Líneas** (Mover, Muchos a 
 Debajo de esa columna se edita la figura elegida: **Nombre**, **Marca del atributo** (Sin marca, Clave primaria o Discriminante), **Disjunta** en un ISA y **Generalización total**. En una línea: **Mínimo**, **Máximo**, **Flecha del lado uno** y **Rol**. **Eliminar** quita la figura y **Borrar línea**, la línea. Arriba están el nombre del **Proyecto**, la lista de proyectos, **Nuevo proyecto**, **Ejemplo** (carga el diagrama de accidentes: PERSONA, VEHICULO, ACCIDENTE y MULTA; si el proyecto ya tiene figuras, pregunta antes de reemplazarlo) y **Eliminar proyecto**. El lienzo se acerca, se aleja y se ajusta.
 
 Los proyectos se guardan en el `localStorage` del navegador, con la clave `traza.erd.projects.v1`, separados de los proyectos de código. No pasan por la API ni por PostgreSQL: otro navegador u otro equipo no los ve.
+
+## 12.3 Exámenes
+
+**Exámenes** se abre desde la pantalla de materias, con «Volver a las materias». Solo un docente crea: otra cuenta recibe 403 «Solo un docente puede crear exámenes.» Solo un alumno resuelve: «Solo un alumno puede resolver exámenes.» Cada examen es de una materia y de un grupo, y el nivel tiene que incluir esa materia y `exams_{materia}`. La pantalla es `frontend/src/exams/ExamDesk.tsx`. Las preguntas se editan y se contestan con `frontend/src/exams/questions.tsx`.
+
+El docente ve sus exámenes en tarjetas: título, materia y grupo, Borrador o Asignado, cuántas preguntas y cuántos alumnos, las fechas, **Editar** y **Calificaciones**. Debajo está **Importar**. **Nuevo examen** abre el editor con 50 minutos, un intento, la nota más alta, opciones mezcladas, navegación libre, 60 % para aprobar, la calificación al entregar, todo el grupo y una pregunta de opción única. Un docente tiene hasta 100 exámenes.
+
+El editor pide **Materia** y **Grupo**. El grupo es una comunidad del docente de esa materia; otra responde «Ese grupo no es tuyo.» o «Ese grupo no es de esta materia.» Siguen **Título** (140 caracteres), **Instrucciones** (4000) y **¿A quién?**: Todo el grupo o Solo algunos alumnos, hasta 200, que tienen que estar en el grupo. **Abre** y **Cierra** son opcionales; el cierre va después de la apertura. **Duración (minutos)** va de 1 a 480, o vacía para no tener límite; corre desde que el alumno empieza y, si también hay cierre, manda lo que ocurra antes. **Intentos** va de 1 a 20. **Si hay varios intentos** elige la nota oficial: la más alta, el promedio, el primer intento o el último. **Navegación** es Libre o En orden, una a una. **Mostrar la calificación** es Al entregar o Cuando cierre el examen; sin fecha de cierre se muestra al entregar. **Nota para aprobar (%)** va de 0 a 100, o vacía. Quedan **Mezclar preguntas**, **Mezclar opciones** y **Una pregunta por página**.
+
+Un examen tiene hasta 60 preguntas. Cada una lleva tipo, enunciado (4000), puntos (de 0.01 a 100) y retroalimentación (1000), y se sube, se baja o se quita. Los tipos están en `apps/exams/payloads.py` y se califican en `apps/exams/grading.py`:
+
+| Tipo | En pantalla | Qué guarda | Cómo se califica |
+| --- | --- | --- | --- |
+| `choice` | Opción única | Hasta 10 opciones, una correcta | Todo o nada |
+| `multi` | Varias respuestas | Hasta 10 opciones, al menos una correcta | Aciertos entre correctas, menos errores entre incorrectas. No baja de 0 |
+| `true_false` | Verdadero o falso | La respuesta | Todo o nada |
+| `short` | Respuesta corta | Hasta 12 respuestas aceptadas, cada una con su porcentaje, y si distingue mayúsculas | La de mayor porcentaje. Sin esa marca no importan mayúsculas, acentos ni espacios repetidos |
+| `numerical` | Numérica | Hasta 8 valores, con tolerancia y porcentaje | El mayor porcentaje dentro de la tolerancia. Acepta coma decimal |
+| `essay` | Abierta | La rúbrica | La califica el docente |
+| `matching` | Relacionar | Hasta 10 parejas | La parte de parejas bien unidas |
+| `order` | Ordenar | De 2 a 10 elementos, en el orden correcto | La parte de posiciones correctas. Al alumno le salen revueltos |
+| `cloze` | Completar huecos | Texto con `{{1}}`, hasta 12 huecos y 8 respuestas por hueco | La parte de huecos acertados, sin mayúsculas ni acentos |
+| `case` | Reto con casos | Enunciado, código inicial y hasta 8 casos con nombre, entradas (hasta 20), salida esperada, peso y si es oculto | Corre el pseudocódigo con cada caso. Cada caso que coincide suma su peso |
+
+El reto con casos llama a `execute_source` de `language_core` dentro de Django, con los límites por omisión: 100 000 instrucciones o 5 segundos por caso. No descuenta una ejecución del día. La salida se compara sin los saltos y espacios del final. La consola repite cada dato leído, así que la salida esperada de un caso que lee 3 y 4 y escribe 7 es `3`, `4` y `7`, una por línea. Al alumno no se le muestran las entradas de un caso oculto, solo cuántos hay; al revisar ve su nombre y si pasó.
+
+**Guardar** guarda el borrador. **Asignar y avisar** pide confirmación, exige al menos una pregunta y, si es para algunos alumnos, al menos uno. Deja el examen asignado y crea un aviso para cada alumno. Después el botón se llama **Avisar a quien falte** y solo avisa a quien no tenía aviso, por ejemplo un alumno nuevo del grupo. Cuando alguien ya empezó, el editor dice «Ya hay respuestas. Solo puedes cambiar las fechas, la nota mínima y cuándo se muestra la calificación.», el botón pasa a **Guardar fechas** y **Eliminar** responde «Ya hay respuestas. Ya no se puede eliminar el examen.»
+
+El alumno ve los exámenes asignados de las materias con Exámenes: los de todo el grupo donde está, los que lo eligieron a él y los que ya empezó. Cada tarjeta dice Programado, Disponible o Cerrado, la duración o Sin límite, las fechas y «Intentos 1 de 1». Tiene **Comenzar**, **Continuar** si hay un intento abierto, y **Ver resultado** cuando hay uno entregado. Arriba están los **Avisos**: «Tienes un examen: {título}. Materia {materia}, grupo {grupo}.» y «Tu examen {título} quedó en {porcentaje}%.» Si la nota se muestra al cierre, el segundo aviso dice que ya fue calificado y que verá la nota cuando cierre. **Marcar como leídos** pone la fecha de lectura y el número del botón Exámenes baja a cero.
+
+**Comenzar** crea el intento. Su límite es el menor entre el inicio más la duración y el cierre. El intento guarda el orden que verá el alumno: las preguntas revueltas si el examen las mezcla, las opciones si mezcla opciones, y siempre los elementos por ordenar y la columna derecha de Relacionar. La pantalla muestra «Tiempo: mm:ss». Con navegación en orden, o una por página, se ve una pregunta con **Anterior** y **Siguiente**; en orden, Siguiente espera una respuesta. **Guardar respuestas** guarda sin calificar. **Entregar** pide confirmación y califica. Al llegar a 00:00 la pantalla entrega sola, y el servidor califica un intento vencido la siguiente vez que alguien lo lee o lo guarda. Si queda una abierta, el intento queda «En revisión» y la nota mostrada solo suma lo ya calificado. Si la calificación es visible, la pantalla muestra porcentaje, puntos, Aprobado o No aprobado, el puntaje de cada pregunta, la retroalimentación, el comentario del docente y los casos del reto.
+
+**Calificaciones** muestra una fila por alumno: nombre, correo, nota oficial y estado (Sin iniciar, En revisión o Asignado, que es el texto que hoy sale para un intento ya calificado). **Ver respuestas** abre cada intento, con la respuesta, el puntaje y, por pregunta, **Puntaje** y **Comentario** (1000 caracteres). **Guardar calificación** acepta un puntaje entre 0 y los puntos de la pregunta. Si ya no queda nada pendiente, el intento pasa a calificado y el alumno recibe el aviso con su porcentaje. **Descargar calificaciones** entrega `{título}.csv`, con BOM para Excel: Alumno, Correo, Grupo, Materia, Examen, Intento, Inicio, Entrega, Estado, Puntaje, Maximo, Porcentaje, Aprobado y, por pregunta, su puntaje y la respuesta en texto. Quien no empezó sale como «sin iniciar». **Cerrar examen** pone el cierre en ese momento; un intento abierto se califica al volver a leerse.
+
+**Importar** pide materia, grupo, formato, título y el contenido, pegado o desde un archivo `.json`, `.xml`, `.txt`, `.csv` o `.gift`, hasta 500 000 caracteres. Crea un borrador y lo abre en el editor. **Detectar** mira el texto: si empieza con `<` es Moodle XML; con `{` o `[`, JSON; si la primera línea trae `kind` y `prompt`, el CSV propio; si trae `question` y `type`, Microsoft Forms; si hay una llave, GIFT. El CSV propio usa las columnas `kind`, `prompt`, `points`, `text`, `correct` y `extra`: una fila por opción en `choice` y `multi`, respuestas separadas por `|` en `short`, valor en `text` y tolerancia en `correct` en `numerical`, `izquierda=derecha|…` en `matching`, `a|b|c` en `order` y `1=resp/otra|…` en `cloze`. Forms usa `question`, `type`, `points`, `option 1` a `option 7` y `correct`. La lógica está en `apps/exams/exchange.py`.
+
+**Exportar JSON** descarga `{título}.json`, con el título sin espacios ni signos, y `"format": "aulivana-exam"`, versión 1, los ajustes y todas las preguntas, retos incluidos. **Exportar Moodle** descarga `{título}.xml`: omite Ordenar y Completar huecos y convierte el reto en una pregunta abierta. **Exportar GIFT** descarga `{título}.gift.txt`: omite Abierta, Ordenar y Completar huecos y deja el reto como comentario. Si no queda ninguna pregunta, responde «Este formato no conserva los retos. Usa JSON.» La petición es `GET /api/v1/exams/{id}/export/?as=json|moodle|gift`. El parámetro no se llama `format` porque Django REST Framework lo reserva para elegir su renderizador y, con `moodle` o `gift`, respondía 404. `?format=json` se sigue aceptando.
+
+La auditoría anota `exam.create`, `exam.update`, `exam.delete`, `exam.publish`, `exam.close`, `exam.import`, `exam.start`, `exam.save`, `exam.submit` y `exam.grade`. Las tablas están en [modelo-de-datos.md](modelo-de-datos.md).
 
 ## 13. Perfiles de lenguaje
 
@@ -462,6 +510,30 @@ GET  /api/v1/chat/conversations/{id}/messages/
 POST /api/v1/chat/conversations/{id}/messages/    201
 ```
 
+Exámenes:
+
+```text
+GET  /api/v1/exams/?subject=                 los del docente
+POST /api/v1/exams/                           201
+GET  /api/v1/exams/mine/                      los del alumno
+GET  /api/v1/exams/notices/
+POST /api/v1/exams/notices/                   marca todos como leídos
+POST /api/v1/exams/import/                    201, format, text, subject, community_id y title
+GET  /api/v1/exams/{id}/
+PATCH /api/v1/exams/{id}/
+DELETE /api/v1/exams/{id}/
+POST /api/v1/exams/{id}/publish/
+POST /api/v1/exams/{id}/close/
+GET  /api/v1/exams/{id}/export/?as=json|moodle|gift
+GET  /api/v1/exams/{id}/results/
+GET  /api/v1/exams/{id}/grades/               CSV
+POST /api/v1/exams/{id}/attempts/             201, empieza o devuelve el intento abierto
+GET  /api/v1/exams/attempts/{id}/
+PATCH /api/v1/exams/attempts/{id}/            guarda sin calificar
+POST /api/v1/exams/attempts/{id}/submit/
+POST /api/v1/exams/attempts/{id}/grade/       solo el docente, scores con question_id, score y comment
+```
+
 Editor:
 
 ```text
@@ -502,6 +574,7 @@ Laboratorio: `/api/v1/learning/path/`, `paths/`, `catalog/`, `bank/`, `challenge
 - Un docente lee el algoritmo de un alumno solo si ese alumno está en una comunidad suya. La respuesta ajena sigue siendo 404.
 - Traducir responde 403 cuando el docente apagó esa acción para el alumno.
 - Un mensaje solo se lee y se escribe dentro de un grupo donde está la cuenta. La conversación personal es siempre entre un docente y un alumno de ese grupo. Quien sale del grupo deja de verla.
+- Un examen solo lo lee, lo cambia y lo califica su docente; el de otro responde 404. Un alumno solo abre sus intentos. Mientras el intento está abierto, o la calificación todavía no se muestra, la respuesta no trae las opciones correctas, las respuestas aceptadas, la retroalimentación ni las entradas de un caso oculto.
 - Auditoría de alta, confirmación de correo, recuperación, sesión, visibilidad, enlaces, borrado y ejecución.
 - Secretos en el entorno. `.env` fuera de Git.
 - El runner descarta capacidades, no gana privilegios y limita memoria, CPU y procesos.
@@ -550,7 +623,7 @@ La ventana tiene proyectos a la izquierda, el editor y la consola en el centro, 
 - No arranca `config.settings.production`.
 - No publica Mailpit como correo de un servidor. Ahí hace falta un SMTP real, `EMAIL_HOST`, `TRAZA_EMAIL_CONFIRMATION` y `TRAZA_PUBLIC_ORIGIN`.
 - No tiene actividades ni entregas de aula.
-- No ejecuta el pseudocódigo dentro de Gunicorn cuando el compose está levantado.
+- No ejecuta el pseudocódigo del editor dentro de Gunicorn cuando el compose está levantado. Calificar los casos de un reto del laboratorio y el reto con casos de un examen sí corre en Django.
 
 El paso a un servidor está en [despliegue.md](despliegue.md). El arranque de esta máquina está en [instalacion.md](instalacion.md).
 
@@ -560,7 +633,7 @@ El paso a un servidor está en [despliegue.md](despliegue.md). El arranque de es
 | --- | --- | --- |
 | El parser se aparta de la EBNF | Acepta programas distintos a la especificación | La EBNF es el contrato. Cada producción tiene pruebas |
 | Dos resaltadores | El editor marca bien lo que el intérprete rechaza | Una tabla de palabras en `grammar.py`. Las grafías en inglés están en `language_core/dialect.py` y en `frontend/src/dialect.ts`, con la misma lista |
-| El intérprete dentro del proceso web | Un programa ajeno afecta a las demás peticiones | Límites lógicos desde el inicio. En contenedores y en producción el runner es obligatorio |
+| El intérprete dentro del proceso web | Un programa ajeno afecta a las demás peticiones | Límites lógicos desde el inicio. En contenedores y en producción el runner es obligatorio. La calificación del laboratorio y del reto con casos de un examen sigue en Django: un examen entregado puede correr hasta 8 casos de 5 segundos por pregunta en la misma petición |
 | `Leer` y el depurador como dos motores | Resultados distintos | Un intérprete. El depurador es un conductor |
 | Otro árbol para los bloques | El laboratorio y el editor divergen | El adaptador construye los nodos de `ast_nodes.py` |
 | La traducción no coincide con el intérprete | El código generado da otro resultado | Sale del mismo AST. Las pruebas comparan la salida de Python y de C con la del intérprete |

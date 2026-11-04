@@ -87,9 +87,9 @@ class ExamCloseView(APIView):
 
 class ExamExportView(APIView):
     def get(self, request: Request, exam_id) -> Response:
-        return Response(
-            export_exam(current_user(request), exam_id, request.query_params.get("format"))
-        )
+        # DRF reserva ?format= para elegir el renderizador: con moodle o gift responde 404.
+        fmt = request.query_params.get("as") or request.query_params.get("format")
+        return Response(export_exam(current_user(request), exam_id, fmt))
 
 
 class ExamResultsView(APIView):

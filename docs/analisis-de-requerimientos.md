@@ -1,6 +1,6 @@
 # Análisis de requerimientos
 
-Fecha de referencia: 2026-10-29. Describe lo que Aulivana-FCDdesign ya exige para cumplir su propósito: enseñar programación estructurada en pseudocódigo. El detalle de pantallas está en [arquitectura funcional](vistas/arquitectura-funcional.md), el de tablas en [modelo de datos](modelo-de-datos.md) y el de columnas en [diccionario de datos](diccionario-de-datos.md).
+Fecha de referencia: 2026-11-03. Describe lo que Aulivana-FCDdesign ya exige para cumplir su propósito: enseñar programación estructurada en pseudocódigo. El detalle de pantallas está en [arquitectura funcional](vistas/arquitectura-funcional.md), el de tablas en [modelo de datos](modelo-de-datos.md) y el de columnas en [diccionario de datos](diccionario-de-datos.md).
 
 El análisis cubre la aplicación (web, escritorio y núcleo del lenguaje) y la base de datos. No propone funciones que el código todavía no tiene.
 
@@ -122,7 +122,7 @@ Cada requerimiento dice qué debe poder hacerse y cuál es el resultado observab
 | RF-46 | Si `paid_until` ya pasó, las funciones que aplican son las del nivel por defecto del mismo tipo. | La cuenta sigue mostrando el nivel asignado como vencido |
 | RF-47 | Una excepción en la suscripción puede abrir o cerrar el navegador solo para esa cuenta. | Si el campo está vacío, manda el nivel |
 
-Las funciones que un nivel puede encender son: editor, ver diagrama, armar diagrama, validar, traducir, lenguajes, ejecutar, depurar, descargar, pegar, laboratorio, ruta y práctica libre. Comunidades, banco, rutas propias y avance son solo de docente.
+Las funciones que un nivel puede encender son: editor, ver diagrama, armar diagrama, armar Nassi-Shneiderman, validar, traducir, lenguajes, ejecutar, depurar, descargar, pegar, laboratorio, ruta y práctica libre. Comunidades, banco, rutas propias y avance son solo de docente. Además, el nivel enciende cada materia y, dentro de cada una, Exámenes y Mensajes. Una materia apagada responde «Tu nivel no incluye esta materia.».
 
 ### 3.8 Escritorio, idioma y ayuda
 

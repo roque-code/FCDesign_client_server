@@ -221,9 +221,18 @@ def test_asignar_resolver_y_descargar(client):
     assert "alumno@ejemplo.test" in grades["content"]
     assert "Ana Ruiz" in grades["content"]
     assert student.get(f"/api/v1/exams/{exam_id}/results/").status_code == 403
-    exported = client.get(f"/api/v1/exams/{exam_id}/export/?format=json").json()
+    exported = client.get(f"/api/v1/exams/{exam_id}/export/?as=json").json()
     assert "Parcial 1" in exported["content"]
     assert "case" in exported["content"]
+    assert client.get(f"/api/v1/exams/{exam_id}/export/?format=json").status_code == 200
+    moodle = client.get(f"/api/v1/exams/{exam_id}/export/?as=moodle")
+    assert moodle.status_code == 200
+    assert moodle.json()["filename"].endswith(".xml")
+    assert "<quiz>" in moodle.json()["content"]
+    gift = client.get(f"/api/v1/exams/{exam_id}/export/?as=gift")
+    assert gift.status_code == 200
+    assert gift.json()["filename"].endswith(".txt")
+    assert client.get(f"/api/v1/exams/{exam_id}/export/?as=pdf").status_code == 400
     locked = client.patch(f"/api/v1/exams/{exam_id}/", {"title": "Otro"}, format="json")
     assert locked.status_code == 400
     assert client.delete(f"/api/v1/exams/{exam_id}/").status_code == 400

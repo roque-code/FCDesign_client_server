@@ -1,6 +1,6 @@
 # Arquitectura de datos
 
-Fecha de referencia: 2026-11-03. Cada comunidad guarda su materia. Los mensajes viven en `Conversation`, `Message` y `ReadCursor`, y `MessageLifetime` es una fila con las horas que viven. Los diagramas entidad-relación no tienen tabla: se guardan en el navegador. `SignupPolicy` es una fila: qué altas están abiertas. El reto y su colocación en la ruta guardan `weights`, la ponderación de la nota. La comunidad y la membresía guardan si la traducción y el pegado están habilitados. La foto vive en el perfil. El nivel de suscripción está en `Plan` y `Subscription`. El CSV de notas y el del banco de retos no son tablas. Motor: PostgreSQL 16. La traducción no se almacena. La ventana de escritorio lee y escribe las mismas tablas a través de la API. El detalle de columnas, índices y borrado está en [modelo-de-datos.md](../modelo-de-datos.md).
+Fecha de referencia: 2026-11-03. Cada comunidad guarda su materia. Los mensajes viven en `Conversation`, `Message` y `ReadCursor`, y `MessageLifetime` es una fila con las horas que viven. Los exámenes viven en `Exam`, `ExamSeat`, `ExamQuestion`, `ExamAttempt`, `ExamResponse` y `ExamNotice`; el CSV de calificaciones no es tabla. `Plan.features` guarda a qué materias entra el nivel y si tiene Exámenes y Mensajes en cada una. Los diagramas entidad-relación no tienen tabla: se guardan en el navegador. `SignupPolicy` es una fila: qué altas están abiertas. El reto y su colocación en la ruta guardan `weights`, la ponderación de la nota. La comunidad y la membresía guardan si la traducción y el pegado están habilitados. La foto vive en el perfil. El nivel de suscripción está en `Plan` y `Subscription`. El CSV de notas y el del banco de retos no son tablas. Motor: PostgreSQL 16. La traducción no se almacena. La ventana de escritorio lee y escribe las mismas tablas a través de la API. El detalle de columnas, índices y borrado está en [modelo-de-datos.md](../modelo-de-datos.md).
 
 Hay dos grupos que no se mezclan. El banco de trabajo cuelga de `Algorithm`. El laboratorio cuelga de `Challenge` y de `Practice`. Un intento no es una fila de `Execution`.
 
@@ -26,6 +26,11 @@ erDiagram
     Community ||--o{ PathAssignment : recibe
     Community ||--o{ Conversation : conversa
     Conversation ||--o{ Message : contiene
+    Community ||--o{ Exam : evalua
+    Exam ||--o{ ExamQuestion : contiene
+    Exam ||--o{ ExamAttempt : recibe
+    ExamAttempt ||--o{ ExamResponse : guarda
+    Exam ||--o{ ExamNotice : avisa
 ```
 
 | Grupo | Qué se guarda | Qué no se guarda |
@@ -35,6 +40,7 @@ erDiagram
 | Ejecución | Estado, límites, salida, entradas aceptadas y errores | La pila viva de la sesión |
 | Laboratorio | Rutas, retos, fotos del lienzo, pistas usadas, predicción y reflexión | Una fila de `Execution` |
 | Mensajes | Conversación, texto, remitente, fecha y hasta dónde leyó cada persona | Un mensaje más viejo que la duración |
+| Exámenes | Ajustes, preguntas con sus respuestas correctas, alumnos elegidos, intentos con el orden que vio el alumno, respuestas, puntos, comentarios y avisos | El CSV de calificaciones ni el archivo exportado |
 | Auditoría | Acción, actor, objeto y dirección | El fuente completo ni secretos |
 
 Claves públicas de proyecto, algoritmo, ejecución, comunidad y laboratorio: UUID versión 4. Eventos y versiones: entero. Marcas de tiempo: `timestamptz`. El borrado de proyectos y algoritmos es lógico con `deleted_at`.

@@ -56,7 +56,7 @@ export function examImport(body: { format?: string; text: string; subject: strin
 }
 
 export function examExport(id: string, format: "json" | "moodle" | "gift") {
-  return request<ExamFile>(`/api/v1/exams/${id}/export/?format=${format}`)
+  return request<ExamFile>(`/api/v1/exams/${id}/export/?as=${format}`)
 }
 
 export function examResults(id: string) {

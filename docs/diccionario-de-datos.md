@@ -1,6 +1,6 @@
 # Diccionario de datos
 
-Fecha de referencia: 2026-11-03. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. Los mensajes viven en las tablas `chat_*`. Los diagramas entidad-relación de Bases de datos no tienen tabla: se guardan en el navegador. Los niveles viven en `billing_plan` y `billing_subscription`. El cupo del día vive en `billing_dailyexecution`. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
+Fecha de referencia: 2026-11-03. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. Los mensajes viven en las tablas `chat_*`. Los exámenes viven en las tablas `exams_*`. Los diagramas entidad-relación de Bases de datos no tienen tabla: se guardan en el navegador. Los niveles viven en `billing_plan` y `billing_subscription`. El cupo del día vive en `billing_dailyexecution`. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
 
 La base se llama `traza` y, con los contenedores levantados, escucha en `127.0.0.1:5434`. El usuario de desarrollo es `traza`. No es la base del contenedor anterior `traza-pg` del puerto `5433`.
 
@@ -16,6 +16,7 @@ SET search_path TO public;
 | `integer` | entero de 32 bits, de 0 a 2 147 483 647 | Enteros positivos del modelo: puntos, posición, número de versión, segundos |
 | `smallint` | entero de 16 bits, de 0 a 32 767 | Dificultad, puntos de un reto, tamaño de fuente, nivel de pista o de dominio |
 | `character varying(n)` | texto de hasta n caracteres | `n` es el tope de la columna |
+| `numeric(p,s)` | decimal exacto de `p` dígitos, `s` después del punto | Puntos, porcentajes y nota mínima de los exámenes |
 | `text` | texto sin tope de columna | El fuente de un algoritmo lo limita la aplicación a 64 KiB antes de guardarlo |
 | `uuid` | identificador de 16 bytes | Clave pública de proyectos, algoritmos, ejecuciones, comunidades y laboratorio |
 | `boolean` | verdadero o falso | |
@@ -70,6 +71,18 @@ La columna foránea se llama `campo_id` y apunta a la clave de la otra tabla. `A
 | `chat_message` | `sender_id` | `accounts_user.id` | quién escribió | se borran sus mensajes |
 | `chat_readcursor` | `conversation_id` | `chat_conversation.id` | una marca por persona y conversación | se borra la marca |
 | `chat_readcursor` | `user_id` | `accounts_user.id` | quién leyó | se borra la marca |
+| `exams_exam` | `owner_id` | `accounts_user.id` | 1 docente, muchos exámenes | se borran sus exámenes |
+| `exams_exam` | `community_id` | `classroom_community.id` | 1 grupo, muchos exámenes | se borran los exámenes |
+| `exams_examseat` | `exam_id` | `exams_exam.id` | alumnos elegidos del examen | se borran |
+| `exams_examseat` | `user_id` | `accounts_user.id` | el alumno elegido | se borran sus lugares |
+| `exams_examquestion` | `exam_id` | `exams_exam.id` | 1 examen, muchas preguntas | se borran las preguntas |
+| `exams_examattempt` | `exam_id` | `exams_exam.id` | 1 examen, muchos intentos | se borran los intentos |
+| `exams_examattempt` | `student_id` | `accounts_user.id` | 1 alumno, muchos intentos | se borran sus intentos |
+| `exams_examresponse` | `attempt_id` | `exams_examattempt.id` | una respuesta por pregunta | se borran las respuestas |
+| `exams_examresponse` | `question_id` | `exams_examquestion.id` | la pregunta respondida | se borran las respuestas |
+| `exams_examnotice` | `exam_id` | `exams_exam.id` | avisos del examen | se borran los avisos |
+| `exams_examnotice` | `user_id` | `accounts_user.id` | quién recibe el aviso | se borran sus avisos |
+| `exams_examnotice` | `attempt_id` | `exams_examattempt.id` | el intento calificado; nulo en el de asignación | se borra el aviso |
 | `audit_auditevent` | `actor_id` | `accounts_user.id` | el actor puede desaparecer | el actor queda en nulo |
 | `learning_learningpath` | `owner_id` | `accounts_user.id` | la ruta de sistema no tiene dueño | se borra la ruta del docente |
 | `learning_learningunit` | `path_id` | `learning_learningpath.id` | 1 ruta, muchas unidades | se borran las unidades |
@@ -161,7 +174,7 @@ Un nivel de suscripción. Hay filas distintas para alumno y para docente. El alt
 | `max_projects` | `integer` | SÍ | Tope de proyectos propios. Nulo es sin límite. El proyecto Ejemplos no cuenta |
 | `max_algorithms` | `integer` | SÍ | Tope de algoritmos propios. Nulo es sin límite |
 | `max_executions_per_day` | `integer` | SÍ | Ejecuciones de ese día. Nulo es sin límite. El mínimo, si hay tope, es 3. La migración es `billing.0003` |
-| `features` | `jsonb` | NO | Mapa de funciones encendidas. Las claves salen de `apps.billing.catalog` |
+| `features` | `jsonb` | NO | Mapa de funciones encendidas. Las claves salen de `apps.billing.catalog`. Entre ellas, `subject_fundamentos`, `subject_bases`, `subject_objetos` y `subject_software` (a qué materias entra), `exams_{materia}` y `chat_{materia}` (Exámenes y Mensajes en cada materia) y `nassi`. `billing.0004` y `billing.0005` llenaron esas claves en los niveles que ya existían |
 | `is_default` | `boolean` | NO | Una sola fila por tipo. Es el nivel del alta y el respaldo si otro vence |
 | `is_active` | `boolean` | NO | Si se puede asignar. El nivel por defecto no se desactiva |
 | `sort_order` | `smallint` | NO | Orden en la pantalla de administrador |
@@ -420,6 +433,105 @@ Migraciones `chat.0001` a `chat.0003`. Un mensaje más viejo que `chat_messageli
 | `conversation_id` | `uuid` | NO | Conversación |
 | `user_id` | `bigint` | NO | Quién leyó. Único por conversación |
 | `read_at` | `timestamptz` | NO | Hasta cuándo leyó. Lo posterior, de otra persona, cuenta como sin leer |
+
+## 6.2 Exámenes
+
+Migración `exams.0001`. La materia del examen es la de su grupo. Un examen sin intentos se borra entero; con intentos, la aplicación ya no lo deja borrar.
+
+### `exams_exam`
+
+| Campo | Tipo | Nulo | Descripción |
+| --- | --- | --- | --- |
+| `id` | `uuid` | NO | Clave |
+| `owner_id` | `bigint` | NO | Docente que lo creó |
+| `community_id` | `uuid` | NO | Grupo, una comunidad del docente |
+| `subject` | `varchar(32)` | NO | `fundamentos`, `bases`, `objetos` o `software` (`exam_subject_known`) |
+| `title` | `varchar(140)` | NO | Título |
+| `instructions` | `text` | NO | Instrucciones. La aplicación las limita a 4000 caracteres. `''` si no hay |
+| `opens_at` | `timestamptz` | SÍ | Apertura. Nulo es abierto desde que se asigna |
+| `closes_at` | `timestamptz` | SÍ | Cierre. Nulo es sin cierre. Si hay las dos fechas, la apertura va antes (`exam_window_order`) |
+| `duration_minutes` | `integer` | SÍ | Minutos desde que el alumno empieza, de 1 a 480. Nulo es sin límite (`exam_duration`) |
+| `attempts_allowed` | `smallint` | NO | Intentos, de 1 a 20. Nace en 1 |
+| `grading_method` | `varchar(16)` | NO | Nota oficial con varios intentos: `highest`, `average`, `first` o `last`. Nace en `highest` |
+| `shuffle_questions` | `boolean` | NO | Mezclar preguntas. Nace en falso |
+| `shuffle_choices` | `boolean` | NO | Mezclar opciones. Nace en verdadero |
+| `navigation` | `varchar(16)` | NO | `free` o `sequential` |
+| `one_per_page` | `boolean` | NO | Una pregunta por página |
+| `grade_to_pass` | `numeric(5,2)` | SÍ | Porcentaje para aprobar, de 0 a 100. Nulo es sin nota mínima |
+| `show_grade` | `varchar(16)` | NO | `immediate` (al entregar) o `after_close` |
+| `audience` | `varchar(16)` | NO | `all` (todo el grupo) o `selected` (los de `exams_examseat`) |
+| `published` | `boolean` | NO | Asignado. Falso es borrador |
+| `created_at`, `updated_at` | `timestamptz` | NO | |
+
+### `exams_examseat`
+
+Alumno elegido cuando `audience` es `selected`.
+
+| Campo | Tipo | Nulo | Descripción |
+| --- | --- | --- | --- |
+| `id` | `bigint` | NO | Clave |
+| `exam_id` | `uuid` | NO | Examen |
+| `user_id` | `bigint` | NO | Alumno. Único por examen (`uniq_exam_seat`) |
+
+### `exams_examquestion`
+
+| Campo | Tipo | Nulo | Descripción |
+| --- | --- | --- | --- |
+| `id` | `uuid` | NO | Clave |
+| `exam_id` | `uuid` | NO | Examen |
+| `position` | `integer` | NO | Orden, desde 1. Único por examen (`uniq_exam_question_position`) |
+| `kind` | `varchar(16)` | NO | `choice`, `multi`, `true_false`, `short`, `numerical`, `essay`, `matching`, `order`, `cloze` o `case` |
+| `prompt` | `text` | NO | Enunciado, hasta 4000 caracteres |
+| `points` | `numeric(6,2)` | NO | Puntos, mayor que 0 y hasta 100 |
+| `feedback` | `text` | NO | Retroalimentación, hasta 1000 caracteres |
+| `payload` | `jsonb` | NO | Lo propio del tipo: opciones con `correct`, respuestas aceptadas, valores y tolerancias, parejas, elementos, huecos o casos. Tiene las respuestas correctas: no se entrega al alumno mientras no se muestre la calificación |
+
+### `exams_examattempt`
+
+| Campo | Tipo | Nulo | Descripción |
+| --- | --- | --- | --- |
+| `id` | `uuid` | NO | Clave |
+| `exam_id` | `uuid` | NO | Examen |
+| `student_id` | `bigint` | NO | Alumno |
+| `number` | `smallint` | NO | Número del intento. Único por examen y alumno (`uniq_exam_attempt_number`) |
+| `state` | `varchar(16)` | NO | `open`, `submitted` (falta calificar una abierta) o `graded` |
+| `started_at` | `timestamptz` | NO | Inicio |
+| `deadline` | `timestamptz` | SÍ | El menor entre inicio más duración y cierre. Nulo es sin límite |
+| `submitted_at` | `timestamptz` | SÍ | Entrega, o el momento en que se calificó vencido |
+| `layout` | `jsonb` | NO | Orden que ve el alumno: `order` (preguntas) y `bundles` (opciones, elementos y parejas por pregunta) |
+| `score` | `numeric(8,2)` | SÍ | Puntos obtenidos |
+| `max_score` | `numeric(8,2)` | NO | Suma de los puntos de las preguntas |
+| `percent` | `numeric(5,2)` | SÍ | Porcentaje |
+| `passed` | `boolean` | SÍ | Si aprobó. Nulo si no hay nota mínima o falta calificar |
+
+### `exams_examresponse`
+
+| Campo | Tipo | Nulo | Descripción |
+| --- | --- | --- | --- |
+| `id` | `bigint` | NO | Clave |
+| `attempt_id` | `uuid` | NO | Intento |
+| `question_id` | `uuid` | NO | Pregunta. Única por intento (`uniq_exam_response`) |
+| `answer` | `jsonb` | NO | Respuesta: `option`, `options`, `value`, `text`, `pairs`, `order`, `blanks` o `source`, según el tipo. La aplicación la limita a 30 000 caracteres |
+| `score` | `numeric(8,2)` | SÍ | Puntos. Nulo mientras está pendiente |
+| `max_score` | `numeric(6,2)` | NO | Puntos de la pregunta |
+| `pending` | `boolean` | NO | Verdadero en una abierta sin calificar |
+| `comment` | `text` | NO | Comentario del docente, hasta 1000 caracteres |
+| `detail` | `jsonb` | NO | Lo que dejó la calificación: opciones elegidas, aciertos o el resultado de cada caso del reto |
+
+### `exams_examnotice`
+
+| Campo | Tipo | Nulo | Descripción |
+| --- | --- | --- | --- |
+| `id` | `uuid` | NO | Clave |
+| `exam_id` | `uuid` | NO | Examen |
+| `user_id` | `bigint` | NO | Alumno que lo recibe |
+| `attempt_id` | `uuid` | SÍ | Intento calificado. Nulo en el aviso de asignación |
+| `kind` | `varchar(16)` | NO | `assigned` o `graded` |
+| `percent` | `numeric(5,2)` | SÍ | Porcentaje del intento en el aviso `graded` |
+| `created_at` | `timestamptz` | NO | Alta |
+| `read_at` | `timestamptz` | SÍ | Cuándo lo marcó como leído |
+
+Un solo aviso de asignación por examen y alumno (`uniq_exam_notice_assigned`) y uno de calificación por intento (`uniq_exam_notice_attempt`).
 
 ## 7. Laboratorio
 

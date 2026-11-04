@@ -1,6 +1,6 @@
 # Modelo de datos
 
-Estado: migrado. Fecha de referencia: 2026-11-03. `classroom.0005` pone cada comunidad en una materia. `chat.0001` a `chat.0003` agregan las conversaciones, los mensajes, la marca de lectura y la duración de los mensajes. Los diagramas entidad-relación de Bases de datos no tienen tabla: se guardan en el navegador. `classroom.0004` guarda el código con el que un alumno entra a una comunidad. `billing.0003` agrega `max_executions_per_day` al nivel y la tabla `DailyExecution`. `accounts.0008` impide dos correos que solo cambien en las mayúsculas. `learning.0017` agrega `weights` al reto y a la colocación en la ruta. `accounts.0007` agrega `SignupPolicy`, una fila con las altas de alumno y de docente. La traducción del algoritmo y la ventana de escritorio no agregan tablas. La migración `billing.0001` agrega `Plan` y `Subscription`, siembra gratis y premium para alumno y para docente, y asigna el gratis a las cuentas que ya existían. La migración `classroom.0002` añade `translation_enabled` a la comunidad y a la membresía. `classroom.0003` añade `paste_enabled` con la misma forma. `accounts.0005` guarda la foto del perfil. La migración `learning.0016` siembra el banco y la ruta Práctica de concurso, cincuenta retos. El diccionario para consultar, con tipo y longitud de cada campo, está en [diccionario-de-datos.md](diccionario-de-datos.md). El mapa de procesos está en [arquitectura.md](arquitectura.md). Las comunidades de docentes están en `classroom`. Las actividades y las entregas del aula no. El laboratorio tiene tablas propias en `learning`, con el catálogo de conceptos, la ruta Fundamentos de treinta y cuatro retos, el banco y las rutas que arma un docente. `accounts.User.email_confirmed` llegó en la migración `0004_user_email_confirmed`.
+Estado: migrado. Fecha de referencia: 2026-11-03. `exams.0001` agrega los exámenes: examen, alumnos elegidos, preguntas, intentos, respuestas y avisos. `billing.0004` y `billing.0005` no agregan columnas: llenan en `Plan.features` las materias, Exámenes y Mensajes por materia, y `nassi`. `classroom.0005` pone cada comunidad en una materia. `chat.0001` a `chat.0003` agregan las conversaciones, los mensajes, la marca de lectura y la duración de los mensajes. Los diagramas entidad-relación de Bases de datos no tienen tabla: se guardan en el navegador. `classroom.0004` guarda el código con el que un alumno entra a una comunidad. `billing.0003` agrega `max_executions_per_day` al nivel y la tabla `DailyExecution`. `accounts.0008` impide dos correos que solo cambien en las mayúsculas. `learning.0017` agrega `weights` al reto y a la colocación en la ruta. `accounts.0007` agrega `SignupPolicy`, una fila con las altas de alumno y de docente. La traducción del algoritmo y la ventana de escritorio no agregan tablas. La migración `billing.0001` agrega `Plan` y `Subscription`, siembra gratis y premium para alumno y para docente, y asigna el gratis a las cuentas que ya existían. La migración `classroom.0002` añade `translation_enabled` a la comunidad y a la membresía. `classroom.0003` añade `paste_enabled` con la misma forma. `accounts.0005` guarda la foto del perfil. La migración `learning.0016` siembra el banco y la ruta Práctica de concurso, cincuenta retos. El diccionario para consultar, con tipo y longitud de cada campo, está en [diccionario-de-datos.md](diccionario-de-datos.md). El mapa de procesos está en [arquitectura.md](arquitectura.md). Las comunidades de docentes están en `classroom`. Las actividades y las entregas del aula no. El laboratorio tiene tablas propias en `learning`, con el catálogo de conceptos, la ruta Fundamentos de treinta y cuatro retos, el banco y las rutas que arma un docente. `accounts.User.email_confirmed` llegó en la migración `0004_user_email_confirmed`.
 
 Motor: PostgreSQL. Claves públicas: UUID versión 4. Claves internas de alto volumen: entero de 64 bits. Las marcas de tiempo son `timestamptz`.
 
@@ -33,6 +33,14 @@ erDiagram
     Conversation ||--o{ Message : contiene
     Conversation ||--o{ ReadCursor : marca
     User ||--o{ Message : escribe
+    Community ||--o{ Exam : evalua
+    User ||--o{ Exam : crea
+    Exam ||--o{ ExamQuestion : contiene
+    Exam ||--o{ ExamSeat : elige
+    Exam ||--o{ ExamAttempt : recibe
+    ExamAttempt ||--o{ ExamResponse : guarda
+    ExamQuestion ||--o{ ExamResponse : responde
+    Exam ||--o{ ExamNotice : avisa
 ```
 
 El laboratorio no cuelga de `Algorithm`. `LearningPath`, `Challenge`, `ChallengeAttempt` y `Practice` forman otro grupo, descrito en la sección 6.1. Una ruta de docente puede asignarse a una `Community` o a un alumno mediante `PathAssignment`.
@@ -236,6 +244,14 @@ Hay rutas, unidades, retos, casos de prueba, pistas, intentos, fotos del workspa
 
 `server/apps/chat` guarda los mensajes. `Conversation` es `personal` o `group`, de una materia y de una comunidad. La personal une a un docente con un alumno; la de grupo no tiene ninguno de los dos y la ven el dueño y todos los miembros. `Message` guarda remitente, texto y fecha. `ReadCursor` guarda hasta cuándo leyó cada persona una conversación; lo que escribió otro después de esa marca cuenta como sin leer. `MessageLifetime` es una fila con las horas que vive un mensaje, de 1 a 8760, y nace en 24. Lo vencido se borra al usar los mensajes y con `python manage.py purge_chat_messages`. Borrar la comunidad o la cuenta borra sus conversaciones y sus mensajes.
 
+## 6.3 Exámenes
+
+`server/apps/exams` guarda los exámenes. `Exam` es de un docente, de una comunidad suya y de la materia de esa comunidad. Guarda título, instrucciones, apertura y cierre opcionales, duración de 1 a 480 minutos o sin límite, de 1 a 20 intentos, cómo se elige la nota oficial (`highest`, `average`, `first` o `last`), si mezcla preguntas y opciones, la navegación (`free` o `sequential`), si va una pregunta por página, la nota para aprobar, cuándo se muestra la calificación (`immediate` o `after_close`), para quién es (`all` o `selected`) y si ya está asignado. `ExamSeat` lista a los alumnos elegidos. `ExamQuestion` guarda posición, tipo, enunciado, puntos, retroalimentación y un `payload` JSON con lo propio de cada uno de los diez tipos, incluidas las respuestas correctas.
+
+`ExamAttempt` es un intento de un alumno: número, estado (`open`, `submitted` o `graded`), inicio, límite, entrega, el orden que vio (`layout`) y puntos, máximo, porcentaje y si aprobó. `ExamResponse` guarda la respuesta a cada pregunta, sus puntos, si está pendiente, el comentario del docente y el detalle de la calificación. `ExamNotice` es un aviso para el alumno: `assigned` al asignar, uno por examen y alumno, y `graded` al quedar calificado un intento, uno por intento. `read_at` marca la lectura.
+
+Las restricciones viven en la base: materia conocida, valores de cada campo de elección, duración, intentos, nota mínima, apertura antes del cierre, puntos entre 0 y 100, una posición por pregunta, un número por intento, una respuesta por pregunta y un aviso de cada tipo. Borrar el docente, el grupo o el examen borra lo que cuelga de él.
+
 ## 7. Políticas de borrado
 
 | Acción | Efecto |
@@ -245,6 +261,7 @@ Hay rutas, unidades, retos, casos de prueba, pistas, intentos, fotos del workspa
 | Borrar usuario | se rechaza si posee proyectos vivos. Primero debe vaciarlos. Luego se anonimiza la auditoría (`actor` nulo) |
 | Borrar perfil de lenguaje de sistema | prohibido |
 | Mensaje más viejo que la duración | borrado físico al usar los mensajes, al guardar la duración o con `purge_chat_messages` |
+| Eliminar un examen | borrado físico del examen, sus preguntas, alumnos elegidos y avisos. Se rechaza si ya hay intentos |
 
 ## 8. Límites que también son datos
 
