@@ -608,16 +608,188 @@ a.manual-download:hover, button.manual-download:hover { background: var(--hover)
 
 .translation-switch input { accent-color: var(--accent); }
 
+.shell > .chat-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 20rem minmax(0, 1fr);
+  background: var(--sheet);
+}
+
+.chat-screen h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; text-transform: none; }
+
+.chat-people,
+.chat-thread {
+  min-height: 0;
+  min-width: 0;
+}
+
+.chat-people {
+  border-right: 1px solid var(--line);
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-content: start;
+  gap: 0.7rem;
+  overflow: hidden;
+}
+
+.chat-people label { display: grid; gap: 0.3rem; font-size: 0.82rem; color: var(--muted); }
+.chat-people select,
+.chat-people input { width: 100%; }
+
+.chat-people ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: grid;
+  align-content: start;
+  gap: 0.4rem;
+}
+
+.chat-person-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+.chat-unread {
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: inline-grid;
+  place-items: center;
+}
+.chat-person {
+  width: 100%;
+  text-align: left;
+  display: grid;
+  gap: 0.12rem;
+  border-radius: 0.85rem;
+  color: var(--ink);
+}
+
+.chat-person strong { font-size: 0.95rem; }
+.chat-person span { color: var(--muted); font-size: 0.78rem; font-weight: 500; }
+
+.chat-person[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--sheet));
+}
+
+.chat-preview {
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-thread {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.chat-thread-head,
+.chat-composer {
+  padding: 0.85rem 1rem;
+}
+
+.chat-thread-head {
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 0.25rem;
+}
+
+.chat-log {
+  overflow: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  background: var(--panel);
+  min-height: 0;
+}
+
+.chat-bubble {
+  max-width: min(36rem, 86%);
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.9rem;
+  background: var(--sheet);
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 0.2rem;
+}
+
+.chat-bubble strong { font-size: 0.78rem; }
+.chat-bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-bubble time { color: var(--muted); font-size: 0.72rem; }
+
+.chat-bubble.mine {
+  margin-left: auto;
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+}
+
+.chat-composer {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 0.45rem;
+}
+
+.chat-composer label { display: grid; gap: 0.3rem; font-size: 0.82rem; color: var(--muted); }
+
+.chat-composer textarea {
+  width: 100%;
+  min-height: 4.5rem;
+  resize: vertical;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  background: var(--sheet);
+  color: var(--ink);
+  font: inherit;
+}
+
+.chat-composer textarea:focus { border-color: var(--accent); outline: none; }
+
+.chat-composer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.chat-empty {
+  margin: auto;
+  color: var(--muted);
+  text-align: center;
+  max-width: 24rem;
+  padding: 1.5rem;
+}
+
+.chat-thread > .chat-empty { grid-row: 1 / -1; align-self: center; }
+
 @media (max-width: 720px) {
-  .communities-body { grid-template-columns: 1fr; overflow: auto; }
-  .communities-list {
+  .communities-body,
+  .chat-body { grid-template-columns: 1fr; overflow: auto; }
+  .communities-list,
+  .chat-people {
     border-right: 0;
     border-bottom: 1px solid var(--line);
-    max-height: 16rem;
+    max-height: 18rem;
     overflow: auto;
-    grid-template-rows: auto auto auto;
   }
+  .communities-list { grid-template-rows: auto auto auto; }
   .communities-detail { overflow: visible; }
+  .chat-thread { min-height: 24rem; }
 }
 
 .settings-menu {

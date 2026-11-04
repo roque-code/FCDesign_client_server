@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react"
 import { api, ApiError, asAccount, ensureCsrf, isAccount, type Account } from "./api"
 import { AuthScreen } from "./auth/AuthScreen"
 import { AdminHome } from "./admin/AdminHome"
+import { ChatScreen } from "./chat/ChatScreen"
 import { Composer, type DiagramRequest } from "./compose/Composer"
 import { ErStudio } from "./erd/ErStudio"
 import { LocaleProvider, readStoredLocale, storeLocale, translate, translatedMessage, type Locale } from "./i18n"
@@ -24,6 +25,7 @@ export function App() {
   const [screen, setScreen] = useState<"editor" | "lab" | "compose" | "nassi" | "languages" | "communities">("editor")
   const [subject, setSubject] = useState<SubjectId | null>(null)
   const [homeView, setHomeView] = useState<"pick" | "communities">("pick")
+  const [chatOpen, setChatOpen] = useState(false)
   const [diagramRequest, setDiagramRequest] = useState<DiagramRequest | null>(null)
   const [nassiRequest, setNassiRequest] = useState<DiagramRequest | null>(null)
   const [editorFocus, setEditorFocus] = useState<{ projectId: string; algorithmId: string; token: number } | null>(null)
@@ -51,6 +53,7 @@ export function App() {
       setScreen("editor")
       setSubject(null)
       setHomeView("pick")
+      setChatOpen(false)
     }
     window.addEventListener("traza-session-end", onEnd)
     function onNotice(event: Event) {
@@ -178,12 +181,14 @@ export function App() {
     setScreen("editor")
     setSubject(null)
     setHomeView("pick")
+    setChatOpen(false)
   }
 
   function leaveSubject() {
     setSubject(null)
     setHomeView("pick")
     setScreen("editor")
+    setChatOpen(false)
   }
 
   function enterSubject(id: SubjectId) {
@@ -191,6 +196,7 @@ export function App() {
     if (id !== "fundamentos" && id !== "bases") return
     setSubject(id)
     setScreen("editor")
+    setChatOpen(false)
   }
 
   function backToEditor() {
@@ -234,7 +240,13 @@ function openNassi(payload: { name?: string; source?: string; semicolons: boolea
       <ErStudio account={account} onAccount={holdAccount} />
     </LeaveSubjectProvider>
   ) : subject !== "fundamentos" ? (
-    homeView === "communities" ? (
+    chatOpen ? (
+      <ChatScreen
+        account={account}
+        onAccount={holdAccount}
+        onBack={() => setChatOpen(false)}
+      />
+    ) : homeView === "communities" ? (
       <CommunitiesPanel
         account={account}
         onAccount={holdAccount}
@@ -246,6 +258,7 @@ function openNassi(payload: { name?: string; source?: string; semicolons: boolea
         account={account}
         onAccount={holdAccount}
         onOpenCommunities={() => setHomeView("communities")}
+        onOpenChat={() => setChatOpen(true)}
         onEnter={enterSubject}
       />
     )

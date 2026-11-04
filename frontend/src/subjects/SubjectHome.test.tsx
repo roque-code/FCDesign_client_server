@@ -45,6 +45,7 @@ function home(role: Account["role"], communities = false): string {
         account={account(role, communities)}
         onAccount={() => undefined}
         onOpenCommunities={() => undefined}
+        onOpenChat={() => undefined}
         onEnter={() => undefined}
       />
     </LocaleProvider>,
@@ -76,6 +77,7 @@ describe("pantalla de materias", () => {
     expect(html).toContain("Todavía no se abre.")
     expect(html.match(/<button[^>]*class="subject-card"/g)?.length).toBe(2)
     expect(html).toContain("Unirme")
+    expect(html).toContain(">Mensajes<")
     expect(html).not.toContain(">Comunidades<")
     expect(html).not.toContain("Salir")
     expect(html).not.toContain("puntos")
@@ -85,6 +87,8 @@ describe("pantalla de materias", () => {
 
   it("ofrece comunidades al docente que puede gestionarlas", () => {
     expect(home("teacher", true)).toContain(">Comunidades<")
+    expect(home("teacher", true)).toContain(">Mensajes<")
     expect(home("teacher", false)).not.toContain(">Comunidades<")
+    expect(home("teacher", false)).toContain(">Mensajes<")
   })
 })

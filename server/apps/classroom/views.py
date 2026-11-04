@@ -16,6 +16,7 @@ from apps.classroom.services import (
     remove_member,
     search_people,
     set_community_paste,
+    set_community_subject,
     set_community_translation,
     set_member_paste,
     set_member_translation,
@@ -65,6 +66,8 @@ class CommunityDetailView(APIView):
             )
         if "paste_enabled" in data:
             community = set_community_paste(user, community_id, data.get("paste_enabled"), address)
+        if "subject" in data:
+            community = set_community_subject(user, community_id, data.get("subject"), address)
         if community is None:
             raise DomainError("Indica el acceso que quieres cambiar.")
         return Response(community_detail(community))

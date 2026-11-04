@@ -11,11 +11,13 @@ export function SubjectHome({
   account,
   onAccount,
   onOpenCommunities,
+  onOpenChat,
   onEnter,
 }: {
   account: Account
   onAccount: (account: Account) => void
   onOpenCommunities: () => void
+  onOpenChat: () => void
   onEnter: (id: SubjectId) => void
 }) {
   const t = useT()
@@ -110,6 +112,11 @@ export function SubjectHome({
                 </form>
               ) : null}
             </div>
+          ) : null}
+          {canJoin ? (
+            <button className="top-action" type="button" onClick={onOpenChat}>
+              {t("chat")}
+            </button>
           ) : null}
           {canManage ? (
             <button className="top-action" type="button" onClick={onOpenCommunities}>

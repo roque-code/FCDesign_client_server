@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "apps.flowcharts",
     "apps.audit",
     "apps.classroom",
+    "apps.chat",
     "apps.learning",
 ]
 

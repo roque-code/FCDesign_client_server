@@ -43,15 +43,22 @@ export function AdminHome({
   const [pages, setPages] = useState(1)
   const [count, setCount] = useState(0)
   const [signup, setSignup] = useState<SignupPolicy | null>(null)
+  const [lifetimeHours, setLifetimeHours] = useState("")
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
   const [panel, setPanel] = useState<"levels" | "live">("levels")
 
   async function load() {
-    const [features, listed, gates] = await Promise.all([api.planCatalog(), api.plans(), api.signup()])
+    const [features, listed, gates, lifetime] = await Promise.all([
+      api.planCatalog(),
+      api.plans(),
+      api.signup(),
+      api.messageLifetime(),
+    ])
     setCatalog(features.results)
     setPlans(listed.results)
     setSignup(gates)
+    setLifetimeHours(String(lifetime.hours))
   }
 
   async function loadPeople(nextPage: number, nextQuery = query) {
@@ -187,6 +194,24 @@ export function AdminHome({
     }
   }
 
+  async function saveLifetime(event: { preventDefault: () => void }) {
+    event.preventDefault()
+    const hours = Number(lifetimeHours)
+    if (!Number.isInteger(hours) || hours < 1 || hours > 8760) {
+      setError(t("chatLifetimeInvalid"))
+      setNotice("")
+      return
+    }
+    setError("")
+    try {
+      const saved = await api.updateMessageLifetime({ hours })
+      setLifetimeHours(String(saved.hours))
+      setNotice(t("chatLifetimeSaved"))
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : t("requestError"))
+    }
+  }
+
   async function setBlocked(person: Subscriber, blocked: boolean) {
     if (blocked && !window.confirm(t("blockConfirm", { name: person.display_name }))) return
     setError("")
@@ -269,6 +294,24 @@ export function AdminHome({
               </label>
             </div>
           ) : null}
+        </section>
+        <section>
+          <h2>{t("chatLifetimeTitle")}</h2>
+          <p className="note">{t("chatLifetimeHint")}</p>
+          <form className="admin-search" onSubmit={(event) => void saveLifetime(event)}>
+            <label>
+              {t("chatLifetimeHours")}
+              <input
+                value={lifetimeHours}
+                inputMode="numeric"
+                onChange={(event) => setLifetimeHours(event.target.value)}
+                required
+              />
+            </label>
+            <button className="primary" type="submit">
+              {t("save")}
+            </button>
+          </form>
         </section>
         <section>
           <header className="admin-head">

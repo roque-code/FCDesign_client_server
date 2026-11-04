@@ -6,15 +6,19 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 
 
 class Community(models.Model):
+    SUBJECTS = ("fundamentos", "bases", "objetos", "software")
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="communities",
     )
+    subject = models.CharField(max_length=32)
     name = models.CharField(max_length=80)
     join_code = models.CharField(max_length=8, unique=True)
     translation_enabled = models.BooleanField(default=True)
@@ -24,7 +28,11 @@ class Community(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["owner", "name"], name="uniq_community_name"),
+            models.UniqueConstraint(fields=["owner", "subject", "name"], name="uniq_community_owner_subject_name"),
+            models.CheckConstraint(
+                condition=Q(subject__in=["fundamentos", "bases", "objetos", "software"]),
+                name="community_subject_known",
+            ),
         ]
         ordering = ["name"]
 

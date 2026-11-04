@@ -4,6 +4,7 @@ import { api, ApiError, type Account, type Community, type CommunitySummary, typ
 import { translatedMessage, useT } from "../i18n"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
+import { SUBJECTS, type SubjectId } from "../subjects/catalog"
 import { LeaveSubjectButton } from "../subjects/leave"
 
 const PAGE = 15
@@ -33,6 +34,7 @@ export function CommunitiesPanel({
   const [selectedId, setSelectedId] = useState("")
   const [detail, setDetail] = useState<Community | null>(null)
   const [name, setName] = useState("")
+  const [subject, setSubject] = useState<SubjectId>("fundamentos")
   const [memberQuery, setMemberQuery] = useState("")
   const [page, setPage] = useState(0)
   const [copied, setCopied] = useState(false)
@@ -84,7 +86,7 @@ export function CommunitiesPanel({
     event.preventDefault()
     setError("")
     try {
-      const created = await api.createCommunity(name.trim())
+      const created = await api.createCommunity(name.trim(), subject)
       setName("")
       setDetail(created)
       await loadList(created.id)
@@ -145,7 +147,12 @@ export function CommunitiesPanel({
     setCommunities((rows) =>
       rows.map((item) =>
         item.id === saved.id
-          ? { ...item, translation_enabled: saved.translation_enabled, paste_enabled: saved.paste_enabled }
+          ? {
+              ...item,
+              subject: saved.subject,
+              translation_enabled: saved.translation_enabled,
+              paste_enabled: saved.paste_enabled,
+            }
           : item,
       ),
     )
@@ -216,6 +223,16 @@ export function CommunitiesPanel({
           <div className="communities-list">
             <form onSubmit={create}>
               <label>
+                {t("chatSubject")}
+                <select value={subject} onChange={(event) => setSubject(event.target.value as SubjectId)}>
+                  {SUBJECTS.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {t(item.nameKey)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
                 {t("newCommunity")}
                 <input
                   aria-label={t("communityName")}
@@ -238,6 +255,7 @@ export function CommunitiesPanel({
                     }}
                   >
                     <strong>{item.name}</strong>
+                    <span>{t(SUBJECTS.find((spec) => spec.id === item.subject)?.nameKey ?? "subjectFundamentos")}</span>
                     <span>{t(item.student_count === 1 ? "countStudent" : "countStudents", { count: item.student_count })}</span>
                   </button>
                 </li>
@@ -253,6 +271,25 @@ export function CommunitiesPanel({
                     <h3>{detail.name}</h3>
                     <button type="button" className="danger" onClick={() => void removeCommunity()}>{t("remove")}</button>
                   </div>
+                  <label>
+                    {t("chatSubject")}
+                    <select
+                      value={detail.subject}
+                      onChange={(event) => {
+                        const next = event.target.value as SubjectId
+                        setError("")
+                        void api.setCommunitySubject(detail.id, next).then(remember).catch((caught: unknown) => {
+                          setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("communityOpenError"))
+                        })
+                      }}
+                    >
+                      {SUBJECTS.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {t(item.nameKey)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <div className="community-switches">
                     <label className="translation-switch">
                       <input

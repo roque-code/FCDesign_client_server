@@ -9,6 +9,7 @@ urlpatterns = [
     path("api/health/", HealthView.as_view(), name="health"),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/v1/auth/", include("apps.accounts.urls")),
+    path("api/v1/auth/", include("apps.chat.lifetime_urls")),
     path("api/v1/", include("apps.billing.urls")),
     path("api/v1/", include("apps.projects.urls")),
     path("api/v1/", include("apps.executions.urls")),
@@ -16,6 +17,7 @@ urlpatterns = [
     path("api/v1/", include("apps.editor.urls")),
     path("api/v1/", include("apps.language.urls")),
     path("api/v1/", include("apps.classroom.urls")),
+    path("api/v1/", include("apps.chat.urls")),
     path("api/v1/", include("apps.learning.urls")),
     path("api/v1/", include("apps.languages.urls")),
 ]

@@ -69,10 +69,19 @@ def _counts(community: Community) -> tuple[int, int]:
     return int(rows["students"] or 0), int(rows["teachers"] or 0)
 
 
+def community_subject(value: object, *, required: bool) -> str:
+    if value is None and not required:
+        return "fundamentos"
+    if not isinstance(value, str) or value not in Community.SUBJECTS:
+        raise DomainError("La materia no es válida.")
+    return value
+
+
 def community_summary(community: Community) -> dict[str, object]:
     students, teachers = _counts(community)
     return {
         "id": str(community.id),
+        "subject": community.subject,
         "name": community.name,
         "join_code": community.join_code,
         "student_count": students,
@@ -109,6 +118,7 @@ def community_detail(community: Community) -> dict[str, object]:
     students, teachers = _split(community)
     return {
         "id": str(community.id),
+        "subject": community.subject,
         "name": community.name,
         "join_code": community.join_code,
         "student_count": len(students),
@@ -139,17 +149,18 @@ def create_community(user: User, data: dict, ip_address: str | None) -> Communit
     if user.communities.count() >= settings.MAX_COMMUNITIES_PER_TEACHER:
         raise DomainError("Llegaste al máximo de comunidades.")
     name = clean_label(data.get("name"), field="El nombre", limit=80, required=True)
-    if user.communities.filter(name=name).exists():
+    subject = community_subject(data.get("subject"), required=False)
+    if user.communities.filter(name=name, subject=subject).exists():
         raise DomainError("Ya tienes una comunidad con ese nombre.")
     community: Community | None = None
     for _attempt in range(8):
-        community = Community(owner=user, name=name, join_code=new_join_code())
+        community = Community(owner=user, name=name, subject=subject, join_code=new_join_code())
         try:
             with transaction.atomic():
                 community.save()
             break
         except IntegrityError as exc:
-            if user.communities.filter(name=name).exists():
+            if user.communities.filter(name=name, subject=subject).exists():
                 raise DomainError("Ya tienes una comunidad con ese nombre.") from exc
             community = None
     if community is None:
@@ -159,7 +170,27 @@ def create_community(user: User, data: dict, ip_address: str | None) -> Communit
         actor=user,
         object_type="community",
         object_id=str(community.id),
-        metadata={"name": name},
+        metadata={"name": name, "subject": subject},
+        ip_address=ip_address,
+    )
+    return community
+
+
+def set_community_subject(user: User, community_id, value: object, ip_address: str | None) -> Community:
+    community = get_community(user, community_id)
+    subject = community_subject(value, required=True)
+    if subject == community.subject:
+        return community
+    if user.communities.filter(name=community.name, subject=subject).exclude(pk=community.pk).exists():
+        raise DomainError("Ya tienes una comunidad con ese nombre.")
+    community.subject = subject
+    community.save(update_fields=["subject", "updated_at"])
+    record(
+        "community.subject",
+        actor=user,
+        object_type="community",
+        object_id=str(community.id),
+        metadata={"subject": subject},
         ip_address=ip_address,
     )
     return community

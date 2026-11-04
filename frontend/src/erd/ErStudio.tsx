@@ -259,7 +259,13 @@ function Inspector({
   )
 }
 
-export function ErStudio({ account, onAccount }: { account: Account; onAccount: (account: Account) => void }) {
+export function ErStudio({
+  account,
+  onAccount,
+}: {
+  account: Account
+  onAccount: (account: Account) => void
+}) {
   const locale = useLocale()
   const t = useT()
   const [store, setStore] = useState<ErStore>(() => readStore() ?? emptyStore(translate(locale, "erdProjectDefault")))

@@ -6,6 +6,51 @@ export type SignupPolicy = {
   student: boolean
   teacher: boolean
 }
+
+export type ChatLifetime = {
+  hours: number
+}
+
+export type ChatMessage = {
+  id: string
+  sender_id: number
+  sender_name: string
+  body: string
+  created_at: string
+}
+
+export type ChatPerson = {
+  id: number
+  display_name: string
+  role: Role
+  conversation_id: string | null
+  last_message: ChatMessage | null
+  unread: number
+}
+
+export type ChatGroupOption = {
+  id: string
+  name: string
+  conversation_id: string | null
+  last_message: ChatMessage | null
+  unread: number
+  people: ChatPerson[]
+}
+
+export type ChatBoard = {
+  hours: number
+  subject: string
+  groups: ChatGroupOption[]
+}
+
+export type ChatThread = {
+  id: string
+  kind: "personal" | "group"
+  subject: string
+  community_id: string
+  peer_id: number | null
+  messages: ChatMessage[]
+}
 export type AccountRole = Role | "admin"
 
 export type AccountPlan = {
@@ -180,6 +225,7 @@ export type Person = {
 
 export type CommunitySummary = {
   id: string
+  subject: string
   name: string
   join_code: string
   student_count: number
@@ -868,6 +914,23 @@ export const api = {
   signup: () => request<SignupPolicy>("/api/v1/auth/signup/"),
   updateSignup: (body: Partial<SignupPolicy>) =>
     request<SignupPolicy>("/api/v1/auth/signup/", { method: "PATCH", body: JSON.stringify(body) }),
+  messageLifetime: () => request<ChatLifetime>("/api/v1/auth/message-lifetime/"),
+  updateMessageLifetime: (body: ChatLifetime) =>
+    request<ChatLifetime>("/api/v1/auth/message-lifetime/", { method: "PATCH", body: JSON.stringify(body) }),
+  chatBoard: (subject: string) =>
+    request<ChatBoard>(`/api/v1/chat/board/?subject=${encodeURIComponent(subject)}`),
+  openChat: (subject: string, communityId: string, userId: number | null) =>
+    request<ChatThread>("/api/v1/chat/conversations/", {
+      method: "POST",
+      body: JSON.stringify({ subject, community_id: communityId, user_id: userId }),
+    }),
+  chatMessages: (conversationId: string) =>
+    request<{ results: ChatMessage[] }>(`/api/v1/chat/conversations/${conversationId}/messages/`),
+  sendChatMessage: (conversationId: string, body: string) =>
+    request<ChatMessage>(`/api/v1/chat/conversations/${conversationId}/messages/`, {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    }),
   register: (body: { email: string; password: string; display_name?: string; role?: Role }) =>
     request<Account | PendingConfirmation>("/api/v1/auth/register/", {
       method: "POST",
@@ -894,8 +957,13 @@ export const api = {
   }) => request<Account>("/api/v1/auth/me/", { method: "PATCH", body: JSON.stringify(body) }),
   communities: () => request<{ results: CommunitySummary[] }>("/api/v1/communities/"),
   community: (id: string) => request<Community>(`/api/v1/communities/${id}/`),
-  createCommunity: (name: string) =>
-    request<Community>("/api/v1/communities/", { method: "POST", body: JSON.stringify({ name }) }),
+  createCommunity: (name: string, subject = "fundamentos") =>
+    request<Community>("/api/v1/communities/", { method: "POST", body: JSON.stringify({ name, subject }) }),
+  setCommunitySubject: (id: string, subject: string) =>
+    request<Community>(`/api/v1/communities/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify({ subject }),
+    }),
   joinCommunity: (code: string) =>
     request<{ id: string; name: string }>("/api/v1/communities/join/", {
       method: "POST",
