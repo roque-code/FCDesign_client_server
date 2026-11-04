@@ -39,6 +39,14 @@ cd server && python3 manage.py create_admin --email admin@ejemplo.test --passwor
 
 Crea la cuenta con rol `admin`, correo confirmado y sin nivel de alumno o docente. No marca `is_staff`. El alta pública sigue ofreciendo solo estudiante y docente. Después de `migrate`, la base ya tiene los niveles gratis y premium.
 
+## 2.2 Mensajes vencidos
+
+```bash
+cd server && python3 manage.py purge_chat_messages
+```
+
+Borra los mensajes más viejos que la duración que fijó el administrador, 24 horas si no la cambió, y responde «Se borraron N mensajes.». No hace falta para que se borren: la API ya lo hace cada vez que alguien usa los mensajes. En los contenedores: `docker compose exec web python manage.py purge_chat_messages`.
+
 ## 3. Pruebas
 
 ```bash
@@ -62,4 +70,4 @@ Hay una tercera forma de abrir la interfaz: la ventana de `desktop/`. En depurac
 cd desktop && npm install && npm run dev
 ```
 
-En un paquete publicado, las llamadas que empiezan por `/api/` pasan por `server_fetch` hacia `TRAZA_API_ORIGIN`. Si esa variable no está, el origen es `https://fcdesign.aulivana.com`. `TRAZA_UPDATE_URL`, si existe, apunta a un manifiesto `version` y `url` para descargar un paquete más nuevo. El detalle del lanzador está en [arquitectura.md](arquitectura.md).
+En un paquete publicado, las llamadas que empiezan por `/api/` pasan por `server_fetch` hacia `TRAZA_API_ORIGIN`. Si esa variable no está, o está vacía, el origen es `https://fcdesign.aulivana.com`. Contra HTTPS el proxy pone `Origin` y `Referer` de la API en las escrituras, y un error de la API llega a la pantalla con su mensaje. `freeze_host.py` borra el binario anterior antes de copiar el nuevo, porque macOS cierra un binario firmado sobrescrito. `TRAZA_UPDATE_URL`, si existe, apunta a un manifiesto `version` y `url` para descargar un paquete más nuevo. El detalle del lanzador está en [arquitectura.md](arquitectura.md).

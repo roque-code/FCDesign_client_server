@@ -1,6 +1,6 @@
 # Diccionario de datos
 
-Fecha de referencia: 2026-10-28. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. Los niveles viven en `billing_plan` y `billing_subscription`. El cupo del día vive en `billing_dailyexecution`. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
+Fecha de referencia: 2026-11-03. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. Los mensajes viven en las tablas `chat_*`. Los diagramas entidad-relación de Bases de datos no tienen tabla: se guardan en el navegador. Los niveles viven en `billing_plan` y `billing_subscription`. El cupo del día vive en `billing_dailyexecution`. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
 
 La base se llama `traza` y, con los contenedores levantados, escucha en `127.0.0.1:5434`. El usuario de desarrollo es `traza`. No es la base del contenedor anterior `traza-pg` del puerto `5433`.
 
@@ -63,6 +63,13 @@ La columna foránea se llama `campo_id` y apunta a la clave de la otra tabla. `A
 | `classroom_community` | `owner_id` | `accounts_user.id` | 1 docente, muchas comunidades | se borran sus comunidades |
 | `classroom_membership` | `community_id` | `classroom_community.id` | 1 comunidad, muchos miembros | se borran las membresías |
 | `classroom_membership` | `user_id` | `accounts_user.id` | 1 usuario, muchas membresías | se borran las membresías |
+| `chat_conversation` | `community_id` | `classroom_community.id` | 1 comunidad, muchas conversaciones | se borran las conversaciones |
+| `chat_conversation` | `teacher_id` | `accounts_user.id` | el docente de la personal; nulo en la de grupo | se borran sus conversaciones |
+| `chat_conversation` | `student_id` | `accounts_user.id` | el alumno de la personal; nulo en la de grupo | se borran sus conversaciones |
+| `chat_message` | `conversation_id` | `chat_conversation.id` | 1 conversación, muchos mensajes | se borran los mensajes |
+| `chat_message` | `sender_id` | `accounts_user.id` | quién escribió | se borran sus mensajes |
+| `chat_readcursor` | `conversation_id` | `chat_conversation.id` | una marca por persona y conversación | se borra la marca |
+| `chat_readcursor` | `user_id` | `accounts_user.id` | quién leyó | se borra la marca |
 | `audit_auditevent` | `actor_id` | `accounts_user.id` | el actor puede desaparecer | el actor queda en nulo |
 | `learning_learningpath` | `owner_id` | `accounts_user.id` | la ruta de sistema no tiene dueño | se borra la ruta del docente |
 | `learning_learningunit` | `path_id` | `learning_learningpath.id` | 1 ruta, muchas unidades | se borran las unidades |
@@ -345,8 +352,9 @@ No hay actividades ni entregas. Una comunidad solo agrupa cuentas que ya existen
 | Campo | Tipo | Nulo | Descripción |
 | --- | --- | --- | --- |
 | `id` | `uuid` | NO | Clave |
-| `owner_id` | `bigint` | NO | Docente dueño. El nombre es único entre las suyas |
+| `owner_id` | `bigint` | NO | Docente dueño. El nombre es único entre las suyas de la misma materia |
 | `name` | `varchar(80)` | NO | Nombre visible |
+| `subject` | `varchar(32)` | NO | Materia: `fundamentos`, `bases`, `objetos` o `software`. `classroom.0005`. Las que ya existían quedaron en `fundamentos` |
 | `translation_enabled` | `boolean` | NO | Si los alumnos heredan la traducción de código. Nace en verdadero |
 | `paste_enabled` | `boolean` | NO | Si los alumnos heredan el permiso de pegar. Nace en verdadero |
 | `join_code` | `varchar(8)` | NO | Código único de 6 caracteres. `classroom.0004`. El alumno lo escribe en Unirme. Uno nuevo invalida el anterior |
@@ -367,6 +375,51 @@ Tope de aplicación: 30 comunidades por docente y 200 personas por comunidad.
 | `created_at` | `timestamptz` | NO | Momento en que se agregó |
 
 El papel de alumno o docente de esa fila sale de `accounts_profile.role`, no de esta tabla.
+
+## 6.1 Mensajes
+
+Migraciones `chat.0001` a `chat.0003`. Un mensaje más viejo que `chat_messagelifetime.hours` se borra al usar los mensajes, al guardar una duración nueva o con `python manage.py purge_chat_messages`. Una consulta puede encontrar todavía uno vencido si nadie usó los mensajes desde entonces.
+
+### `chat_messagelifetime`
+
+| Campo | Tipo | Nulo | Descripción |
+| --- | --- | --- | --- |
+| `id` | `bigint` | NO | Clave. Una sola fila |
+| `hours` | `integer` | NO | Horas que vive un mensaje, de 1 a 8760. Nace en 24. Solo la cambia el administrador |
+
+### `chat_conversation`
+
+| Campo | Tipo | Nulo | Descripción |
+| --- | --- | --- | --- |
+| `id` | `uuid` | NO | Clave |
+| `kind` | `varchar(16)` | NO | `personal` o `group` |
+| `subject` | `varchar(32)` | NO | Materia, con los mismos valores que la comunidad |
+| `community_id` | `uuid` | NO | Grupo |
+| `teacher_id` | `bigint` | SÍ | Docente de la conversación personal. Nulo en la de grupo |
+| `student_id` | `bigint` | SÍ | Alumno de la conversación personal. Nulo en la de grupo |
+| `created_at` | `timestamptz` | NO | Alta |
+| `updated_at` | `timestamptz` | NO | Último cambio |
+
+Única la personal por materia, grupo, docente y alumno (`uniq_chat_personal`). Única la de grupo por materia y grupo (`uniq_chat_group`). `chat_conversation_shape` exige docente y alumno en la personal, y ninguno de los dos en la de grupo.
+
+### `chat_message`
+
+| Campo | Tipo | Nulo | Descripción |
+| --- | --- | --- | --- |
+| `id` | `uuid` | NO | Clave |
+| `conversation_id` | `uuid` | NO | Conversación |
+| `sender_id` | `bigint` | NO | Quién escribió |
+| `body` | `text` | NO | Texto. La aplicación lo limita a 2000 caracteres |
+| `created_at` | `timestamptz` | NO | Envío. Índices `chat_message_created_idx` y `chat_message_thread_idx` |
+
+### `chat_readcursor`
+
+| Campo | Tipo | Nulo | Descripción |
+| --- | --- | --- | --- |
+| `id` | `bigint` | NO | Clave |
+| `conversation_id` | `uuid` | NO | Conversación |
+| `user_id` | `bigint` | NO | Quién leyó. Único por conversación |
+| `read_at` | `timestamptz` | NO | Hasta cuándo leyó. Lo posterior, de otra persona, cuenta como sin leer |
 
 ## 7. Laboratorio
 

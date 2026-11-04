@@ -1,6 +1,6 @@
 # Modelo de datos
 
-Estado: migrado. Fecha de referencia: 2026-10-28. `classroom.0004` guarda el código con el que un alumno entra a una comunidad. `billing.0003` agrega `max_executions_per_day` al nivel y la tabla `DailyExecution`. `accounts.0008` impide dos correos que solo cambien en las mayúsculas. `learning.0017` agrega `weights` al reto y a la colocación en la ruta. `accounts.0007` agrega `SignupPolicy`, una fila con las altas de alumno y de docente. La traducción del algoritmo y la ventana de escritorio no agregan tablas. La migración `billing.0001` agrega `Plan` y `Subscription`, siembra gratis y premium para alumno y para docente, y asigna el gratis a las cuentas que ya existían. La migración `classroom.0002` añade `translation_enabled` a la comunidad y a la membresía. `classroom.0003` añade `paste_enabled` con la misma forma. `accounts.0005` guarda la foto del perfil. La migración `learning.0016` siembra el banco y la ruta Práctica de concurso, cincuenta retos. El diccionario para consultar, con tipo y longitud de cada campo, está en [diccionario-de-datos.md](diccionario-de-datos.md). El mapa de procesos está en [arquitectura.md](arquitectura.md). Las comunidades de docentes están en `classroom`. Las actividades y las entregas del aula no. El laboratorio tiene tablas propias en `learning`, con el catálogo de conceptos, la ruta Fundamentos de treinta y cuatro retos, el banco y las rutas que arma un docente. `accounts.User.email_confirmed` llegó en la migración `0004_user_email_confirmed`.
+Estado: migrado. Fecha de referencia: 2026-11-03. `classroom.0005` pone cada comunidad en una materia. `chat.0001` a `chat.0003` agregan las conversaciones, los mensajes, la marca de lectura y la duración de los mensajes. Los diagramas entidad-relación de Bases de datos no tienen tabla: se guardan en el navegador. `classroom.0004` guarda el código con el que un alumno entra a una comunidad. `billing.0003` agrega `max_executions_per_day` al nivel y la tabla `DailyExecution`. `accounts.0008` impide dos correos que solo cambien en las mayúsculas. `learning.0017` agrega `weights` al reto y a la colocación en la ruta. `accounts.0007` agrega `SignupPolicy`, una fila con las altas de alumno y de docente. La traducción del algoritmo y la ventana de escritorio no agregan tablas. La migración `billing.0001` agrega `Plan` y `Subscription`, siembra gratis y premium para alumno y para docente, y asigna el gratis a las cuentas que ya existían. La migración `classroom.0002` añade `translation_enabled` a la comunidad y a la membresía. `classroom.0003` añade `paste_enabled` con la misma forma. `accounts.0005` guarda la foto del perfil. La migración `learning.0016` siembra el banco y la ruta Práctica de concurso, cincuenta retos. El diccionario para consultar, con tipo y longitud de cada campo, está en [diccionario-de-datos.md](diccionario-de-datos.md). El mapa de procesos está en [arquitectura.md](arquitectura.md). Las comunidades de docentes están en `classroom`. Las actividades y las entregas del aula no. El laboratorio tiene tablas propias en `learning`, con el catálogo de conceptos, la ruta Fundamentos de treinta y cuatro retos, el banco y las rutas que arma un docente. `accounts.User.email_confirmed` llegó en la migración `0004_user_email_confirmed`.
 
 Motor: PostgreSQL. Claves públicas: UUID versión 4. Claves internas de alto volumen: entero de 64 bits. Las marcas de tiempo son `timestamptz`.
 
@@ -29,6 +29,10 @@ erDiagram
     Community ||--o{ Membership : incluye
     User ||--o{ Membership : pertenece
     LanguageProfile ||--o{ Algorithm : configura
+    Community ||--o{ Conversation : conversa
+    Conversation ||--o{ Message : contiene
+    Conversation ||--o{ ReadCursor : marca
+    User ||--o{ Message : escribe
 ```
 
 El laboratorio no cuelga de `Algorithm`. `LearningPath`, `Challenge`, `ChallengeAttempt` y `Practice` forman otro grupo, descrito en la sección 6.1. Una ruta de docente puede asignarse a una `Community` o a un alumno mediante `PathAssignment`.
@@ -214,7 +218,7 @@ El error de ejecución no necesita otra tabla. Un evento `kind=error` guarda có
 
 `accounts.SignupPolicy` es una fila, la `accounts.0007`. `student` y `teacher` nacen en verdadero. El administrador los apaga desde su pantalla. Un tipo apagado no aparece en Crear cuenta y el alta lo rechaza.
 
-Una comunidad pertenece a un docente. Solo él la crea, la lista y la borra. El nombre es único entre las suyas. Hay un tope de 30 comunidades y de 200 personas por comunidad.
+Una comunidad pertenece a un docente. Solo él la crea, la lista y la borra. `Community.subject` dice de qué materia es: `fundamentos`, `bases`, `objetos` o `software`. `classroom.0005` dejó en `fundamentos` las que ya existían. El nombre es único entre las suyas de la misma materia (`uniq_community_owner_subject_name`). Hay un tope de 30 comunidades y de 200 personas por comunidad.
 
 `classroom.Membership` une la comunidad con un usuario que ya tiene cuenta. No se registran personas desde la comunidad. El docente busca por nombre o correo, entre alumnos y otros docentes, y agrega el resultado a una comunidad suya. No puede agregarse a sí mismo. La lista de alumnos y la de docentes salen del perfil actual de cada miembro.
 
@@ -228,6 +232,10 @@ El laboratorio no usa las tablas de proyectos ni de ejecuciones. Vive en `server
 
 Hay rutas, unidades, retos, casos de prueba, pistas, intentos, fotos del workspace, usos de pista, predicciones, reflexiones, conceptos y dominio. La migración `0002_seed_concepts` carga seis conceptos (`variable`, `assignment`, `io`, `operator`, `if`, `while`). `0003_seed_path` carga la ruta Fundamentos. `0006_control_challenges` suma `Si` y `Mientras`. `0007_switch_for_repeat` suma `Segun`, `Para` y `Repetir`. Cada reto puede llevar `time_limit_seconds`; si es nulo, no hay límite. Al cerrar un intento, terminado o sin tiempo, se guarda `elapsed_seconds`. Un intento apunta a un usuario y no es una fila de `executions.Execution`. `Practice` guarda una práctica libre de ese usuario: nombre único entre las suyas, el JSON del lienzo y el pseudocódigo. Hay un tope de 40. No es un algoritmo del banco de trabajo.
 
+## 6.2 Mensajes
+
+`server/apps/chat` guarda los mensajes. `Conversation` es `personal` o `group`, de una materia y de una comunidad. La personal une a un docente con un alumno; la de grupo no tiene ninguno de los dos y la ven el dueño y todos los miembros. `Message` guarda remitente, texto y fecha. `ReadCursor` guarda hasta cuándo leyó cada persona una conversación; lo que escribió otro después de esa marca cuenta como sin leer. `MessageLifetime` es una fila con las horas que vive un mensaje, de 1 a 8760, y nace en 24. Lo vencido se borra al usar los mensajes y con `python manage.py purge_chat_messages`. Borrar la comunidad o la cuenta borra sus conversaciones y sus mensajes.
+
 ## 7. Políticas de borrado
 
 | Acción | Efecto |
@@ -236,6 +244,7 @@ Hay rutas, unidades, retos, casos de prueba, pistas, intentos, fotos del workspa
 | Vaciar papelera | borrado físico del algoritmo, sus versiones, eventos de ejecución y enlaces |
 | Borrar usuario | se rechaza si posee proyectos vivos. Primero debe vaciarlos. Luego se anonimiza la auditoría (`actor` nulo) |
 | Borrar perfil de lenguaje de sistema | prohibido |
+| Mensaje más viejo que la duración | borrado físico al usar los mensajes, al guardar la duración o con `purge_chat_messages` |
 
 ## 8. Límites que también son datos
 

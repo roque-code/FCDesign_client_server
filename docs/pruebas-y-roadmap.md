@@ -1,6 +1,6 @@
 # Pruebas y roadmap
 
-Estado: fases 0 a 6 hechas en desarrollo. La configuración de producción no está activa: el compose usa `DEBUG` verdadero. Las comunidades de docentes ya están; las actividades y las entregas, no. Las pruebas del núcleo y del servidor se ejecutan; este documento ya no es un plan sin código.
+Estado: fases 0 a 6 hechas en desarrollo. La configuración de producción no está activa: el compose usa `DEBUG` verdadero. Las comunidades de docentes, las materias, los mensajes y el editor entidad-relación ya están; las actividades y las entregas, no. Las pruebas del núcleo y del servidor se ejecutan; este documento ya no es un plan sin código.
 
 ## 1. Cómo se prueba
 
@@ -138,6 +138,9 @@ Hecha. `flowchart.py`, API, React Flow, posiciones en el cliente, sincronizació
 - Cada nivel tiene un tope de ejecuciones al día, 3 como mínimo, o vacío si no hay tope. Ejecutar, depurar, la práctica, comprobar un reto y arrancar un lenguaje descuentan una. El pseudocódigo se corta a 100 000 instrucciones o a 5 segundos, y Detener lo corta antes. La identidad muestra las que quedan.
 - En el servidor público los lenguajes del navegador corren en un contenedor aparte. Si no responde, la API dice que Lenguajes no está disponible. El avance del docente empieza por la comunidad y el CSV de la ruta solo incluye a sus alumnos. El administrador puede bloquear una cuenta.
 - Un construir puede guardarse sin casos. Probar no compara una salida ni descuenta una ejecución. Un caso admite hasta 40 entradas. El mismo reto puede estar dos veces en una ruta. La campana del alumno avisa de uno nuevo o de uno habilitado. Armar Nassi-Shneiderman dibuja el mismo algoritmo en columnas. En Armar diagrama, al elegir o arrastrar una figura el hueco se abre y al soltar se cierra. Cada comunidad tiene un código de 6 caracteres. El alumno lo escribe en Unirme. `<-` y `=` asignan. `==` compara.
+- Después de entrar se elige la materia. Fundamentos abre lo de siempre. Bases de datos abre el editor entidad-relación en notación de Chen, guardado en el navegador. Las pruebas están en `frontend/src/subjects/SubjectHome.test.tsx`, `frontend/src/erd/ErStudio.test.tsx` y `frontend/src/erd/model.test.ts`.
+- Cada comunidad es de una materia. Mensajes conversa por materia y grupo, con la duración que fija el administrador. La prueba del servidor está en `server/apps/chat/tests/test_chat.py`: quién ve cada grupo, quién conversa con quién, lo sin leer, el tope de 2000 caracteres y el borrado de lo vencido.
+- El cuadro del lenguaje en un reto es el editor de Lenguajes. Las sugerencias y la indentación se prueban en `frontend/src/foreign/completion.test.ts` e `indent.test.ts`. Las campanas abiertas comparten una consulta.
 - Menú **Configuración** y menú **Funciones**. El idioma de la cuenta cambia los textos y la grafía de las palabras reservadas, y no reescribe el fuente guardado.
 - **Traducir** muestra el algoritmo en los siete lenguajes sin ejecutarlo. **Actualizar** vuelve a cargar la cuenta y suelta el borrador local.
 - La consola hace eco del dato aceptado y se desplaza hasta el final.

@@ -1,6 +1,6 @@
 # Arquitectura de integración
 
-Fecha de referencia: 2026-10-28. No hay un bus de empresa ni un proveedor de correo externo. Las integraciones son los contratos entre las piezas del propio sistema, y el proxy de la ventana de escritorio hacia la API.
+Fecha de referencia: 2026-11-03. No hay un bus de empresa ni un proveedor de correo externo. Las integraciones son los contratos entre las piezas del propio sistema, y el proxy de la ventana de escritorio hacia la API.
 
 ```mermaid
 flowchart LR
@@ -40,11 +40,13 @@ flowchart LR
 | Aplicación | Cabecera `X-Aulivana-FCDdesign-Client: desktop` | Sin ella, y si el navegador no está permitido, el resto de `/api/v1/` responde 403 |
 | Notas | `GET /api/v1/learning/roster/{id}/progress/` | CSV de la ruta. No se guarda |
 | Retos | `GET /api/v1/learning/challenges/csv/?tipo=&contenido=retos&banco=` y `POST /api/v1/learning/challenges/csv/` | La descarga sale por tipo y por banco (`catalogo` o `concurso`). Un alumno recibe 403. La carga admite hasta 250 retos y 1 MB. Si una fila falla, no se guarda ninguna |
-| Escritorio y API | `POST /local/v1/proxy`, solo rutas `/api/` | La misma JSON de la API. El token del anfitrión local no viaja al servidor |
+| Mensajes | `GET /api/v1/chat/board/?subject=`, `POST /api/v1/chat/conversations/` y `GET` o `POST /api/v1/chat/conversations/{id}/messages/` | Grupos, personas, sin leer y mensajes. El cliente vuelve a pedir la lista cada 5 segundos y el hilo cada 4. No hay canal en vivo. No exige una función del nivel |
+| Duración de los mensajes | `GET` y `PATCH /api/v1/auth/message-lifetime/` | Horas, de 1 a 8760. Solo el administrador la cambia |
+| Escritorio y API | `POST /local/v1/proxy`, solo rutas `/api/` | La misma JSON de la API. El token del anfitrión local no viaja al servidor. Contra HTTPS verifica el certificado y pone `Origin` y `Referer` en las escrituras. Un error de la API llega a la ventana con su estado y su cuerpo |
 | Escritorio y núcleo | HTTP en `127.0.0.1` con el token de arranque | Validar, traducir, ejecutar, depurar y el laboratorio |
 
 El error de la API tiene siempre `error.code`, `error.message` y `error.details`. Un objeto privado de otra persona responde 404. El idioma de la cuenta no es un servicio: el navegador cambia la pantalla y la grafía visible, y el núcleo acepta las dos grafías al lexicar. Traducir a Python u otro lenguaje es otro contrato y no reescribe el fuente.
 
-En la máquina, sin compose, desaparecen Redis, runner y Mailpit. Django llama a `language_core` y escribe el correo en la consola. `compose.servidor.yaml` conserva Redis y el runner, quita Mailpit y envía la confirmación por Gmail. Django llama a los lenguajes del navegador en `http://languages:8766`, un contenedor sin salida: Node, Java y .NET ya están en la imagen, y C, C++ y Python usan gcc y el Python de esa imagen. Si no responde, la API dice «Lenguajes no está disponible.» `GET /api/v1/auth/signup/` dice si el alta de alumno y la de docente están abiertas. Nginx publica `/runtimes/manifest.json`. La aplicación de escritorio lo usa para bajar un compilador que no esté en la máquina. Comprobar el código de un lenguaje dentro de un reto usa ese mismo ejecutor. `POST /api/v1/communities/join/` agrega a quien escribe el código de 6 caracteres. No exige la función de comunidades del nivel. `POST /api/v1/communities/{id}/code/` cambia ese código y el anterior deja de servir.
+En la máquina, sin compose, desaparecen Redis, runner y Mailpit. Django llama a `language_core` y escribe el correo en la consola. `compose.servidor.yaml` conserva Redis y el runner, quita Mailpit y envía la confirmación por Gmail. Django llama a los lenguajes del navegador en `http://languages:8766`, un contenedor sin salida: Node, Java y .NET ya están en la imagen, y C, C++ y Python usan gcc y el Python de esa imagen. Si no responde, la API dice «Lenguajes no está disponible.» `GET /api/v1/auth/signup/` dice si el alta de alumno y la de docente están abiertas. Nginx publica `/runtimes/manifest.json`. La aplicación de escritorio lo usa para bajar un compilador que no esté en la máquina. Comprobar el código de un lenguaje dentro de un reto usa ese mismo ejecutor. `POST /api/v1/communities/join/` agrega a quien escribe el código de 6 caracteres. No exige la función de comunidades del nivel. `POST /api/v1/communities/{id}/code/` cambia ese código y el anterior deja de servir. `PATCH /api/v1/communities/{id}/` con `subject` cambia la materia de la comunidad. El editor entidad-relación de Bases de datos y las sugerencias del editor de Lenguajes no llaman a la API: viven en el navegador.
 
 Volver al [índice](indice.md).

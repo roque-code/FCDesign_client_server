@@ -1,6 +1,6 @@
 # Arquitectura
 
-Estado: el editor, el laboratorio, el correo de confirmación, el idioma español o inglés, la traducción a otros lenguajes, la aplicación de escritorio, los niveles de suscripción, el bloqueo de pegar y las altas que define el administrador están en el código de desarrollo. Fecha de referencia: 2026-10-28. En el compose de desarrollo `DEBUG` sigue en verdadero. El servidor público carga `config.settings.production` y se abre en `https://fcdesign.aulivana.com`.
+Estado: el editor, el laboratorio, el correo de confirmación, el idioma español o inglés, la traducción a otros lenguajes, la aplicación de escritorio, los niveles de suscripción, el bloqueo de pegar, las altas que define el administrador, las materias, los mensajes y el editor entidad-relación están en el código de desarrollo. Fecha de referencia: 2026-11-03. En el compose de desarrollo `DEBUG` sigue en verdadero. El servidor público carga `config.settings.production` y se abre en `https://fcdesign.aulivana.com`.
 
 Este documento describe el sistema que corre hoy. La gramática está en [gramatica.md](gramatica.md), el árbol en [ast.md](ast.md), las tablas en [modelo-de-datos.md](modelo-de-datos.md) y el aislamiento del intérprete en [ejecucion.md](ejecucion.md).
 
@@ -8,13 +8,21 @@ Este documento describe el sistema que corre hoy. La gramática está en [gramat
 
 **Aulivana-FCDdesign** enseña programación estructurada. El canónico del lenguaje es el español. La cuenta puede ver la interfaz y las palabras reservadas en inglés. Quien entra escribe pseudocódigo, recibe diagnósticos con línea y columna, lo ejecuta en una consola, lo recorre paso a paso, ve el diagrama generado desde el árbol de sintaxis y puede pedir el mismo algoritmo en Python, JavaScript, TypeScript, Java, C, C++ o C#. Esa traducción no se ejecuta.
 
-Hay tres pantallas, todas con la misma sesión:
+Al entrar, el alumno y el docente eligen una materia. **Fundamentos** abre tres pantallas, todas con la misma sesión:
 
 | Pantalla | Dónde vive | Qué hace |
 | --- | --- | --- |
 | Banco de trabajo | `frontend/src/workbench` | Proyectos, algoritmos, editor, depurador, consola, diagrama, comunidades y el repaso de un alumno |
 | Laboratorio | `frontend/src/learning` | Ruta Fundamentos, práctica de concurso, banco de retos, rutas de un docente, práctica libre, tablero y avance |
 | Armar diagrama | `frontend/src/compose` | Figuras que se arrastran y se convierten en pseudocódigo. El resultado se abre en el editor |
+
+Fuera de Fundamentos hay tres pantallas más:
+
+| Pantalla | Dónde vive | Qué hace |
+| --- | --- | --- |
+| Materias | `frontend/src/subjects` | Primera pantalla después de entrar. Elige la materia y tiene Unirme, Mensajes y, para el docente, Comunidades |
+| Bases de datos | `frontend/src/erd` | Diagrama entidad-relación en notación de Chen. Se guarda en el navegador |
+| Mensajes | `frontend/src/chat` y `server/apps/chat` | Conversación por materia y grupo, con el docente, con un alumno o con todo el grupo |
 
 El núcleo cubre secuencia, `Si`, `Segun`, `Mientras`, `Repetir`, `Para`, arreglos, funciones, procedimientos, recursión y la biblioteca estándar. Quedan fuera la orientación a objetos, los archivos del pseudocódigo y la concurrencia. Las actividades y las entregas del aula no tienen tablas. Las comunidades sí: un docente agrupa cuentas que ya existen.
 
@@ -119,11 +127,16 @@ fcdesign/
 │       ├── flowcharts/        API del grafo
 │       ├── editor/            preferencias
 │       ├── language/          perfiles y palabras clave
-│       ├── classroom/         comunidades
+│       ├── classroom/         comunidades, cada una de una materia
+│       ├── chat/              mensajes por materia y grupo, y su duración
 │       ├── learning/          ruta, banco, autoría, intentos, práctica y avance
 │       └── audit/
 └── frontend/src/
     ├── auth/                  alta, entrada, recuperación y enlace de confirmación
+    ├── subjects/              pantalla de materias y botón Materias
+    ├── chat/                  pantalla de mensajes
+    ├── erd/                   editor entidad-relación de Bases de datos
+    ├── foreign/               editor de Lenguajes y sus sugerencias
     ├── workbench/             banco de trabajo y comunidades
     ├── learning/              laboratorio
     ├── compose/               armar diagrama
@@ -147,7 +160,8 @@ fcdesign/
 | flowcharts | `language_core/flowchart.py` y `server/apps/flowcharts` | Grafo sin coordenadas, y la API que lo entrega |
 | editor | `server/apps/editor` y `frontend/src/editor` | Preferencias en el servidor. El editor es del cliente |
 | language | `server/apps/language` | Perfiles persistidos y la lista de palabras que consume el cliente |
-| classroom | `server/apps/classroom` | Comunidades. Sin actividades ni entregas |
+| classroom | `server/apps/classroom` | Comunidades, cada una de una materia. Sin actividades ni entregas |
+| chat | `server/apps/chat` y `frontend/src/chat` | Conversaciones, mensajes, lectura y duración de los mensajes |
 | learning | `server/apps/learning` y `frontend/src/learning` | Rutas, retos, intentos, práctica libre, banco y avance |
 | audit | `server/apps/audit` | Alta, confirmación, sesión, enlaces, borrado y ejecución |
 | runner | `runner/` | Proceso que consume Redis y llama al núcleo |
@@ -156,9 +170,15 @@ El parser y el intérprete no son aplicaciones Django. [ADR 0002](adr/0002-nucle
 
 ## 7. Cliente
 
-`App` pide la cookie CSRF y después `GET /api/v1/auth/me/`. Sin sesión muestra `AuthScreen`. Con sesión elige banco de trabajo, laboratorio o armar diagrama. Las tres pantallas comparten la cuenta. Volver al editor conserva el algoritmo que estaba abierto.
+`App` pide la cookie CSRF y después `GET /api/v1/auth/me/`. Sin sesión muestra `AuthScreen`. Al entrar lee `GET /api/v1/preferences/` para aplicar el tema y el idioma. El administrador va a su pantalla. Una cuenta sin navegador, fuera de la aplicación de escritorio, ve solo su cuenta. El alumno y el docente llegan a `SubjectHome`.
+
+`SubjectHome` muestra «Elige una materia» y cuatro tarjetas, en `frontend/src/subjects/catalog.ts`. **Fundamentos** (pseudocódigo, diagrama de flujo y Nassi-Shneiderman) y **Bases de datos** (diagrama entidad-relación con notación de Chen) se abren con **Entrar**. **Programación orientada a objetos** e **Ingeniería de software** dicen «Todavía no se abre.» Arriba están el logotipo, la identidad con solo los días que faltan para pagar (un guion si no hay fecha), **Unirme**, **Mensajes** y, para un docente con la función `communities`, **Comunidades**. Esas dos últimas se abren desde ahí con «Volver a las materias». Dentro de una materia, el botón **Materias** regresa a esta pantalla. Está en el banco de trabajo, el laboratorio, Armar diagrama, Lenguajes, Comunidades y Bases de datos. Cerrar la sesión también vuelve a las materias en el siguiente ingreso.
+
+Fundamentos abre el banco de trabajo, el laboratorio o armar diagrama. Las tres pantallas comparten la cuenta. Volver al editor conserva el algoritmo que estaba abierto. El banco de trabajo conserva **Unirme** y **Comunidades**.
 
 **Lenguajes** aparece, entre Actualizar y Laboratorio, solo si el nivel incluye la función `languages`. La semilla la deja apagada y el administrador la enciende. La ventana no usa el pseudocódigo. Cada lenguaje trae sus palabras en inglés. En el navegador, Ejecutar corre en el servidor. `POST /api/v1/languages/` exige esa función. En el compose de desarrollo, Django llama a `local_host.browser_host` en `127.0.0.1:8766`, que Gunicorn arranca y que no se publica. En el servidor público, `TRAZA_LANGUAGE_HOST=0`: Gunicorn no arranca ese proceso y Django llama a `http://languages:8766`. Ese contenedor está en una red interna, sin salida, con disco de solo lectura. Node, Java y .NET se instalan al construir la imagen. C, C++ y Python usan gcc y el Python de la imagen. Si no responde, la API dice «Lenguajes no está disponible.» En la aplicación de escritorio corre en la máquina. Si el compilador ya está, se usa; si no, se descarga el que publica `/runtimes/manifest.json` y se escribe en disco. Si no hay espacio, responde que no se pudo instalar. C y C++ usan el compilador de la máquina; si no está, el manifiesto publica Zig. Una lectura detiene el programa hasta que se envía el dato. El borrador no se guarda en la cuenta. Desde esa ventana se puede pasar el código a un reto de construir abierto. Pegar en ese editor sigue el bloqueo del docente y la función `paste` del nivel.
+
+El editor de Lenguajes es `frontend/src/foreign/ForeignEditor.tsx`, sobre CodeMirror. Mientras se escribe sugiere funciones, métodos, clases, propiedades, constantes y espacios de nombres del lenguaje elegido, cada uno con su firma y una línea de ayuda. Después de un punto ofrece los miembros del tipo que reconoce. No sugiere dentro de una cadena ni de un comentario. Una llamada se inserta con los paréntesis y el hueco del argumento marcado. Tab acepta la sugerencia; si no hay, salta al hueco siguiente; si tampoco, indenta. Mayús+Tab vuelve atrás. Después de una línea que termina en `{`, `(` o `[`, o en `:` en Python, la siguiente entra un nivel; al cerrar, sale. El catálogo está en `frontend/src/foreign/catalog.ts` y vive en el navegador: sugerir no llama al servidor.
 
 El pie de todas las pantallas dice «© {año} R&J Integra Soluciones Tecnológicas. Todos los derechos reservados.»
 
@@ -180,13 +200,13 @@ Armar diagrama es distinto: el modelo de figuras vive en el navegador (`frontend
 
 Validar, traducir, el diagrama, ejecutar, depurar y las pasadas del laboratorio van a ese proceso. Usan el mismo `language_core` que el runner. No pasan por Redis ni por Gunicorn.
 
-La cuenta, los proyectos y el resto de `/api/v1/` siguen en Django. En un paquete publicado, `__TRAZA_DESKTOP_PROXY__` es verdadero y el comando `server_fetch` reenvía solo rutas que empiezan por `/api/` a `POST /local/v1/proxy`. El origen de esa API es `TRAZA_API_ORIGIN`. Si no está definida, el lanzador usa `https://fcdesign.aulivana.com`. En depuración el proxy queda apagado y Vite, en el puerto `5174`, habla con la API como el navegador.
+La cuenta, los proyectos y el resto de `/api/v1/` siguen en Django. En un paquete publicado, `__TRAZA_DESKTOP_PROXY__` es verdadero y el comando `server_fetch` reenvía solo rutas que empiezan por `/api/` a `POST /local/v1/proxy`. El origen de esa API es `TRAZA_API_ORIGIN`. Si no está definida, o está vacía o solo tiene espacios, el lanzador usa `https://fcdesign.aulivana.com`. Contra un origen HTTPS el proxy verifica el certificado y, en las peticiones que cambian estado, pone `Origin` y `Referer` de esa API, porque Django rechaza una escritura por HTTPS sin ellos. Si la API responde con un error, la ventana recibe ese estado y su cuerpo, y la pantalla muestra el mensaje del servidor. En depuración el proxy queda apagado y Vite, en el puerto `5174`, habla con la API como el navegador.
 
 Descargar un archivo en la aplicación abre el diálogo de guardar del sistema. En Windows y en Linux un enlace de descarga sobre un blob no deja el archivo. El comando es `save_download`, en `desktop/src-tauri/src/save.rs`, y admite hasta 25 MB. Cancelar el diálogo no guarda nada. Si no se puede escribir, la pantalla dice que no se pudo guardar el archivo. En el navegador la descarga sigue siendo la del propio navegador.
 
 El esquema `Aulivana-FCDdesign:` abre la ventana y entrega el enlace de confirmación o de restablecimiento. `TRAZA_UPDATE_URL`, si existe, apunta a un manifiesto con `version` y `url`. Un paquete más nuevo se descarga aparte. No se borra el directorio de datos de la persona.
 
-El empaquetado está en `.github/workflows/desktop.yml` y se lanza a mano. Cubre Windows x64 y ARM, Mac M e Intel, y Linux x64 y ARM. `desktop/scripts/sign.sh` firma cuando hay certificado. En macOS esa firma evita que el sistema marque el paquete como dañado.
+El empaquetado está en `.github/workflows/desktop.yml` y se lanza a mano. Cubre Windows x64 y ARM, Mac M e Intel, y Linux x64 y ARM. `desktop/scripts/sign.sh` firma cuando hay certificado. En macOS esa firma evita que el sistema marque el paquete como dañado. `desktop/scripts/freeze_host.py` borra el binario anterior antes de copiar el nuevo: macOS cierra un binario firmado que se sobrescribe en el mismo archivo.
 
 ## 7.2 Traducción
 
@@ -330,13 +350,13 @@ La ruta de sistema Fundamentos publica treinta y cuatro retos: clasificar, orden
 
 Un reto de construir con casos no se cierra hasta que la salida coincide con todos. Si falta uno, la respuesta es que todavía no coinciden todos los casos. El docente puede apagar **Validar con casos de entrada y salida**. Sin casos, **Probar** solo comprueba que el programa esté bien escrito y que no falte un bloque pedido, y no descuenta una ejecución. Después se guarda el lenguaje, sin comparar una salida, y se pasa a explicar. Al terminar, el alumno ve su respuesta: el pseudocódigo y, si armó con bloques o con el diagrama, esa misma forma. El docente ve esa respuesta en el avance aunque el intento siga abierto. Un caso admite hasta 40 entradas.
 
-En Armar diagrama, el panel de la figura queda arriba de la caja de figuras. Ahí se escriben los valores, los destinos de `Leer`, el tiempo de `Esperar` y, en `Dimension`, el nombre y el tamaño. Al elegir una figura de la lista, o mientras se arrastra, el hueco entre figuras pasa de 22 a 56 píxeles para poder soltarla. Al soltar, se vuelven a juntar. **Armar Nassi-Shneiderman** abre el mismo algoritmo en otro dibujo: `Si` parte el bloque en dos columnas, los ciclos encierran el cuerpo y `Según` abre una columna por caso. El borrador de cada estilo se guarda aparte en el navegador. En el reto, el alumno cambia el alto del enunciado, de los casos y de la ayuda, y el ancho del editor. La campana, solo del alumno, consulta las rutas al entrar, cada 60 segundos y al volver a la ventana. Un reto que no estaba y no está terminado sale como nuevo. Uno que estaba retirado, programado o cerrado y pasa a disponible sale como habilitado. **Marcar como vistos** los quita. Esa lista vive en el navegador.
+En Armar diagrama, el panel de la figura queda arriba de la caja de figuras. Ahí se escriben los valores, los destinos de `Leer`, el tiempo de `Esperar` y, en `Dimension`, el nombre y el tamaño. Al elegir una figura de la lista, o mientras se arrastra, el hueco entre figuras pasa de 22 a 56 píxeles para poder soltarla. Al soltar, se vuelven a juntar. **Armar Nassi-Shneiderman** abre el mismo algoritmo en otro dibujo: `Si` parte el bloque en dos columnas, los ciclos encierran el cuerpo y `Según` abre una columna por caso. El borrador de cada estilo se guarda aparte en el navegador. En el reto, el alumno cambia el alto del enunciado, de los casos y de la ayuda, y el ancho del editor. La campana, solo del alumno, consulta las rutas al entrar, cada 60 segundos y al volver a la ventana. Todas las campanas abiertas comparten una sola consulta, y al volver a la ventana solo se repite si el dato tiene más de 10 segundos. Un reto que no estaba y no está terminado sale como nuevo. Uno que estaba retirado, programado o cerrado y pasa a disponible sale como habilitado. **Marcar como vistos** los quita. Esa lista vive en el navegador.
 
 Al agregar un reto a una ruta, el docente filtra por tipo: Clasificar, Ordenar, Construir o Predecir. La lista que queda se parte en Tus retos y Del catálogo. Todos muestra los dos grupos sin ese corte.
 
 En cada reto de la ruta, **Ponderación de la calificación** reparte la nota de 100 entre comprensión, diseño, corrección, lenguaje, explicación y autonomía. Tienen que sumar 100. Esas cifras valen en esa ruta y no cambian el reto original. Si el reto no es de construir, lenguaje queda en 0. Si no se definen, un construir con casos usa 15, 20, 20, 20, 15 y 10. El resto usa 20, 25, 30, 0, 15 y 10. La migración es `learning.0017`. El intento guarda la nota al avanzar, aunque no esté cerrado. El docente la ve así. Si el alumno sigue en el mismo intento, esa nota se vuelve a calcular y reemplaza la anterior.
 
-Un reto de construir con casos pide, después del pseudocódigo, el código de un lenguaje: Python, JavaScript, TypeScript, Java, C, C++ o C#. Se comprueban los mismos casos. Si falta uno, el reto no se cierra. El código de un lenguaje no tiene que repetir en la salida el dato que leyó. Pegar en ese cuadro sigue el mismo bloqueo del editor.
+Un reto de construir con casos pide, después del pseudocódigo, el código de un lenguaje: Python, JavaScript, TypeScript, Java, C, C++ o C#. Se comprueban los mismos casos. Si falta uno, el reto no se cierra. El código de un lenguaje no tiene que repetir en la salida el dato que leyó. Ese cuadro es el mismo editor de Lenguajes, con colores, sugerencias e indentación. Pegar ahí sigue el mismo bloqueo del editor.
 
 Los puntos del reto se suman una vez, al terminarlo, en `Profile.points`. El puesto es cuántos perfiles tienen más puntos, más uno. La identidad de la barra muestra los puntos, el puesto, los días que faltan y las ejecuciones que quedan hoy. Si el nivel no tiene tope, ese último número es ∞.
 
@@ -344,13 +364,35 @@ El modelo y las fases están en [laboratorio-fase-0.md](laboratorio-fase-0.md). 
 
 ## 12. Comunidades
 
-Una comunidad pertenece a un docente. Solo él la crea, la lista y la borra. **Comunidades** abre su propia pantalla, con Volver al editor. A la izquierda se escribe el nombre y se crea. A la derecha están el código, los interruptores, la búsqueda por nombre o correo, el filtro de alumnos y las páginas de 15. El nombre es único entre las suyas. Hay un tope de 30 comunidades y de 200 personas. No puede agregarse a sí mismo. No se crean cuentas desde la comunidad.
+Una comunidad pertenece a un docente. Solo él la crea, la lista y la borra. **Comunidades** abre su propia pantalla: desde el banco de trabajo, con Volver al editor; desde las materias, con Volver a las materias. A la izquierda se escribe el nombre, se elige la **Materia** y se crea. A la derecha están la materia, el código, los interruptores, la búsqueda por nombre o correo, el filtro de alumnos y las páginas de 15. La lista muestra la materia de cada una. `classroom.0005` agrega `subject`: `fundamentos`, `bases`, `objetos` o `software`. Las comunidades que ya existían quedaron en `fundamentos`, y una creación sin materia también. El docente la cambia con `PATCH /api/v1/communities/{id}/` y el campo `subject`; la auditoría lo anota como `community.subject`. El nombre es único entre las suyas de la misma materia, así que Programación 1 puede existir en Fundamentos y en Bases de datos. Hay un tope de 30 comunidades y de 200 personas. No puede agregarse a sí mismo. No se crean cuentas desde la comunidad.
 
 Al crearla, `classroom.0004` guarda `join_code`: 6 caracteres de `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`, sin I, O, 0 ni 1. El docente lo copia o pulsa **Nuevo código**; el anterior deja de servir. En el banco de trabajo, alumno y docente ven **Unirme**. Escriben ese código, sin que importen mayúsculas ni espacios, y `POST /api/v1/communities/join/` los agrega. Ese camino no pide la función `communities` del nivel. El dueño no entra al suyo. Quien ya está recibe que ya está. Una comunidad llena responde el tope de 200. Una cuenta de administrador no se une. La lista separa Alumnos y Docentes.
 
 La traducción de código nace habilitada en `classroom.Community.translation_enabled`. Pegar texto nace habilitado en `paste_enabled`. Las dos siguen la misma regla: el docente las apaga para la comunidad o para un alumno; el valor del alumno, si no es nulo, manda; cambiar el de la comunidad pone en nulo los ajustes de sus alumnos. Un docente siempre puede, si su nivel incluye la función. Un alumno que no está en ninguna comunidad también. Si está en varias y en una está apagada, no puede. Traducir responde 403 con `translation_disabled`. Pegar no llama al servidor: el editor del pseudocódigo, el de Lenguajes y el cuadro de código del reto dejan escribir y rechazan el pegado. El nivel es el techo. Si el plan tiene la función apagada, la comunidad no la enciende.
 
 En el banco de trabajo, **Repaso** abre los proyectos de un alumno de sus comunidades. El editor queda en solo lectura. Validar, ejecutar, depurar, traducir y el diagrama usan ese fuente y no crean una versión ni lo guardan. En una ruta, el mismo reto se puede colocar dos veces. `learning.0018` quita la unicidad de reto por ruta. La copia nueva nace sin horario. La anterior conserva el suyo y sus intentos. Quien ya lo terminó sigue viéndolo terminado y no suma los puntos otra vez. Quien lo tenía cerrado puede abrir un intento nuevo. En el laboratorio, el avance pide primero una comunidad y avisa que se verá solo a sus alumnos. Después abre el tablero de las rutas de esa comunidad: cada barra suma los retos terminados. Desde una ruta se descarga `progreso-{nombre}.csv`, con nombre, correo, esa comunidad, nota y una columna por reto. El archivo trae solo a los alumnos de la comunidad elegida. La puntuación de un intento va de 0 a 100 y ya aparece mientras el intento sigue abierto. La nota es el promedio entero de esas puntuaciones, redondeado al más cercano, y un reto sin puntuación cuenta como cero. Abrir un reto muestra la respuesta, el pseudocódigo, los casos, la predicción y la explicación.
+
+## 12.1 Mensajes
+
+**Mensajes** se abre desde la pantalla de materias. Solo un alumno o un docente lo usa; otra cuenta recibe 403 «Solo un alumno o un docente puede usar los mensajes.» No pide una función del nivel, pero una cuenta sin navegador sigue sin poder abrirlo desde el navegador.
+
+A la izquierda se elige la **Materia** y el **Grupo**. El grupo es una comunidad de esa materia. El docente ve las suyas y las de otro docente donde lo agregaron. El alumno ve aquellas donde está y cuyo dueño es docente. Debajo está **Todo el grupo** y la búsqueda: el docente busca alumnos y el alumno busca docentes. La lista de personas muestra solo a quienes tienen mensajes sin leer, salvo que se busque. Si hay algo sin leer, el grupo lleva un número entre paréntesis: los mensajes del grupo sin leer más las personas con mensajes pendientes.
+
+Hay dos tipos de conversación. La de todo el grupo la leen y la escriben el dueño y todos los miembros. La personal une a un docente con un alumno de ese grupo; dos alumnos no conversan en privado, ni dos docentes. A la derecha está el hilo, con el destino, la materia y el grupo, y la duración. Un mensaje admite hasta 2000 caracteres. Enter lo envía y Mayús+Enter deja un salto de línea. La lista de grupos se vuelve a pedir cada 5 segundos y el hilo abierto cada 4.
+
+`chat.Conversation` guarda `kind` (`personal` o `group`), `subject`, `community`, y `teacher` y `student` en la personal. Hay una sola conversación personal por materia, grupo, docente y alumno, y una sola de grupo por materia y grupo. `chat.Message` guarda remitente, texto y fecha. `chat.ReadCursor` guarda hasta cuándo leyó cada persona; abrir o leer el hilo lo mueve. Las migraciones son `chat.0001` a `chat.0003`.
+
+`chat.MessageLifetime` es una sola fila con `hours`, de 1 a 8760, y nace en 24. Solo el administrador la cambia, desde **Duración de los mensajes** en su pantalla. Un mensaje más viejo que esas horas se borra cada vez que alguien abre la lista, abre o lee un hilo o envía, y al guardar una duración nueva. `python manage.py purge_chat_messages` hace el mismo borrado desde la consola y responde cuántos mensajes borró.
+
+## 12.2 Bases de datos
+
+**Bases de datos** abre `ErStudio`, un editor de diagramas entidad-relación en notación de Chen. No usa el pseudocódigo ni el núcleo.
+
+El lienzo ocupa el centro. A la derecha están las **Líneas** (Mover, Muchos a muchos, Muchos a uno, Uno a uno, Participación parcial y Participación total) y las **Figuras** (Entidad, Entidad débil, Relación, Relación identificadora, Atributo, Atributo multivaluado, Atributo derivado e ISA). Una figura se arrastra al lienzo o se coloca con un clic. Para unir dos, se elige el tipo de línea y se hace clic en las dos. Dos entidades se unen con un rombo. La cardinalidad se escribe mínimo y máximo. Un mínimo de 1 dibuja la línea doble, de participación total. La flecha marca el lado uno. Muchos a muchos no lleva flechas. Si dos figuras no se ligan así en esa notación, la pantalla lo dice.
+
+Debajo de esa columna se edita la figura elegida: **Nombre**, **Marca del atributo** (Sin marca, Clave primaria o Discriminante), **Disjunta** en un ISA y **Generalización total**. En una línea: **Mínimo**, **Máximo**, **Flecha del lado uno** y **Rol**. **Eliminar** quita la figura y **Borrar línea**, la línea. Arriba están el nombre del **Proyecto**, la lista de proyectos, **Nuevo proyecto**, **Ejemplo** (carga el diagrama de accidentes: PERSONA, VEHICULO, ACCIDENTE y MULTA; si el proyecto ya tiene figuras, pregunta antes de reemplazarlo) y **Eliminar proyecto**. El lienzo se acerca, se aleja y se ajusta.
+
+Los proyectos se guardan en el `localStorage` del navegador, con la clave `traza.erd.projects.v1`, separados de los proyectos de código. No pasan por la API ni por PostgreSQL: otro navegador u otro equipo no los ve.
 
 ## 13. Perfiles de lenguaje
 
@@ -407,6 +449,17 @@ GET  /api/v1/auth/me/
 PATCH /api/v1/auth/me/
 POST /api/v1/auth/password-reset/
 POST /api/v1/auth/password-reset/confirm/
+GET  /api/v1/auth/message-lifetime/
+PATCH /api/v1/auth/message-lifetime/   solo el administrador
+```
+
+Mensajes:
+
+```text
+GET  /api/v1/chat/board/?subject=
+POST /api/v1/chat/conversations/                  subject, community_id y user_id, o null para el grupo
+GET  /api/v1/chat/conversations/{id}/messages/
+POST /api/v1/chat/conversations/{id}/messages/    201
 ```
 
 Editor:
@@ -431,7 +484,7 @@ Editor:
 /api/v1/shared/{token}/
 ```
 
-Comunidades: `/api/v1/communities/`, el parche de `translation_enabled` en la comunidad y en el miembro, `/api/v1/people/`, `/api/v1/classroom/students/` y `/api/v1/classroom/students/{id}/projects/`.
+Comunidades: `/api/v1/communities/`, el parche de `translation_enabled` y de `subject` en la comunidad, el de `translation_enabled` en el miembro, `/api/v1/people/`, `/api/v1/classroom/students/` y `/api/v1/classroom/students/{id}/projects/`.
 
 Laboratorio: `/api/v1/learning/path/`, `paths/`, `catalog/`, `bank/`, `challenges/csv/`, `authored/`, `roster/`, `roster/{id}/progress/` para el CSV de notas, `roster/{user}/challenges/{id}/` para el trabajo de un reto, `challenges/`, `attempts/`, `practices/`, `preview/`, `import/` y `runs/`, con el SSE en `runs/{id}/events/`.
 
@@ -448,6 +501,7 @@ Laboratorio: `/api/v1/learning/path/`, `paths/`, `catalog/`, `bank/`, `challenge
 - Tope de 64 KiB del fuente antes de lexicar.
 - Un docente lee el algoritmo de un alumno solo si ese alumno está en una comunidad suya. La respuesta ajena sigue siendo 404.
 - Traducir responde 403 cuando el docente apagó esa acción para el alumno.
+- Un mensaje solo se lee y se escribe dentro de un grupo donde está la cuenta. La conversación personal es siempre entre un docente y un alumno de ese grupo. Quien sale del grupo deja de verla.
 - Auditoría de alta, confirmación de correo, recuperación, sesión, visibilidad, enlaces, borrado y ejecución.
 - Secretos en el entorno. `.env` fuera de Git.
 - El runner descarta capacidades, no gana privilegios y limita memoria, CPU y procesos.
@@ -489,6 +543,7 @@ La ventana tiene proyectos a la izquierda, el editor y la consola en el centro, 
 - El tabulador indenta. La barra bajo el código muestra el guardado y la línea del cursor.
 - La consola se desplaza hasta el final cuando llega salida. Un dato de `Leer` aceptado se pinta. Uno rechazado, no.
 - **Laboratorio** y **Armar diagrama** están en la barra superior, junto a salir.
+- **Materias** vuelve a la pantalla donde se elige la materia.
 
 ## 18. Lo que este árbol no hace
 

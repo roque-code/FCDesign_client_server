@@ -108,7 +108,7 @@ Cada requerimiento dice qué debe poder hacerse y cuál es el resultado observab
 
 | Id | Requerimiento | Resultado |
 | --- | --- | --- |
-| RF-40 | El docente crea hasta 30 comunidades. Cada una tiene un código de 6 caracteres. El alumno lo escribe en Unirme. | El nombre es único entre las de ese docente. Hay un tope de 200 personas |
+| RF-40 | El docente crea hasta 30 comunidades. Cada una tiene un código de 6 caracteres. El alumno lo escribe en Unirme. | Cada comunidad es de una materia. El nombre es único entre las de ese docente en la misma materia. Hay un tope de 200 personas |
 | RF-41 | El docente busca cuentas ya registradas, de alumnos o de otros docentes, y las agrega. No se registran personas desde la comunidad. | No puede agregarse a sí mismo. La búsqueda va por páginas de 15 |
 | RF-42 | Traducción y pegado nacen habilitados en la comunidad. El docente puede apagarlos para la comunidad o para un alumno. | No puede encender una función que el nivel tiene apagada. Pegar apagado deja escribir y rechaza el texto pegado |
 | RF-43 | En Repaso, el docente abre los proyectos de un alumno de sus comunidades en solo lectura. | No crea versiones ni modifica el fuente |
@@ -187,7 +187,7 @@ Hay dos grupos que no se mezclan. El banco de trabajo cuelga del algoritmo. El l
 
 **Ejecución.** El estado es uno de: en cola, corriendo, esperando entrada, en pausa, terminada, con error, cancelada o por tiempo. Los eventos de una ejecución llevan una secuencia única. El tipo de evento es salida, entrada, error o estado.
 
-**Comunidad.** El nombre es único para ese docente. El código de ingreso es único en toda la base. Una persona entra una sola vez a la misma comunidad. Traducción y pegado en la membresía vacíos significan «heredar la comunidad».
+**Comunidad.** La materia es fundamentos, bases, objetos o software. El nombre es único para ese docente dentro de la misma materia. El código de ingreso es único en toda la base. Una persona entra una sola vez a la misma comunidad. Traducción y pegado en la membresía vacíos significan «heredar la comunidad».
 
 **Laboratorio.** El tipo de reto es clasificar, ordenar, construir o predecir. La dificultad va de 1 a 5. Los puntos del reto van de 1 a 500. La nota del intento es nula o de 0 a 100. El tiempo límite, si existe, va de 1 segundo a 24 horas. Una pista tiene nivel de 1 a 5. Una ruta se asigna a una comunidad o a un alumno, nunca a los dos a la vez, y no se asigna dos veces al mismo destino. El dominio de un concepto por alumno es único y va de 0 a 5. El nombre de una práctica libre es único para esa cuenta.
 
@@ -202,7 +202,7 @@ Hay dos grupos que no se mezclan. El banco de trabajo cuelga del algoritmo. El l
 | Enviar un proyecto, una carpeta o un algoritmo a la papelera | Se marca `deleted_at`. Deja de listarse. Los índices de nombre solo miran filas vivas, así se puede reutilizar el nombre |
 | Restaurar | Se quita `deleted_at` si el nombre vivo no choca |
 | Vaciar la papelera | Borrado físico del algoritmo, sus versiones, sus eventos de ejecución y sus enlaces |
-| Borrar una comunidad | Se van sus membresías y las asignaciones de ruta que la tenían como destino |
+| Borrar una comunidad | Se van sus membresías, las asignaciones de ruta que la tenían como destino y sus conversaciones con los mensajes |
 | Borrar un reto que ya tiene intentos | Se impide. El intento conserva el reto |
 | Borrar un usuario con proyectos vivos | Se rechaza. Primero debe vaciarlos. La auditoría puede quedar con el actor vacío |
 | Cerrar un intento | Se guardan la nota, el resumen, los segundos y la hora de fin. El intento abierto sigue siendo legible para el docente |

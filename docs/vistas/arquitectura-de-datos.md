@@ -1,6 +1,6 @@
 # Arquitectura de datos
 
-Fecha de referencia: 2026-10-24. `SignupPolicy` es una fila: qué altas están abiertas. El reto y su colocación en la ruta guardan `weights`, la ponderación de la nota. La comunidad y la membresía guardan si la traducción y el pegado están habilitados. La foto vive en el perfil. El nivel de suscripción está en `Plan` y `Subscription`. El CSV de notas y el del banco de retos no son tablas. Motor: PostgreSQL 16. La traducción no se almacena. La ventana de escritorio lee y escribe las mismas tablas a través de la API. El detalle de columnas, índices y borrado está en [modelo-de-datos.md](../modelo-de-datos.md).
+Fecha de referencia: 2026-11-03. Cada comunidad guarda su materia. Los mensajes viven en `Conversation`, `Message` y `ReadCursor`, y `MessageLifetime` es una fila con las horas que viven. Los diagramas entidad-relación no tienen tabla: se guardan en el navegador. `SignupPolicy` es una fila: qué altas están abiertas. El reto y su colocación en la ruta guardan `weights`, la ponderación de la nota. La comunidad y la membresía guardan si la traducción y el pegado están habilitados. La foto vive en el perfil. El nivel de suscripción está en `Plan` y `Subscription`. El CSV de notas y el del banco de retos no son tablas. Motor: PostgreSQL 16. La traducción no se almacena. La ventana de escritorio lee y escribe las mismas tablas a través de la API. El detalle de columnas, índices y borrado está en [modelo-de-datos.md](../modelo-de-datos.md).
 
 Hay dos grupos que no se mezclan. El banco de trabajo cuelga de `Algorithm`. El laboratorio cuelga de `Challenge` y de `Practice`. Un intento no es una fila de `Execution`.
 
@@ -24,6 +24,8 @@ erDiagram
     User ||--o{ Practice : guarda
     LearningPath ||--o{ PathAssignment : asigna
     Community ||--o{ PathAssignment : recibe
+    Community ||--o{ Conversation : conversa
+    Conversation ||--o{ Message : contiene
 ```
 
 | Grupo | Qué se guarda | Qué no se guarda |
@@ -32,6 +34,7 @@ erDiagram
 | Editor | Fuente vivo, versiones, enlace con el hash del token, caché del grafo y el idioma de la cuenta (`es` o `en`) | Cada línea del depurador. El idioma no reescribe el fuente |
 | Ejecución | Estado, límites, salida, entradas aceptadas y errores | La pila viva de la sesión |
 | Laboratorio | Rutas, retos, fotos del lienzo, pistas usadas, predicción y reflexión | Una fila de `Execution` |
+| Mensajes | Conversación, texto, remitente, fecha y hasta dónde leyó cada persona | Un mensaje más viejo que la duración |
 | Auditoría | Acción, actor, objeto y dirección | El fuente completo ni secretos |
 
 Claves públicas de proyecto, algoritmo, ejecución, comunidad y laboratorio: UUID versión 4. Eventos y versiones: entero. Marcas de tiempo: `timestamptz`. El borrado de proyectos y algoritmos es lógico con `deleted_at`.
