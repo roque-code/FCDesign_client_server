@@ -20,9 +20,13 @@ export function handTyped(inserted: string): boolean {
   return true
 }
 
+/** Al abrir ( [ { o comillas, el editor escribe también el cierre en el mismo cambio. */
+const AUTO_PAIR = /^(?:\(\)|\[\]|\{\}|(["'`])\1{1,3})$/u
+
 export function blockedInsertAllowed(inserted: string, userEvent: string): boolean {
   if (userEvent.startsWith("undo") || userEvent.startsWith("redo") || userEvent.startsWith("delete")) return true
   if (userEvent.startsWith("input.complete")) return true
+  if (userEvent.startsWith("input.type") && AUTO_PAIR.test(inserted)) return true
   if (userEvent.includes(".compose")) return !inserted.includes("\n") && [...inserted].length <= 8
   return handTyped(inserted)
 }
