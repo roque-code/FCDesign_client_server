@@ -369,7 +369,7 @@
   filter: drop-shadow(0 8px 16px rgba(16, 24, 40, 0.18));
 }
 
-@media (max-width: 800px) {
+@media (max-width: 980px) {
   .erd-shell > .erd-body {
     grid-template-columns: 1fr;
     grid-template-rows: minmax(9.5rem, 36vh) minmax(0, 1fr);
@@ -382,4 +382,13 @@
   }
 
   .erd-figures { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 640px) {
+  .erd-shell > .erd-body {
+    grid-template-rows: minmax(6.5rem, 26vh) minmax(0, 1fr);
+  }
+
+  .erd-project input,
+  .erd-project select { width: min(9.5rem, 42vw); }
 }

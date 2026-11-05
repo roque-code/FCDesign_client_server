@@ -112,7 +112,7 @@ export function Workbench({
   const [diagramOpen, setDiagramOpen] = useState(true)
   const [diagramWidth, setDiagramWidth] = useState(448)
   const [zone, setZone] = useState<"editor" | "diagram">("editor")
-  const [narrow, setNarrow] = useState(() => window.matchMedia("(max-width: 720px)").matches)
+  const [narrow, setNarrow] = useState(() => window.matchMedia("(max-width: 980px)").matches)
   const [consoleHeight, setConsoleHeight] = useState(176)
   const [debugHeight, setDebugHeight] = useState(220)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -193,7 +193,7 @@ export function Workbench({
   }, [prefs.theme])
 
   useEffect(() => {
-    const query = window.matchMedia("(max-width: 720px)")
+    const query = window.matchMedia("(max-width: 980px)")
     const apply = () => setNarrow(query.matches)
     apply()
     query.addEventListener("change", apply)

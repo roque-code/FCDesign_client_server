@@ -34,9 +34,9 @@ export function BlockWorkspace({
   reportState.current = onState
 
   const allowedKey = allowed ? allowed.join(",") : ""
-  const [compact, setCompact] = useState(() => window.matchMedia("(max-width: 900px)").matches)
+  const [compact, setCompact] = useState(() => window.matchMedia("(max-width: 980px)").matches)
   useEffect(() => {
-    const query = window.matchMedia("(max-width: 900px)")
+    const query = window.matchMedia("(max-width: 980px)")
     const onChange = () => setCompact(query.matches)
     query.addEventListener("change", onChange)
     return () => query.removeEventListener("change", onChange)

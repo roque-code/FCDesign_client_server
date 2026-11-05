@@ -2278,7 +2278,7 @@
   align-items: center;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 980px) {
   .lab-split > .enunciado {
     height: auto !important;
   }
@@ -2287,26 +2287,7 @@
     display: none;
   }
 
-  .shell.lab .topbar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.45rem;
-    padding: 0.5rem 0.65rem;
-  }
-
-  .shell.lab .brand {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.7rem;
-    min-width: 0;
-  }
-
-  .shell.lab .actions {
-    display: flex;
-    flex-wrap: wrap;
-    width: 100%;
-  }
+  .shell.lab .brand { min-width: 0; }
 
   .shell.lab .actions button {
     width: auto;
@@ -2314,10 +2295,6 @@
   }
 
   .lab-practice .notice {
-    display: none;
-  }
-
-  .lab-practice .lab-phone-tabs {
     display: none;
   }
 
@@ -2331,6 +2308,7 @@
 
   .lab-phone-tabs button {
     min-width: 0;
+    min-height: 2.25rem;
     padding: 0.42rem 0.15rem;
     font-size: 0.72rem;
     line-height: 1.15;
@@ -2350,34 +2328,56 @@
   .lab-practice .lab-body {
     display: flex;
     flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
     height: auto;
-    overflow: auto;
-  }
-
-  .lab-practice .lab-stage {
-    flex: 0 0 auto;
-    height: 46vh;
-    min-height: 18rem;
     overflow: hidden;
   }
 
-  .lab-practice .lab-run-info {
-    flex: 0 0 auto;
-  }
-
+  .lab-practice .lab-stage,
+  .lab-practice .lab-run-info,
   .lab-practice .lab-output-pane,
   .lab-practice .lab-code-pane,
   .lab-practice .lab-vars-pane,
   .lab-practice .lab-side {
+    display: none;
+  }
+
+  .lab-practice .lab-body[data-phone="construccion"] .lab-stage {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
+  }
+
+  .lab-practice .lab-body[data-phone="construccion"] .lab-run-info {
+    display: block;
     flex: 0 0 auto;
-    height: 16rem;
-    min-height: 12rem;
-    overflow: auto;
+  }
+
+  .lab-practice .lab-body[data-phone="codigo"] .lab-code-pane,
+  .lab-practice .lab-body[data-phone="ejecucion"] .lab-output-pane {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+  }
+
+  .lab-practice .lab-body[data-phone="ejecucion"] .lab-vars-pane {
+    display: flex;
+    flex: 0 1 38%;
+    min-height: 6rem;
+    max-height: 40%;
     border-top: 1px solid var(--line);
   }
 
-  .lab-practice .lab-side {
+  .lab-practice .lab-body[data-phone="practicas"] .lab-side {
+    display: grid;
+    flex: 1 1 auto;
+    min-height: 0;
     height: auto;
+    overflow: auto;
   }
 
   .lab-stage .lab-controls {
@@ -2387,6 +2387,7 @@
   .lab-stage .lab-controls button {
     flex: 1 1 30%;
     min-width: 5.4rem;
+    min-height: 2.25rem;
     padding: 0.38rem 0.4rem;
   }
 
@@ -2413,7 +2414,7 @@
   }
 }
 
-@media (max-width: 800px) {
+@media (max-width: 980px) {
 
   .path-play {
     grid-template-columns: 1fr;

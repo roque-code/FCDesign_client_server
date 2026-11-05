@@ -81,10 +81,5 @@ button.subject-card:hover {
     overflow: auto;
   }
 
-  .subject-shell .topbar-editor { align-items: flex-start; }
-
-  .subject-shell .brand {
-    flex: 1 1 100%;
-    flex-wrap: wrap;
-  }
+  .subject-shell .brand { min-width: 0; }
 }

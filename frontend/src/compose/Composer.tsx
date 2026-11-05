@@ -50,7 +50,7 @@ import "./composer.css"
 
 const STORAGE = "traza.composer.v1"
 const NS_STORAGE = "traza.composer.ns.v1"
-const NARROW = "(max-width: 820px)"
+const NARROW = "(max-width: 980px)"
 const SIDE_MIN = 200
 const CODE_MIN = 220
 const CANVAS_MIN = 160
