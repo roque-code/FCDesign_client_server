@@ -12,10 +12,14 @@ from django.db.models.functions import Lower
 class UserManager(BaseUserManager["User"]):
     use_in_migrations = True
 
+    def get_by_natural_key(self, username: str | None) -> User:
+        # Las cuentas viejas pueden tener mayúsculas guardadas; el correo se escribe en minúsculas.
+        return self.get(email__iexact=(username or "").strip())
+
     def create_user(self, email: str, password: str | None = None, **extra_fields: Any) -> User:
         if not email:
             raise ValueError("El correo es obligatorio.")
-        user = self.model(email=self.normalize_email(email), **extra_fields)
+        user = self.model(email=self.normalize_email(email).strip().casefold(), **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user

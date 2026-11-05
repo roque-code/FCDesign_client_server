@@ -272,7 +272,7 @@ def login_user(request, email: object, password: object) -> User:
         authenticated = authenticate(request, username=cleaned, password=password)
     if not isinstance(authenticated, User):
         if isinstance(password, str):
-            inactive = User.objects.filter(email=cleaned, is_active=False).first()
+            inactive = User.objects.filter(email__iexact=cleaned, is_active=False).first()
             if inactive is not None and inactive.check_password(password):
                 raise DomainError(
                     "Esta cuenta está bloqueada.",
@@ -323,7 +323,7 @@ def request_password_reset(email: object, ip_address: str | None) -> None:
         cleaned = clean_email(email)
     except DomainError:
         return
-    user = User.objects.filter(email=cleaned).first()
+    user = User.objects.filter(email__iexact=cleaned).first()
     if user is None:
         return
     uid = urlsafe_base64_encode(force_bytes(user.pk))

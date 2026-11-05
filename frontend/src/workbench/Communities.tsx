@@ -1,6 +1,15 @@
 import { useEffect, useState, type FormEvent } from "react"
 
-import { accessOf, api, ApiError, type Account, type Community, type CommunitySummary, type Person } from "../api"
+import {
+  accessOf,
+  api,
+  ApiError,
+  type Account,
+  type Community,
+  type CommunitySummary,
+  type Person,
+  type Presence,
+} from "../api"
 import { translatedMessage, useT } from "../i18n"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
@@ -8,6 +17,13 @@ import { SUBJECTS, subjectsFor, type SubjectId } from "../subjects/catalog"
 import { LeaveSubjectButton } from "../subjects/leave"
 
 const PAGE = 15
+const PRESENCE_REFRESH_MS = 20_000
+
+const PRESENCE_LABEL = {
+  active: "presenceActive",
+  idle: "presenceIdle",
+  offline: "presenceOffline",
+} as const satisfies Record<Presence, string>
 
 function matches(person: Person, text: string): boolean {
   const needle = text.trim().toLocaleLowerCase()
@@ -70,8 +86,15 @@ export function CommunitiesPanel({
     }).catch((caught: unknown) => {
       if (alive) setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("communityOpenError"))
     })
+    const timer = window.setInterval(() => {
+      if (document.hidden) return
+      void api.community(selectedId).then((item) => {
+        if (alive) setDetail(item)
+      }).catch(() => undefined)
+    }, PRESENCE_REFRESH_MS)
     return () => {
       alive = false
+      window.clearInterval(timer)
     }
   }, [selectedId])
 
@@ -398,7 +421,17 @@ function MemberList({
       {people.map((person) => (
         <li key={person.id}>
           <span>
-            <strong>{person.display_name}</strong>
+            <strong>
+              {person.presence && (
+                <span
+                  className={`presence-light ${person.presence}`}
+                  role="img"
+                  aria-label={t(PRESENCE_LABEL[person.presence])}
+                  title={t(PRESENCE_LABEL[person.presence])}
+                />
+              )}
+              {person.display_name}
+            </strong>
             <small>{person.email}</small>
           </span>
           <span className="member-actions">

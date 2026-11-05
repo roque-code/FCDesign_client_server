@@ -1,3 +1,4 @@
+from django.db.models import Count, Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.permissions import AllowAny
@@ -42,8 +43,22 @@ from language_core.translate import translate_source
 
 class ProjectListView(APIView):
     def get(self, request: Request) -> Response:
-        queryset = current_user(request).projects.all().order_by("name")
-        return _page(request, queryset, project_payload)
+        queryset = (
+            current_user(request)
+            .projects.all()
+            .annotate(
+                live_algorithms=Count("algorithms", filter=Q(algorithms__deleted_at__isnull=True))
+            )
+            .order_by("name")
+        )
+        return _page(
+            request,
+            queryset,
+            lambda project: {
+                **project_payload(project),
+                "algorithm_count": project.live_algorithms,
+            },
+        )
 
     def post(self, request: Request) -> Response:
         project = create_project(request.user, object_body(request.data), client_ip(request))

@@ -45,6 +45,7 @@ import { Logo } from "../shell/Logo"
 import { LeaveSubjectButton } from "../subjects/leave"
 import { TranslateDialog } from "./TranslateDialog"
 import { stdlibHelp } from "./stdlibHelp"
+import { groupNames, studentLabel, studentsIn } from "./studentGroups"
 
 const AUTOSAVE_MS = 3000
 
@@ -91,6 +92,7 @@ export function Workbench({
   const [projectId, setProjectId] = useState("")
   const [algorithms, setAlgorithms] = useState<Algorithm[]>([])
   const [algorithmId, setAlgorithmId] = useState("")
+  const [listedFor, setListedFor] = useState<string | null>(null)
   const [source, setSource] = useState("")
   const [dirty, setDirty] = useState(false)
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" })
@@ -121,6 +123,7 @@ export function Workbench({
   const [joinMessage, setJoinMessage] = useState("")
   const [students, setStudents] = useState<ClassroomStudent[]>([])
   const [reviewId, setReviewId] = useState<number | null>(null)
+  const [reviewGroup, setReviewGroup] = useState("")
   const [reviewLoading, setReviewLoading] = useState(false)
   const [catalog, setCatalog] = useState<Record<string, Algorithm[]>>({})
   const reviewIdRef = useRef<number | null>(null)
@@ -171,6 +174,10 @@ export function Workbench({
   localeNotify.current = onLocale
   const reviewing = reviewId !== null
   const reviewedStudent = students.find((item) => item.id === reviewId)
+  const shownGroup = reviewedStudent && !reviewedStudent.communities.includes(reviewGroup)
+    ? reviewedStudent.communities[0] ?? ""
+    : students.some((item) => item.communities.includes(reviewGroup)) ? reviewGroup : ""
+  const groupStudents = shownGroup ? studentsIn(students, shownGroup) : []
   const saveLabel = reviewing
     ? t("readOnlyCode")
     : saveState.kind === "saving"
@@ -309,9 +316,13 @@ export function Workbench({
       const ids = new Set(listed.map((item) => item.id))
       const wanted = watched === null ? focusRef.current?.projectId : undefined
       const keep = projectIdRef.current
+      const filled = studentWork
+        ? studentWork.projects.find((item) => item.algorithms.length > 0)
+        : listed.find((item) => (item.algorithm_count ?? 0) > 0)
+      if (listed.length === 0) setListedFor("")
       if (wanted && ids.has(wanted)) setProjectId(wanted)
       else if (keep && ids.has(keep)) setProjectId(keep)
-      else setProjectId(listed[0]?.id ?? "")
+      else setProjectId((filled ?? listed[0])?.id ?? "")
       setReviewLoading(false)
     })().catch((caught: unknown) => {
       if (!active) return
@@ -344,6 +355,7 @@ export function Workbench({
     if (reviewId !== null) {
       const items = catalog[projectId] ?? []
       setAlgorithms(items)
+      setListedFor(projectId)
       setAlgorithmId((selected) => {
         const want = wantedAlgorithm.current
         if (want) {
@@ -361,6 +373,7 @@ export function Workbench({
       .then((page) => {
         if (!current) return
         setAlgorithms(page.results)
+        setListedFor(projectId)
         setAlgorithmId((selected) => {
           const want = wantedAlgorithm.current
           if (want) {
@@ -414,7 +427,10 @@ export function Workbench({
   }
 
   useEffect(() => {
-    if (!algorithmId) return
+    if (!algorithmId) {
+      if (selectedId.current) clearOpenAlgorithm()
+      return
+    }
     selectedId.current = algorithmId
     if (reviewId !== null) {
       const algorithm = Object.values(catalog).flat().find((item) => item.id === algorithmId)
@@ -754,6 +770,14 @@ export function Workbench({
   const canRunToday = canExecuteToday(account)
   const runsLeft = access.limits.max_executions_per_day
   const runsToday = account.usage.executions_today ?? 0
+  const nothingOpen =
+    reviewing || algorithmId
+      ? ""
+      : listedFor === "" && projects.length === 0
+        ? t(canCreateProject ? "noProjectsHint" : "noProjectsLimitHint")
+        : projectId && listedFor === projectId && algorithms.length === 0
+          ? t(canCreateAlgorithm ? "emptyProjectHint" : "emptyProjectLimitHint")
+          : ""
 
   async function translate() {
     if (!translationOn) return
@@ -1368,24 +1392,44 @@ export function Workbench({
               {students.length === 0 ? (
                 <p className="note">{t("studentWorkEmpty")}</p>
               ) : (
-                <label>
-                  {t("pickStudent")}
-                  <select
-                    aria-label={t("pickStudent")}
-                    value={reviewId ?? ""}
-                    onChange={(event) => {
-                      const value = event.target.value
-                      openReview(value ? Number(value) : null)
-                    }}
-                  >
-                    <option value="">{t("myProjects")}</option>
-                    {students.map((student) => (
-                      <option key={student.id} value={student.id}>
-                        {student.display_name} · {student.communities.join(", ")}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <>
+                  <label>
+                    {t("reviewGroup")}
+                    <select
+                      value={shownGroup}
+                      onChange={(event) => {
+                        const value = event.target.value
+                        setReviewGroup(value)
+                        if (reviewedStudent && !reviewedStudent.communities.includes(value)) openReview(null)
+                      }}
+                    >
+                      <option value="">{t("myProjects")}</option>
+                      {groupNames(students).map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    {t("reviewStudent")}
+                    <select
+                      value={reviewId ?? ""}
+                      disabled={!shownGroup}
+                      onChange={(event) => {
+                        const value = event.target.value
+                        openReview(value ? Number(value) : null)
+                      }}
+                    >
+                      <option value="">{shownGroup ? t("pickStudent") : t("pickGroupFirst")}</option>
+                      {groupStudents.map((student) => (
+                        <option key={student.id} value={student.id}>
+                          {studentLabel(student, groupStudents)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </>
               )}
               {reviewing && reviewedStudent && (
                 <p className="note">{t("studentWorkNote", { name: reviewedStudent.display_name })}</p>
@@ -1644,6 +1688,14 @@ export function Workbench({
                     : t("executionsLeft", { count: runsLeft - runsToday })}
               </p>
             ) : null}
+            {nothingOpen ? (
+              <p className="note toolbar-hint" role="status">
+                {nothingOpen}
+                {!projectsOpen && (
+                  <button type="button" onClick={() => setProjectsOpen(true)}>{t("projects")}</button>
+                )}
+              </p>
+            ) : null}
           </div>
           <CodeEditor
             source={source}
@@ -1658,7 +1710,7 @@ export function Workbench({
             onToggleBreakpoint={toggleBreakpoint}
             onChange={edit}
             onCursor={setActiveLine}
-            readOnly={reviewing}
+            readOnly={reviewing || !algorithmId}
             pasteBlocked={pasteBlocked && !reviewing}
             semicolons={requireSemicolons}
           />

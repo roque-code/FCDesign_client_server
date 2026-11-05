@@ -572,6 +572,19 @@ a.manual-download:hover, button.manual-download:hover { background: var(--hover)
 .member-list strong,
 .people-results strong { overflow: hidden; text-overflow: ellipsis; }
 
+.presence-light {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-right: 0.45rem;
+  border-radius: 50%;
+  vertical-align: 0.02em;
+  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 12%, transparent);
+}
+.presence-light.active { background: #22a45d; }
+.presence-light.idle { background: #e6a700; }
+.presence-light.offline { background: #d6453d; }
+
 .member-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1333,6 +1346,18 @@ button.fold {
   border-bottom: 1px solid var(--line);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--sheet) 88%, var(--accent) 12%), var(--sheet));
+}
+
+.toolbar-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 18rem;
+  margin: 0;
+  padding: 0.3rem 0.6rem;
+  border-radius: 10px;
+  color: var(--ink);
+  background: color-mix(in srgb, #e6a700 16%, var(--sheet));
 }
 
 .tool-group {

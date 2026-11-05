@@ -223,7 +223,10 @@ export type Person = {
   member?: boolean
   translation_enabled?: boolean
   paste_enabled?: boolean
+  presence?: Presence
 }
+
+export type Presence = "active" | "idle" | "offline"
 
 export type CommunitySummary = {
   id: string
@@ -258,6 +261,7 @@ export type Project = {
   name: string
   description: string
   visibility: string
+  algorithm_count?: number
 }
 
 export type Algorithm = {
@@ -825,6 +829,28 @@ function browserWindow(): string {
   }
 }
 
+/** Una pestaña olvidada sigue consultando; si nadie la toca, el servidor deja vencer la sesión. */
+const IN_USE_MS = 5 * 60_000
+let lastTouch = 0
+
+if (typeof window !== "undefined") {
+  const touched = () => {
+    lastTouch = Date.now()
+  }
+  for (const name of ["pointerdown", "keydown", "wheel", "touchstart"]) {
+    window.addEventListener(name, touched, { capture: true, passive: true })
+  }
+}
+
+export function personAway(now: number, touchedAt: number, hidden: boolean): boolean {
+  return hidden || now - touchedAt > IN_USE_MS
+}
+
+function presenceOnly(): boolean {
+  const hidden = typeof document !== "undefined" && document.visibilityState === "hidden"
+  return personAway(Date.now(), lastTouch, hidden)
+}
+
 function raiseApi(status: number, code: string, message: string): never {
   const ended = status === 401 && (code === "session_idle" || code === "session_open")
   if (ended && typeof window !== "undefined") {
@@ -848,6 +874,8 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   const windowId = browserWindow()
   if (windowId) headers.set("X-Traza-Window", windowId)
   if (installedClient()) headers.set("X-Aulivana-FCDdesign-Client", "desktop")
+  if (presenceOnly()) headers.set("X-Traza-Presence", "1")
+  else headers.delete("X-Traza-Presence")
   const response = await fetch(path, {
     ...init,
     headers,
@@ -888,6 +916,8 @@ async function desktopRequest<T>(path: string, init: RequestInit): Promise<T> {
   const windowId = browserWindow()
   if (windowId) headers["X-Traza-Window"] = windowId
   if (installedClient()) headers["X-Aulivana-FCDdesign-Client"] = "desktop"
+  delete headers["x-traza-presence"]
+  if (presenceOnly()) headers["X-Traza-Presence"] = "1"
   if (init.body) headers["Content-Type"] = "application/json"
   const reply = await internals.invoke("server_fetch", {
     path,
@@ -911,8 +941,7 @@ export function ensureCsrf(): Promise<{ ok: boolean }> {
 
 export const api = {
   me: () => request<Account>("/api/v1/auth/me/"),
-  presence: () =>
-    request<Account>("/api/v1/auth/me/", { headers: { "X-Traza-Presence": "1" } }),
+  presence: () => request<Account>("/api/v1/auth/me/"),
   signup: () => request<SignupPolicy>("/api/v1/auth/signup/"),
   updateSignup: (body: Partial<SignupPolicy>) =>
     request<SignupPolicy>("/api/v1/auth/signup/", { method: "PATCH", body: JSON.stringify(body) }),

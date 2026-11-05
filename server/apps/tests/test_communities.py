@@ -1,5 +1,7 @@
 """Perfil docente o estudiante, y comunidades sobre cuentas ya registradas."""
 
+import time
+
 from rest_framework.test import APIClient
 
 from apps.tests.helpers import refresh_csrf, register
@@ -437,3 +439,40 @@ def test_el_alumno_entra_con_el_codigo_de_la_comunidad(client):
         format="json",
     )
     assert refused.status_code == 403
+
+
+def test_el_docente_ve_quien_esta_conectado_en_el_grupo(client):
+    register(client, email="semaforo-docente@ejemplo.test", display_name="Profe", role="teacher")
+    group = client.post("/api/v1/communities/", {"name": "Semáforo"}, format="json").json()
+    using, using_payload = _session("semaforo-a@ejemplo.test", display_name="Ana")
+    away, away_payload = _session("semaforo-b@ejemplo.test", display_name="Beto")
+    gone, gone_payload = _session("semaforo-c@ejemplo.test", display_name="Ciro")
+    for payload in (using_payload, away_payload, gone_payload):
+        added = client.post(
+            f"/api/v1/communities/{group['id']}/members/",
+            {"user_id": payload["id"]},
+            format="json",
+        )
+        assert added.status_code == 201, added.content
+
+    stored = away.session
+    stored["last_activity"] = int(time.time()) - 600
+    stored.save()
+    assert away.get("/api/v1/auth/me/", HTTP_X_TRAZA_PRESENCE="1").status_code == 200
+    gone.post("/api/v1/auth/logout/")
+
+    detail = client.get(f"/api/v1/communities/{group['id']}/").json()
+    states = {row["email"]: row["presence"] for row in detail["students"]}
+    assert states == {
+        "semaforo-a@ejemplo.test": "active",
+        "semaforo-b@ejemplo.test": "idle",
+        "semaforo-c@ejemplo.test": "offline",
+    }
+    assert all("presence" not in row for row in detail["teachers"])
+    assert using.get("/api/v1/auth/me/").status_code == 200
+
+    stored = using.session
+    stored["last_seen"] = int(time.time()) - 120
+    stored.save()
+    detail = client.get(f"/api/v1/communities/{group['id']}/").json()
+    assert detail["students"][0]["presence"] == "offline"

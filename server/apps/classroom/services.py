@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 
+from apps.accounts.guard import presence_of
 from apps.accounts.models import Profile, User
 from apps.accounts.services import clean_label
 from apps.audit.services import record
@@ -94,9 +95,14 @@ def community_summary(community: Community) -> dict[str, object]:
 def _split(community: Community) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
     students: list[dict[str, object]] = []
     teachers: list[dict[str, object]] = []
-    memberships = community.memberships.select_related("user__profile").order_by(
-        "user__profile__display_name",
-        "user__email",
+    memberships = list(
+        community.memberships.select_related("user__profile").order_by(
+            "user__profile__display_name",
+            "user__email",
+        )
+    )
+    online = presence_of(
+        item.user for item in memberships if item.user.profile.role != Profile.TEACHER
     )
     for item in memberships:
         enabled = None
@@ -110,6 +116,7 @@ def _split(community: Community) -> tuple[list[dict[str, object]], list[dict[str
         if item.user.profile.role == Profile.TEACHER:
             teachers.append(person)
         else:
+            person["presence"] = online.get(item.user_id, "offline")
             students.append(person)
     return students, teachers
 

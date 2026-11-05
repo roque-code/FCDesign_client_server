@@ -22,6 +22,7 @@ _OPEN_MESSAGE = (
 _IDLE_MESSAGE = "La sesión se cerró por inactividad. Vuelve a entrar."
 _WINDOW_SECONDS = 25
 _PRESENT_SECONDS = 45
+_IN_USE_SECONDS = 5 * 60
 _WINDOW_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-")
 
 
@@ -176,6 +177,30 @@ def close_account_session(user: User) -> None:
         user.session_key = ""
 
 
+def presence_of(users) -> dict[int, str]:
+    """active usa la plataforma, idle tiene la pestaña abierta sin usarla, offline no está conectado."""
+    now = int(time.time())
+    idle = int(settings.SESSION_IDLE_SECONDS)
+    states: dict[int, str] = {}
+    for user in users:
+        states[user.pk] = "offline"
+        if not user.session_key:
+            continue
+        store = _store(user.session_key)
+        if not store.exists(user.session_key):
+            continue
+        last = store.get("last_activity")
+        if not isinstance(last, int) or now - last >= idle:
+            continue
+        seen = store.get("last_seen")
+        if not isinstance(seen, int):
+            seen = last
+        if now - seen > _PRESENT_SECONDS:
+            continue
+        states[user.pk] = "active" if now - last <= _IN_USE_SECONDS else "idle"
+    return states
+
+
 def active_sessions() -> list[dict[str, object]]:
     """Cuentas cuya sesión sigue abierta y no venció por inactividad."""
     now = int(time.time())
@@ -228,7 +253,7 @@ def _elsewhere(user: User, request) -> bool:
     if not store.exists(key):
         return False
     last = store.get("last_activity")
-    if isinstance(last, int) and int(time.time()) - last >= int(settings.SESSION_IDLE_SECONDS):
+    if not isinstance(last, int) or int(time.time()) - last >= int(settings.SESSION_IDLE_SECONDS):
         store.delete()
         return False
     return True

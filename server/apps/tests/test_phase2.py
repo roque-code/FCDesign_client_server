@@ -1,11 +1,14 @@
 """API de cuentas, proyectos, versiones y ejecución en proceso."""
 
 import time
+from importlib import import_module
 from urllib.parse import parse_qs, urlparse
 
 import pytest
+from django.apps import apps as django_apps
 from django.core import mail
 from django.core.exceptions import ImproperlyConfigured
+from django.db import IntegrityError, transaction
 from django.test import override_settings
 from rest_framework.test import APIClient
 
@@ -402,6 +405,81 @@ def test_duplicate_email_and_weak_password(client):
     assert User.objects.filter(email__iexact="ana@ejemplo.test").count() == 1
     weak = register(other, email="luz@ejemplo.test", password="123")
     assert weak.status_code == 400
+
+
+def test_cuenta_vieja_con_mayusculas_entra_y_no_se_duplica(client):
+    assert register(client, email="vieja@ejemplo.test").status_code == 201
+    User.objects.filter(email="vieja@ejemplo.test").update(email="Ana.Vieja@Ejemplo.test")
+    client.post("/api/v1/auth/logout/")
+
+    browser = APIClient(enforce_csrf_checks=True)
+    refresh_csrf(browser)
+    entered = browser.post(
+        "/api/v1/auth/login/",
+        {"email": " ana.vieja@ejemplo.test ", "password": PASSWORD},
+        format="json",
+    )
+    assert entered.status_code == 200, entered.content
+
+    other = APIClient(enforce_csrf_checks=True)
+    refresh_csrf(other)
+    again = register(other, email="ANA.VIEJA@ejemplo.test")
+    assert again.status_code == 400
+    assert User.objects.filter(email__iexact="ana.vieja@ejemplo.test").count() == 1
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        User.objects.create_user("ana.vieja@EJEMPLO.test", PASSWORD)
+    assert User.objects.create_user(" Beto@Ejemplo.Test ", PASSWORD).email == "beto@ejemplo.test"
+
+
+def test_la_migracion_pasa_los_correos_a_minusculas():
+    lowercase = import_module("apps.accounts.migrations.0009_lowercase_emails").lowercase
+    User.objects.create_user("uno@ejemplo.test", PASSWORD)
+    User.objects.create_user("dos@ejemplo.test", PASSWORD)
+    User.objects.filter(email="uno@ejemplo.test").update(email="Uno@Ejemplo.test")
+    User.objects.filter(email="dos@ejemplo.test").update(email=" dos@ejemplo.test")
+    lowercase(django_apps, None)
+    assert set(User.objects.values_list("email", flat=True)) >= {"uno@ejemplo.test", "dos@ejemplo.test"}
+
+
+def test_una_pestana_olvidada_no_retiene_la_sesion(client, settings):
+    assert register(client, email="olvido@ejemplo.test").status_code == 201
+    before = int(time.time()) - 600
+    stored = client.session
+    stored["last_activity"] = before
+    stored.save()
+    polled = client.get("/api/v1/auth/me/", HTTP_X_TRAZA_PRESENCE="1")
+    assert polled.status_code == 200
+    assert client.session["last_activity"] == before
+
+    stored = client.session
+    stored["last_activity"] = int(time.time()) - settings.SESSION_IDLE_SECONDS - 5
+    stored.save()
+    browser = APIClient(enforce_csrf_checks=True, HTTP_X_AULIVANA_FCDDESIGN_CLIENT="")
+    refresh_csrf(browser)
+    entered = browser.post(
+        "/api/v1/auth/login/",
+        {"email": "olvido@ejemplo.test", "password": PASSWORD},
+        format="json",
+    )
+    assert entered.status_code == 200, entered.content
+    closed = client.get("/api/v1/auth/me/", HTTP_X_TRAZA_PRESENCE="1")
+    assert closed.status_code in (401, 403)
+
+
+def test_sesion_sin_hora_de_uso_no_bloquea(client):
+    assert register(client, email="sinhora@ejemplo.test").status_code == 201
+    stored = client.session
+    del stored["last_activity"]
+    stored.save()
+    browser = APIClient(enforce_csrf_checks=True, HTTP_X_AULIVANA_FCDDESIGN_CLIENT="")
+    refresh_csrf(browser)
+    entered = browser.post(
+        "/api/v1/auth/login/",
+        {"email": "sinhora@ejemplo.test", "password": PASSWORD},
+        format="json",
+    )
+    assert entered.status_code == 200, entered.content
 
 
 def test_foreign_objects_are_not_found(client):
@@ -847,3 +925,17 @@ def test_finished_execution_rejects_more_input(client):
         f"/api/v1/executions/{started['id']}/input/", {"text": "x"}, format="json"
     )
     assert rejected.status_code == 409
+
+
+def test_la_lista_de_proyectos_cuenta_los_algoritmos_vivos(client):
+    register(client, email="cuenta@ejemplo.test")
+    empty = client.post("/api/v1/projects/", {"name": "arreglo"}, format="json").json()["id"]
+    full = client.post("/api/v1/projects/", {"name": "Tarea"}, format="json").json()["id"]
+    first = client.post(
+        "/api/v1/algorithms/", {"project_id": full, "name": "Uno"}, format="json"
+    ).json()["id"]
+    client.post("/api/v1/algorithms/", {"project_id": full, "name": "Dos"}, format="json")
+    assert client.delete(f"/api/v1/algorithms/{first}/").status_code == 204
+    counts = {row["id"]: row["algorithm_count"] for row in client.get("/api/v1/projects/").json()["results"]}
+    assert counts[empty] == 0
+    assert counts[full] == 1
