@@ -1,6 +1,6 @@
 # Diccionario de datos
 
-Fecha de referencia: 2026-11-03. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. Los mensajes viven en las tablas `chat_*`. Los exámenes viven en las tablas `exams_*`. Los diagramas entidad-relación de Bases de datos no tienen tabla: se guardan en el navegador. Los niveles viven en `billing_plan` y `billing_subscription`. El cupo del día vive en `billing_dailyexecution`. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
+Fecha de referencia: 2026-11-06. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. Los mensajes viven en las tablas `chat_*`. Los exámenes viven en las tablas `exams_*`. Los diagramas entidad-relación de Bases de datos no tienen tabla: se guardan en el navegador. Los niveles viven en `billing_plan` y `billing_subscription`. El cupo del día vive en `billing_dailyexecution`. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
 
 La base se llama `traza` y, con los contenedores levantados, escucha en `127.0.0.1:5434`. El usuario de desarrollo es `traza`. No es la base del contenedor anterior `traza-pg` del puerto `5433`.
 
@@ -90,6 +90,8 @@ La columna foránea se llama `campo_id` y apunta a la clave de la otra tabla. `A
 | `learning_learningunit` | `prerequisite_id` | `learning_learningunit.id` | una unidad previa, o ninguna | se impide borrar la previa |
 | `learning_challenge` | `unit_id` | `learning_learningunit.id` | 1 unidad, muchos retos | se borran los retos |
 | `learning_challengetestcase` | `challenge_id` | `learning_challenge.id` | 1 reto, muchos casos | se borran los casos |
+| `learning_challengefigure` | `challenge_id` | `learning_challenge.id` | 1 reto, muchas imágenes, o ninguno hasta guardar el enunciado | se borran las imágenes |
+| `learning_challengefigure` | `owner_id` | `accounts_user.id` | 1 docente, muchas imágenes | se borran las imágenes |
 | `learning_hint` | `challenge_id` | `learning_challenge.id` | 1 reto, muchas pistas | se borran las pistas |
 | `learning_pathentry` | `path_id` | `learning_learningpath.id` | un reto colocado en una ruta | se borra la colocación |
 | `learning_pathentry` | `challenge_id` | `learning_challenge.id` | el reto del catálogo | se borra la colocación |
@@ -126,7 +128,7 @@ La cuenta. El identificador para entrar es `email`, no hay columna `username`. L
 | `is_staff` | `boolean` | NO | Puede abrir `/admin/` |
 | `is_active` | `boolean` | NO | Cuenta activa para Django. La confirmación del correo es `email_confirmed`, no esta columna |
 | `date_joined` | `timestamptz` | NO | Alta de la fila |
-| `email` | `varchar(254)` | NO | Único, también sin distinguir mayúsculas (`accounts.0008`). Correo normalizado, es el usuario |
+| `email` | `varchar(254)` | NO | Único, también sin distinguir mayúsculas (`accounts.0008`). Correo en minúsculas y sin espacios (`accounts.0009`), es el usuario |
 | `email_confirmed` | `boolean` | NO | En los contenedores nace en falso hasta abrir el enlace. Las cuentas anteriores y las de la máquina nacen en verdadero |
 | `session_key` | `varchar(40)` | NO | Clave de la única sesión abierta. Vacío si no hay sesión. La migración es `accounts.0006` |
 
@@ -582,7 +584,7 @@ Reto. El tipo, la dificultad, los puntos y el tiempo tienen tope en la base.
 | `id` | `uuid` | NO | Clave |
 | `unit_id` | `uuid` | NO | Unidad |
 | `title` | `varchar(120)` | NO | Único dentro de la unidad |
-| `prompt` | `text` | NO | Enunciado que lee el alumno |
+| `prompt` | `text` | NO | Enunciado que lee el alumno, en Markdown, hasta 20 000 caracteres. Una imagen se guarda como su dirección `/api/v1/learning/figures/{id}/` |
 | `activity_type` | `varchar(16)` | NO | `classify`, `order`, `build` o `predict` |
 | `difficulty` | `smallint` | NO | De 1 a 5 |
 | `points` | `smallint` | NO | De 1 a 500. Si no se cambia, vale 10. Se suman una vez a `accounts_profile.points` |
@@ -608,6 +610,19 @@ Caso con el que se comprueba un reto de construcción o de predicción.
 | `expected_output` | `text` | NO | Salida esperada. Vacía si el caso no compara texto |
 | `kind` | `varchar(16)` | NO | `normal`, `boundary` o `invalid` |
 | `position` | `integer` | NO | Orden. Único dentro del reto |
+
+### `learning_challengefigure`
+
+Imagen del enunciado de un reto (`learning.0020`). El enunciado guarda solo su dirección.
+
+| Campo | Tipo | Nulo | Descripción |
+| --- | --- | --- | --- |
+| `id` | `uuid` | NO | Clave. Va en la dirección `/api/v1/learning/figures/{id}/` |
+| `owner_id` | `bigint` | NO | Docente que la subió |
+| `challenge_id` | `uuid` | SÍ | Reto cuyo enunciado la nombra. Nulo hasta guardar ese enunciado |
+| `content` | `bytea` | NO | Bytes de la imagen, de 32 bytes a 1.2 MB |
+| `content_type` | `varchar(32)` | NO | `image/jpeg`, `image/png`, `image/gif` o `image/webp` |
+| `created_at` | `timestamptz` | NO | Alta |
 
 ### `learning_hint`
 

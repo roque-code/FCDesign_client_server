@@ -1,6 +1,6 @@
 # Arquitectura de seguridad
 
-Fecha de referencia: 2026-10-21. El perímetro de desarrollo tiene tres zonas. La ventana de escritorio añade el anfitrión local, que solo acepta el token de arranque y solo proxifica `/api/`. La de producción, cuando exista, sustituye Mailpit por un SMTP real y pone TLS delante de Nginx.
+Fecha de referencia: 2026-11-06. El perímetro de desarrollo tiene tres zonas. La ventana de escritorio añade el anfitrión local, que solo acepta el token de arranque y solo proxifica `/api/`. La de producción, cuando exista, sustituye Mailpit por un SMTP real y pone TLS delante de Nginx.
 
 ```mermaid
 flowchart TB
@@ -32,7 +32,7 @@ flowchart TB
 | Objeto ajeno responde 404 | proyectos, intentos y comunidades |
 | Tope de 64 KiB antes de lexicar | servicio, no el núcleo |
 | Límite de ingreso | 3 intentos; luego el correo queda bloqueado 15 minutos |
-| Una sesión por cuenta | La web, otra ventana, la aplicación y otra máquina no conviven. Tras 30 minutos sin uso se cierra |
+| Una sesión por cuenta | La web, otra ventana, la aplicación y otra máquina no conviven. Tras 30 minutos sin uso se cierra. Una pestaña oculta o sin tocar en 5 minutos marca `X-Traza-Presence` y no renueva el uso |
 | Límite de peticiones | ejecución |
 | Auditoría sin fuente completo ni secretos | `audit` |
 | Credencial Redis del runner acotada a `traza:*` | ACL |
@@ -46,6 +46,7 @@ flowchart TB
 | Pegar | El editor rechaza el pegado. El texto se sigue escribiendo. La foto del perfil solo acepta JPG o PNG de hasta 120 KB |
 | Repaso | El docente lee algoritmos solo de alumnos de sus comunidades. No crea versiones |
 | Retos en CSV | Solo un docente descarga el banco. La carga no escribe en el banco de concurso |
+| Enunciado del reto | El Markdown se dibuja sin HTML. Solo enlaza `https://` y las imágenes del reto. Una imagen es JPG, PNG, GIF o WEBP de hasta 1.2 MB, revisada por su firma; la ve su dueño o, si el reto está publicado, cualquier cuenta con sesión |
 
 El enlace de confirmación lleva `uid` y `token` en la query del origen público. Al confirmar, el token deja de servir. Entrar antes responde `email_unconfirmed`.
 

@@ -354,6 +354,9 @@ label { display: grid; gap: 0.25rem; font-size: 0.92rem; }
 
 .manuals-menu { width: min(28rem, 80vw); }
 
+.challenge-handoff { left: 0; right: auto; }
+.challenge-handoff label { display: grid; gap: 0.25rem; color: var(--muted); font-size: 0.86rem; }
+
 .manual-row {
   display: flex;
   align-items: center;

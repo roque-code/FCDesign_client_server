@@ -349,6 +349,7 @@ export type LabPathChallenge = {
   withdrawn?: boolean
   time_limit_seconds: number | null
   attempt_count: number
+  in_progress?: boolean
   score?: number | null
 }
 

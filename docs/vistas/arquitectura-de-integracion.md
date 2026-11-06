@@ -1,6 +1,6 @@
 # Arquitectura de integración
 
-Fecha de referencia: 2026-11-03. No hay un bus de empresa ni un proveedor de correo externo. Las integraciones son los contratos entre las piezas del propio sistema, y el proxy de la ventana de escritorio hacia la API.
+Fecha de referencia: 2026-11-06. No hay un bus de empresa ni un proveedor de correo externo. Las integraciones son los contratos entre las piezas del propio sistema, y el proxy de la ventana de escritorio hacia la API.
 
 ```mermaid
 flowchart LR
@@ -39,6 +39,7 @@ flowchart LR
 | Nivel | `GET /api/v1/auth/me/` y `/api/v1/billing/` | El plan viaja con la cuenta. El administrador define niveles. No hay cobro automático |
 | Aplicación | Cabecera `X-Aulivana-FCDdesign-Client: desktop` | Sin ella, y si el navegador no está permitido, el resto de `/api/v1/` responde 403 |
 | Notas | `GET /api/v1/learning/roster/{id}/progress/` | CSV de la ruta. No se guarda |
+| Imágenes del enunciado | `POST /api/v1/learning/figures/` y `GET /api/v1/learning/figures/{id}/` | El docente sube la imagen como `data:` en base64 y recibe su dirección. La lectura devuelve los bytes con su tipo, `nosniff` y caché privada de un día |
 | Retos | `GET /api/v1/learning/challenges/csv/?tipo=&contenido=retos&banco=` y `POST /api/v1/learning/challenges/csv/` | La descarga sale por tipo y por banco (`catalogo` o `concurso`). Un alumno recibe 403. La carga admite hasta 250 retos y 1 MB. Si una fila falla, no se guarda ninguna |
 | Mensajes | `GET /api/v1/chat/board/?subject=`, `POST /api/v1/chat/conversations/` y `GET` o `POST /api/v1/chat/conversations/{id}/messages/` | Grupos, personas, sin leer y mensajes. El cliente vuelve a pedir la lista cada 5 segundos y el hilo cada 4. No hay canal en vivo. El nivel tiene que incluir la materia y `chat_{materia}` |
 | Exámenes | `/api/v1/exams/`, `mine/`, `notices/`, `import/`, `{id}/publish/`, `{id}/close/`, `{id}/export/`, `{id}/results/`, `{id}/grades/`, `{id}/attempts/` y `attempts/{id}/`, con `submit/` y `grade/` | Exámenes, intentos, calificaciones y avisos. El CSV y el archivo exportado viajan como texto dentro del JSON y no se guardan. El reto con casos se califica con `language_core` dentro de Django, sin runner. El nivel tiene que incluir la materia y `exams_{materia}`. `export/?as=json`, `moodle` o `gift`; no se usa `format` porque Django REST Framework lo reserva para el renderizador |

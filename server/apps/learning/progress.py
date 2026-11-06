@@ -66,6 +66,11 @@ def path_payload(user, path: LearningPath | None = None) -> dict[str, object]:
         .values("challenge_id")
         .annotate(total=Count("id"))
     }
+    in_progress = set(
+        ChallengeAttempt.objects.filter(
+            user=user, status=ChallengeAttempt.OPEN, challenge__in=challenges
+        ).values_list("challenge_id", flat=True)
+    )
     now = timezone.now()
     rows: list[dict[str, object]] = []
     previous_linked_done = True
@@ -101,6 +106,7 @@ def path_payload(user, path: LearningPath | None = None) -> dict[str, object]:
                 "withdrawn": False if entry is None else entry.withdrawn,
                 "time_limit_seconds": challenge.time_limit_seconds,
                 "attempt_count": closed_counts.get(challenge.id, 0),
+                "in_progress": challenge.id in in_progress,
             }
         )
     return {

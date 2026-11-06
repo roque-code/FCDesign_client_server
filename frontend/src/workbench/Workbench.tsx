@@ -43,6 +43,7 @@ import {
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
 import { LeaveSubjectButton } from "../subjects/leave"
+import { ChallengeHandoff } from "./ChallengeHandoff"
 import { TranslateDialog } from "./TranslateDialog"
 import { stdlibHelp } from "./stdlibHelp"
 import { groupNames, studentLabel, studentsIn } from "./studentGroups"
@@ -118,6 +119,7 @@ export function Workbench({
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [functionsOpen, setFunctionsOpen] = useState(false)
   const [joinOpen, setJoinOpen] = useState(false)
+  const [handoffOpen, setHandoffOpen] = useState(false)
   const [joinCode, setJoinCode] = useState("")
   const [joinError, setJoinError] = useState("")
   const [joinMessage, setJoinMessage] = useState("")
@@ -166,6 +168,7 @@ export function Workbench({
   const settingsRef = useRef<HTMLDivElement>(null)
   const functionsRef = useRef<HTMLDivElement>(null)
   const joinRef = useRef<HTMLDivElement>(null)
+  const handoffRef = useRef<HTMLDivElement>(null)
   const haltRef = useRef(false)
   const workspaceRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<HTMLElement>(null)
@@ -243,23 +246,26 @@ export function Workbench({
   }, [account, onAccount])
 
   useEffect(() => {
-    if (!settingsOpen && !functionsOpen && !joinOpen) return
+    if (!settingsOpen && !functionsOpen && !joinOpen && !handoffOpen) return
     function close(event: MouseEvent) {
       const target = event.target as Node
       if (
         settingsRef.current?.contains(target) ||
         functionsRef.current?.contains(target) ||
-        joinRef.current?.contains(target)
+        joinRef.current?.contains(target) ||
+        handoffRef.current?.contains(target)
       ) return
       setSettingsOpen(false)
       setFunctionsOpen(false)
       setJoinOpen(false)
+      setHandoffOpen(false)
     }
     function onKey(event: KeyboardEvent) {
       if (event.key !== "Escape") return
       setSettingsOpen(false)
       setFunctionsOpen(false)
       setJoinOpen(false)
+      setHandoffOpen(false)
     }
     document.addEventListener("mousedown", close)
     document.addEventListener("keydown", onKey)
@@ -267,7 +273,7 @@ export function Workbench({
       document.removeEventListener("mousedown", close)
       document.removeEventListener("keydown", onKey)
     }
-  }, [settingsOpen, functionsOpen, joinOpen])
+  }, [settingsOpen, functionsOpen, joinOpen, handoffOpen])
 
   useEffect(() => {
     const node = consoleRef.current
@@ -1163,6 +1169,28 @@ export function Workbench({
             {t("composeNs")}
           </button>
           )}
+          {can("lab_route") && !reviewing && (
+            <div className="functions" ref={handoffRef}>
+              <button
+                className="top-action"
+                type="button"
+                aria-expanded={handoffOpen}
+                disabled={!algorithmId}
+                title={algorithmId ? undefined : t("pseudoAttachNeedsAlgorithm")}
+                onClick={() => {
+                  setSettingsOpen(false)
+                  setFunctionsOpen(false)
+                  setJoinOpen(false)
+                  setHandoffOpen((open) => !open)
+                }}
+              >
+                {t("languageAttach")}
+              </button>
+              {handoffOpen && algorithmId && (
+                <ChallengeHandoff account={account} onAccount={onAccount} source={source} beforeSend={flushSource} />
+              )}
+            </div>
+          )}
           {(account.role === "student" || account.role === "teacher") && (
             <div className="functions" ref={joinRef}>
               <button
@@ -1172,6 +1200,7 @@ export function Workbench({
                 onClick={() => {
                   setSettingsOpen(false)
                   setFunctionsOpen(false)
+                  setHandoffOpen(false)
                   setJoinError("")
                   setJoinMessage("")
                   setJoinOpen((open) => !open)
@@ -1239,6 +1268,7 @@ export function Workbench({
               aria-controls="funciones"
               onClick={() => {
                 setSettingsOpen(false)
+                setHandoffOpen(false)
                 setFunctionsOpen((open) => !open)
               }}
             >
@@ -1272,6 +1302,7 @@ export function Workbench({
               aria-controls="configuracion"
               onClick={() => {
                 setFunctionsOpen(false)
+                setHandoffOpen(false)
                 setSettingsOpen((open) => !open)
               }}
             >

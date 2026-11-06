@@ -1263,3 +1263,14 @@ def test_un_reto_sin_casos_se_entrega_sin_comparar_la_salida(client):
     assert handed.json()["attempt"]["next_stage"] == "explicar"
     closed = _close(client, attempt_id)
     assert closed["attempt"]["status"] == "completed"
+
+
+def test_la_ruta_marca_el_reto_que_tiene_un_intento_abierto(client) -> None:
+    register(client, email="lab-en-curso@ejemplo.test")
+    assert _rows(client)["Qué entra y qué sale"]["in_progress"] is False
+    started = _start(client, "Qué entra y qué sale")
+    assert _rows(client)["Qué entra y qué sale"]["in_progress"] is True
+    attempt = ChallengeAttempt.objects.get(pk=started["attempt"]["id"])
+    attempt.status = ChallengeAttempt.ABANDONED
+    attempt.save(update_fields=["status"])
+    assert _rows(client)["Qué entra y qué sale"]["in_progress"] is False
