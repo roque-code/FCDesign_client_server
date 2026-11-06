@@ -18,6 +18,7 @@ import { LeaveSubjectButton } from "../subjects/leave"
 
 const PAGE = 15
 const PRESENCE_REFRESH_MS = 20_000
+const NARROW = "(max-width: 980px)"
 
 const PRESENCE_LABEL = {
   active: "presenceActive",
@@ -56,6 +57,9 @@ export function CommunitiesPanel({
   const [page, setPage] = useState(0)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState("")
+  const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches)
+  const [pane, setPane] = useState<"list" | "detail">("list")
+  const [creating, setCreating] = useState(false)
 
   async function loadList(prefer?: string) {
     const page = await api.communities()
@@ -71,6 +75,14 @@ export function CommunitiesPanel({
     void loadList().catch((caught: unknown) => {
       setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("communitiesLoadError"))
     })
+  }, [])
+
+  useEffect(() => {
+    const media = window.matchMedia(NARROW)
+    const apply = () => setNarrow(media.matches)
+    apply()
+    media.addEventListener("change", apply)
+    return () => media.removeEventListener("change", apply)
   }, [])
 
   useEffect(() => {
@@ -113,6 +125,8 @@ export function CommunitiesPanel({
       const created = await api.createCommunity(name.trim(), subject)
       setName("")
       setDetail(created)
+      setCreating(false)
+      if (narrow) setPane("detail")
       await loadList(created.id)
     } catch (caught) {
       setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("communityCreateError"))
@@ -243,8 +257,19 @@ export function CommunitiesPanel({
           </button>
         </div>
       </header>
-      <div className="communities-body">
+      <div className="communities-body" data-phone={narrow ? pane : "both"}>
           <div className="communities-list">
+            {narrow ? (
+              <button
+                type="button"
+                className="communities-new"
+                aria-expanded={creating}
+                onClick={() => setCreating((open) => !open)}
+              >
+                {t("newCommunity")}
+              </button>
+            ) : null}
+            {!narrow || creating ? (
             <form onSubmit={create}>
               <label>
                 {t("chatSubject")}
@@ -267,6 +292,7 @@ export function CommunitiesPanel({
               </label>
               <button className="primary" type="submit">{t("create")}</button>
             </form>
+            ) : null}
             <ul>
               {communities.map((item) => (
                 <li key={item.id}>
@@ -276,6 +302,7 @@ export function CommunitiesPanel({
                     onClick={() => {
                       setSelectedId(item.id)
                       setCopied(false)
+                      if (narrow) setPane("detail")
                     }}
                   >
                     <strong>{item.name}</strong>
@@ -288,6 +315,11 @@ export function CommunitiesPanel({
             {communities.length === 0 && <p className="note">{t("communityEmpty")}</p>}
           </div>
           <div className="communities-detail">
+            {narrow ? (
+              <button type="button" className="communities-back" onClick={() => setPane("list")}>
+                {t("backToCommunities")}
+              </button>
+            ) : null}
             {detail ? (
               <>
                 <div className="community-head">

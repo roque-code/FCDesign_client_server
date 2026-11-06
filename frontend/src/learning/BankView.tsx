@@ -5,6 +5,7 @@ import { spellText } from "../dialect"
 import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
 import { saveDownload } from "../saveFile"
 import { ChallengeForm } from "./ChallengeForm"
+import { PromptText } from "./PromptText"
 import { formatLimit } from "./trace"
 import { TOOL_GROUPS } from "./toolbox"
 
@@ -85,7 +86,9 @@ function ChallengeCard({
           </p>
         </div>
       </header>
-      <p className="bank-prompt">{item.prompt}</p>
+      <div className="bank-prompt">
+        <PromptText text={item.prompt} />
+      </div>
       {item.activity_type === "classify" ? (
         <div className="bank-block">
           <h4>{t("categories")}</h4>

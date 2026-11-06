@@ -11,6 +11,8 @@ from apps.learning.authoring_views import (
     BankView,
     CatalogView,
     ChallengeCsvView,
+    ChallengeFigureCollectionView,
+    ChallengeFigureView,
 )
 from apps.learning.course_views import (
     AttemptCheckView,
@@ -46,6 +48,12 @@ urlpatterns = [
     path("learning/catalog/", CatalogView.as_view(), name="learning-catalog"),
     path("learning/bank/", BankView.as_view(), name="learning-bank"),
     path("learning/challenges/csv/", ChallengeCsvView.as_view(), name="learning-challenge-csv"),
+    path("learning/figures/", ChallengeFigureCollectionView.as_view(), name="learning-figures"),
+    path(
+        "learning/figures/<uuid:figure_id>/",
+        ChallengeFigureView.as_view(),
+        name="learning-figure",
+    ),
     path("learning/authored/", AuthoredListView.as_view(), name="learning-authored"),
     path(
         "learning/authored/challenges/",

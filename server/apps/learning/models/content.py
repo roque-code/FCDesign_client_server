@@ -119,6 +119,30 @@ class Challenge(models.Model):
         return self.title
 
 
+class ChallengeFigure(models.Model):
+    """Imagen del enunciado. El Markdown guarda solo la dirección."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="challenge_figures",
+    )
+    challenge = models.ForeignKey(
+        Challenge,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="figures",
+    )
+    content = models.BinaryField()
+    content_type = models.CharField(max_length=32)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return str(self.id)
+
+
 class ChallengeTestCase(models.Model):
     NORMAL = "normal"
     BOUNDARY = "boundary"

@@ -1,3 +1,4 @@
+from django.http import HttpResponse
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -21,6 +22,7 @@ from apps.learning.authoring import (
     update_path,
 )
 from apps.learning.csv_import import export_challenges, formats_payload, import_challenges, template_csv
+from apps.learning.figures import store_figure, visible_figure
 from config.errors import DomainError
 
 
@@ -76,6 +78,22 @@ class AuthoredDetailView(APIView):
     def delete(self, request: Request, path_id) -> Response:
         delete_path(current_user(request), path_id)
         return Response(status=204)
+
+
+class ChallengeFigureCollectionView(APIView):
+    def post(self, request: Request) -> Response:
+        teacher = _teacher(request)
+        data = object_body(request.data)
+        return Response(store_figure(teacher, data.get("image")), status=201)
+
+
+class ChallengeFigureView(APIView):
+    def get(self, request: Request, figure_id) -> HttpResponse:
+        figure = visible_figure(current_user(request), figure_id)
+        response = HttpResponse(bytes(figure.content), content_type=figure.content_type)
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Cache-Control"] = "private, max-age=86400"
+        return response
 
 
 class AuthoredChallengeCollectionView(APIView):

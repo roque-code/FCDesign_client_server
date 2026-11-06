@@ -2177,3 +2177,175 @@ button.fold {
     grid-template-rows: auto minmax(0, 1fr) auto 6px minmax(2.2rem, 0.22fr);
   }
 }
+
+.communities-list form > label,
+.community-head > label {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.communities-list input,
+.communities-list select,
+.community-head select,
+.roster-tools input {
+  width: 100%;
+  min-width: 0;
+}
+
+.communities-title {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.communities-title h3 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.communities-new,
+.communities-back {
+  min-height: 2.5rem;
+  border-radius: 0.7rem;
+}
+
+.communities-new {
+  width: 100%;
+  justify-self: stretch;
+  align-self: start;
+}
+
+.communities-back {
+  justify-self: start;
+  width: auto;
+}
+
+/* El menú de comunidades usa el mismo corte que el editor: hasta 980 px
+   se ve una sola tarea, la lista o la ficha. */
+@media (max-width: 980px) {
+  .shell.communities-screen > .communities-body {
+    grid-template-columns: minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .communities-screen .communities-list,
+  .communities-screen .communities-detail {
+    max-height: none;
+    border-right: 0;
+    border-bottom: 0;
+    overflow: auto;
+  }
+
+  .communities-screen .communities-list {
+    align-content: start;
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+
+  .communities-screen .topbar-editor .brand {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    overflow: visible;
+    row-gap: 0.15rem;
+  }
+
+  .communities-screen .topbar-editor .brand h1 {
+    grid-column: 1 / -1;
+  }
+
+  .communities-screen .topbar-editor .who {
+    justify-items: start;
+    justify-content: start;
+    grid-auto-flow: column;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .communities-screen .topbar-editor .who-name {
+    max-width: 11rem;
+  }
+
+  .communities-screen .topbar-editor .standing {
+    justify-self: end;
+  }
+
+  .communities-body[data-phone="list"] > .communities-detail,
+  .communities-body[data-phone="detail"] > .communities-list {
+    display: none;
+  }
+
+  .communities-list li button,
+  .community-code-row button,
+  .member-pager button,
+  .member-list li button,
+  .people-results li button {
+    min-height: 2.5rem;
+    white-space: normal;
+  }
+
+  .community-code-row {
+    align-items: stretch;
+  }
+
+  .community-code-row button {
+    flex: 1 1 8rem;
+  }
+
+  .join-code {
+    font-size: 1.15rem;
+    letter-spacing: 0.08em;
+    overflow-wrap: anywhere;
+  }
+
+  .member-actions {
+    width: 100%;
+  }
+
+  .member-pager {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 980px) and (max-height: 520px) {
+  .communities-screen .topbar-editor {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .communities-screen .topbar-editor .brand {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    min-width: 0;
+    gap: 0.45rem;
+  }
+
+  .communities-screen .topbar-editor .brand h1 {
+    grid-column: auto;
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .communities-screen .topbar-editor .who {
+    flex: 0 1 auto;
+  }
+
+  .communities-screen .topbar-editor .standing {
+    flex: 0 0 auto;
+  }
+
+  .communities-screen .topbar-editor .actions {
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  .communities-screen .topbar-editor .top-leave {
+    width: auto;
+    white-space: nowrap;
+  }
+
+  .communities-screen .topbar-editor .who-name {
+    max-width: 7rem;
+  }
+}

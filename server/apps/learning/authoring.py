@@ -15,6 +15,7 @@ from apps.accounts.models import Profile
 from apps.accounts.services import clean_label
 from apps.classroom.models import Community, Membership
 from apps.learning.bank_data import BANK_NAME
+from apps.learning.figures import attach_figures
 from apps.learning.contest_data import CONTEST_BANK_NAME
 from apps.learning.models import (
     Challenge,
@@ -34,6 +35,7 @@ from language_core.block_adapter import adapt_workspace
 from language_core.block_import import workspace_from_source
 
 NOT_FOUND = "not_found"
+_PROMPT_LIMIT = 20_000
 _MISSING_PATH = "No se encontró la ruta."
 _MISSING_CHALLENGE = "Ese reto no está en el catálogo."
 
@@ -1041,7 +1043,7 @@ def _fill(
     keep_path: LearningPath | None = None,
 ) -> None:
     challenge.title = clean_label(data.get("title"), field="El título", limit=120, required=True)
-    challenge.prompt = _block(data.get("prompt"), "El enunciado", 4000, required=True)
+    challenge.prompt = _block(data.get("prompt"), "El enunciado", _PROMPT_LIMIT, required=True)
     concept = _concept(data.get("concept"))
     difficulty = _whole(data.get("difficulty"), "La dificultad", 1, 5, default=1)
     points = _whole(data.get("points"), "Los puntos", 1, 500, default=10)
@@ -1074,6 +1076,7 @@ def create_challenge(teacher, data: dict) -> dict[str, object]:
         challenge.save()
     except IntegrityError as exc:
         raise DomainError("Ya existe un reto con ese título.") from exc
+    attach_figures(challenge, teacher)
     _apply_content(challenge, data)
     return _draft(challenge)
 
@@ -1089,6 +1092,7 @@ def update_challenge(teacher, challenge_id, data: dict) -> dict[str, object]:
         challenge.save()
     except IntegrityError as exc:
         raise DomainError("Ya existe un reto con ese título.") from exc
+    attach_figures(challenge, teacher)
     _apply_content(challenge, data)
     return _draft(challenge)
 

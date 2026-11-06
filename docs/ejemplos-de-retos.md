@@ -9,7 +9,7 @@ El alumno ve el reto cuando la ruta está publicada y asignada. Los puntos se ot
 | Campo | Qué va ahí |
 | --- | --- |
 | Título | Nombre corto del reto. Máximo 120 caracteres. No se puede repetir dentro del mismo concepto. |
-| Enunciado | Lo que el alumno lee antes de responder. Máximo 4000 caracteres. |
+| Enunciado | Lo que el alumno lee antes de responder. Admite Markdown e imágenes. Máximo 20000 caracteres. |
 | Concepto | El tema que practica: Variables, Asignación, Entrada y salida, Operadores, Decisiones, Ciclo mientras, Opción múltiple, Ciclo para, Ciclo repetir, Arreglos o Funciones. |
 | Tipo | Clasificar, Ordenar, Construir o Predecir. |
 | Dificultad | Del 1 al 5. |
@@ -157,7 +157,7 @@ Estas columnas van en los cuatro tipos:
 | --- | --- |
 | tipo | `clasificar`, `ordenar`, `construir` o `predecir`. |
 | titulo | Nombre del reto. Máximo 120 caracteres. |
-| enunciado | Lo que lee el alumno. Máximo 4000 caracteres. |
+| enunciado | Lo que lee el alumno. Admite Markdown (títulos, negrita, listas, código e imágenes). Máximo 20000 caracteres. |
 | concepto | La clave o el nombre: `variable`, `assignment`, `io`, `operator`, `if`, `while`, `switch`, `for`, `repeat`, `array`, `function`. También vale el nombre en español, por ejemplo `Operadores`. |
 | dificultad | Del 1 al 5. Vacío significa 1. |
 | puntos | Del 1 al 500. Vacío significa 10. |

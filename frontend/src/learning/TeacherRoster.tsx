@@ -12,6 +12,7 @@ import { spellText } from "../dialect"
 import { LANGUAGE_LABELS, type ForeignLanguage } from "../foreign/keywords"
 import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
 import { saveDownload } from "../saveFile"
+import { PromptText } from "./PromptText"
 import { SolutionCard } from "./SolutionCard"
 import { TeacherBoard } from "./TeacherBoard"
 import { formatClock, formatWhen } from "./trace"
@@ -83,7 +84,7 @@ function StudentWork({
             {t("promptKicker")} · {ACTIVITY[challenge.activity_type] ? t(ACTIVITY[challenge.activity_type]) : challenge.activity_type} · {challenge.concept}
           </p>
           <h2>{challenge.title}</h2>
-          <p className="enunciado-text">{challenge.prompt}</p>
+          <PromptText text={challenge.prompt} />
         </div>
       </article>
       {finished && attempt ? (

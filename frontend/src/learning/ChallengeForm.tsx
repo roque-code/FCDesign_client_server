@@ -1,8 +1,10 @@
-import { FormEvent, useEffect, useState } from "react"
+import { FormEvent, useEffect, useRef, useState, type ClipboardEvent } from "react"
 
 import { ApiError, api, type LabChallengeDraft, type LabChallengeInput, type LabConcept } from "../api"
 import { commitSource, presentSource } from "../dialect"
 import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
+import { PromptText } from "./PromptText"
+import { htmlToMarkdown } from "./promptMarkdown"
 import { TOOL_GROUPS } from "./toolbox"
 import { WeightFields } from "./WeightFields"
 import { defaultWeights, parseWeights, weightTotal, type LabWeights } from "./weights"
@@ -77,6 +79,10 @@ export function ChallengeForm({
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(challengeId !== null)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const promptRef = useRef<HTMLTextAreaElement>(null)
+  const imageRef = useRef<HTMLInputElement>(null)
+  const textRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!challengeId) return
@@ -200,6 +206,82 @@ export function ChallengeForm({
 
   const categoryNames = lines(categories)
 
+  function writePrompt(next: string, caret: number) {
+    setPrompt(next)
+    requestAnimationFrame(() => {
+      const field = promptRef.current
+      if (!field) return
+      field.focus()
+      field.setSelectionRange(caret, caret)
+    })
+  }
+
+  function wrapPrompt(before: string, after = before) {
+    const field = promptRef.current
+    const current = field?.value ?? prompt
+    const start = field?.selectionStart ?? current.length
+    const end = field?.selectionEnd ?? current.length
+    const selected = current.slice(start, end)
+    const next = `${current.slice(0, start)}${before}${selected}${after}${current.slice(end)}`
+    writePrompt(next, start + before.length + selected.length + after.length)
+  }
+
+  function insertPrompt(snippet: string) {
+    const field = promptRef.current
+    const current = field?.value ?? prompt
+    const start = field?.selectionStart ?? current.length
+    const end = field?.selectionEnd ?? current.length
+    const next = `${current.slice(0, start)}${snippet}${current.slice(end)}`
+    writePrompt(next, start + snippet.length)
+  }
+
+  function onPromptPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    const html = event.clipboardData.getData("text/html")
+    if (!html) return
+    const markdown = htmlToMarkdown(html)
+    if (!markdown) return
+    event.preventDefault()
+    insertPrompt(markdown)
+  }
+
+  async function readDataUrl(file: File): Promise<string> {
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result ?? ""))
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(file)
+    })
+  }
+
+  async function onImage(file: File | undefined) {
+    if (!file) return
+    if (!file.type.startsWith("image/") || file.size > 1_200_000) {
+      setError(t("promptImageLarge"))
+      return
+    }
+    setError("")
+    setUploading(true)
+    try {
+      const saved = await api.uploadChallengeFigure(await readDataUrl(file))
+      insertPrompt(`\n![${t("promptImage")}](${saved.url})\n`)
+    } catch (caught) {
+      setError(messageOf(caught))
+    } finally {
+      setUploading(false)
+      if (imageRef.current) imageRef.current.value = ""
+    }
+  }
+
+  async function onTextFile(file: File | undefined) {
+    if (!file) return
+    const text = await file.text()
+    const field = promptRef.current
+    const current = field?.value ?? prompt
+    const next = current.trim() ? `${current.replace(/\s*$/, "")}\n\n${text.trim()}\n` : text
+    writePrompt(next, next.length)
+    if (textRef.current) textRef.current.value = ""
+  }
+
   return (
     <form className="stage-form" onSubmit={(event) => void save(event)}>
       <h3>{challengeId ? t("editChallenge") : t("newChallenge")}</h3>
@@ -209,16 +291,47 @@ export function ChallengeForm({
         {t("formTitle")}
         <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} required />
       </label>
-      <label>
-        {t("formPrompt")}
+      <div className="prompt-editor">
+        <span>{t("formPrompt")}</span>
+        <div className="prompt-tools">
+          <button type="button" onClick={() => wrapPrompt("**")}>{t("promptBold")}</button>
+          <button type="button" onClick={() => wrapPrompt("*")}>{t("promptItalic")}</button>
+          <button type="button" onClick={() => insertPrompt("\n## ")}>{t("promptHeading")}</button>
+          <button type="button" onClick={() => insertPrompt("\n- ")}>{t("promptList")}</button>
+          <button type="button" onClick={() => wrapPrompt("`")}>{t("promptCode")}</button>
+          <button type="button" onClick={() => imageRef.current?.click()} disabled={uploading}>{t("promptImage")}</button>
+          <button type="button" onClick={() => textRef.current?.click()}>{t("promptFile")}</button>
+        </div>
         <textarea
+          ref={promptRef}
           className="prompt-field"
+          aria-label={t("formPrompt")}
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
+          onPaste={onPromptPaste}
           rows={10}
           required
         />
-      </label>
+        <input
+          ref={imageRef}
+          type="file"
+          accept="image/png,image/jpeg,image/gif,image/webp"
+          hidden
+          onChange={(event) => void onImage(event.target.files?.[0])}
+        />
+        <input
+          ref={textRef}
+          type="file"
+          accept=".md,.markdown,.txt,text/markdown,text/plain"
+          hidden
+          onChange={(event) => void onTextFile(event.target.files?.[0])}
+        />
+        <p className="note">{t("promptFormatNote")}</p>
+        <div className="prompt-preview">
+          <p className="enunciado-kicker">{t("promptPreview")}</p>
+          {prompt.trim() ? <PromptText text={prompt} /> : <p className="note">{t("formPrompt")}</p>}
+        </div>
+      </div>
       <div className="challenge-pair">
         <label>
           {t("concept")}

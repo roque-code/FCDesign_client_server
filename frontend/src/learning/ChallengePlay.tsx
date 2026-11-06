@@ -18,6 +18,7 @@ import { ForeignEditor } from "../foreign/ForeignEditor"
 import { FOREIGN_LANGUAGES, LANGUAGE_LABELS, type ForeignLanguage } from "../foreign/keywords"
 import { inInstalledApp, localImport } from "../runtime"
 import { BlockWorkspace } from "./BlockWorkspace"
+import { PromptText } from "./PromptText"
 import { SolutionCard } from "./SolutionCard"
 import { formatClock, formatWhen, stagesFor, type StageName } from "./trace"
 
@@ -117,6 +118,13 @@ export function ChallengePlay({
   const attemptClock = session?.attempt.seconds_left ?? null
   const attemptStatus = session?.attempt.status ?? ""
   const attemptId = session?.attempt.id ?? ""
+  const prompt = session?.challenge.prompt ?? ""
+
+  useEffect(() => {
+    if (prompt.includes("![") || prompt.includes("\n#") || prompt.length > 700) {
+      setPromptHeight((current) => (current === 168 ? 380 : current))
+    }
+  }, [prompt])
 
   useEffect(() => {
     let cancelled = false
@@ -372,7 +380,7 @@ export function ChallengePlay({
             {t("promptKicker")} · {ACTIVITY[activity] ? t(ACTIVITY[activity]) : activity} · {challenge.concept}
           </p>
           <h2>{challenge.title}</h2>
-          <p className="enunciado-text">{challenge.prompt}</p>
+          <PromptText text={challenge.prompt} />
         </div>
         {attempt.status === "open" && left != null ? (
           <p className={left <= 30 ? "timer timer-low" : "timer"} aria-live="polite">

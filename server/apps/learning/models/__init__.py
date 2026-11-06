@@ -9,6 +9,7 @@ from apps.learning.models.attempts import (
 )
 from apps.learning.models.content import (
     Challenge,
+    ChallengeFigure,
     ChallengeTestCase,
     Hint,
     LearningPath,
@@ -22,6 +23,7 @@ from apps.learning.models.practice import Practice
 __all__ = [
     "Challenge",
     "ChallengeAttempt",
+    "ChallengeFigure",
     "ChallengeTestCase",
     "Concept",
     "ConceptMastery",

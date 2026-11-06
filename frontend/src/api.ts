@@ -1169,6 +1169,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ csv }),
     }),
+  uploadChallengeFigure: (image: string) =>
+    request<{ url: string }>("/api/v1/learning/figures/", {
+      method: "POST",
+      body: JSON.stringify({ image }),
+    }),
   createLabChallenge: (body: LabChallengeInput) =>
     request<LabChallengeDraft>("/api/v1/learning/authored/challenges/", {
       method: "POST",
