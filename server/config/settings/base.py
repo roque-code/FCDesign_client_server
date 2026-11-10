@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "apps.chat",
     "apps.exams",
     "apps.learning",
+    "apps.languages",
 ]
 
 MIDDLEWARE = [

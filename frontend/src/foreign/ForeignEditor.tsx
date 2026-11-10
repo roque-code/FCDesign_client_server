@@ -33,12 +33,14 @@ export function ForeignEditor({
   onChange,
   pasteBlocked = false,
   label,
+  readOnly = false,
 }: {
   language: ForeignLanguage
   source: string
   onChange: (source: string) => void
   pasteBlocked?: boolean
   label?: string
+  readOnly?: boolean
 }) {
   const host = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -63,6 +65,7 @@ export function ForeignEditor({
           EditorState.tabSize.of(4),
           foreignSupport(language),
           ...(label ? [EditorView.contentAttributes.of({ "aria-label": label })] : []),
+          ...(readOnly ? [EditorState.readOnly.of(true), EditorView.editable.of(false)] : []),
           ...blockBulkPaste(() => blockedRef.current),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) onChangeRef.current(update.state.doc.toString())
@@ -75,7 +78,7 @@ export function ForeignEditor({
       viewRef.current = null
       view.destroy()
     }
-  }, [language, label])
+  }, [language, label, readOnly])
 
   useEffect(() => {
     const view = viewRef.current
@@ -85,5 +88,5 @@ export function ForeignEditor({
     view.dispatch({ changes: { from: 0, to: current.length, insert: source }, annotations: trustedEdit.of(true) })
   }, [source])
 
-  return <div ref={host} className="foreign-editor" data-language={language} data-paste-blocked={pasteBlocked ? "true" : undefined} />
+  return <div ref={host} className="foreign-editor" data-language={language} data-paste-blocked={pasteBlocked ? "true" : undefined} data-readonly={readOnly ? "true" : undefined} />
 }

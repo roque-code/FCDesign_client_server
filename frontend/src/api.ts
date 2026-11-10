@@ -251,6 +251,14 @@ export type ClassroomStudent = {
   communities: string[]
 }
 
+export type LanguageProgram = {
+  id: string
+  name: string
+  language: string
+  updated_at: string
+  source?: string
+}
+
 export type StudentWork = {
   student: Person
   projects: Array<Project & { algorithms: Algorithm[] }>
@@ -1283,6 +1291,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  programs: () => request<{ results: LanguageProgram[] }>("/api/v1/languages/programs/"),
+  program: (id: string) => request<LanguageProgram>(`/api/v1/languages/programs/${id}/`),
+  createProgram: (body: { name: string; language: string; source: string }) =>
+    request<LanguageProgram>("/api/v1/languages/programs/", { method: "POST", body: JSON.stringify(body) }),
+  saveProgram: (id: string, body: { name?: string; source?: string }) =>
+    request<LanguageProgram>(`/api/v1/languages/programs/${id}/`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteProgram: (id: string) => request<void>(`/api/v1/languages/programs/${id}/`, { method: "DELETE" }),
+  studentPrograms: (userId: number) =>
+    request<{ student: Person; programs: LanguageProgram[] }>(`/api/v1/classroom/students/${userId}/programs/`),
   consumeExecution: () =>
     request<{ limit: number | null; used: number; remaining: number | null }>("/api/v1/usage/execution/", {
       method: "POST",
