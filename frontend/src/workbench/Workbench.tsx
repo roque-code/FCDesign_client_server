@@ -24,6 +24,7 @@ import { CodeEditor } from "../editor/CodeEditor"
 import { editorKeywords } from "../dialect"
 import { GuideButtons } from "../help/Guides"
 import { translatedMessage, useLocale, useT, type Locale } from "../i18n"
+import { browserStorage, clamp, followPointer, readLayout, writeLayout } from "../panes"
 import { pasteBlockedFor } from "../paste"
 import { saveDownload } from "../saveFile"
 import {
@@ -42,6 +43,7 @@ import {
 } from "../runtime"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
+import { Splitter } from "../shell/Splitter"
 import { LeaveSubjectButton } from "../subjects/leave"
 import { ChallengeHandoff } from "./ChallengeHandoff"
 import { TranslateDialog } from "./TranslateDialog"
@@ -62,6 +64,18 @@ const EMPTY_PREFS: Preferences = {
 }
 
 type SaveState = { kind: "idle" | "saving" | "saved" | "version"; number?: number }
+
+const LAYOUT_KEY = "traza.editor.panes"
+const DEFAULT_LAYOUT = {
+  projects: 256,
+  diagram: 448,
+  console: 176,
+  debug: 220,
+  algorithms: 0,
+  projectsOpen: true,
+  diagramOpen: true,
+  debugOpen: true,
+}
 
 export function Workbench({
   account,
@@ -108,14 +122,18 @@ export function Workbench({
   const [activeLine, setActiveLine] = useState<number | null>(null)
   const [error, setError] = useState("")
   const [projectName, setProjectName] = useState("")
-  const [projectsOpen, setProjectsOpen] = useState(true)
-  const [projectsWidth, setProjectsWidth] = useState(256)
-  const [diagramOpen, setDiagramOpen] = useState(true)
-  const [diagramWidth, setDiagramWidth] = useState(448)
+  const [stored] = useState(() => readLayout(browserStorage(), LAYOUT_KEY, DEFAULT_LAYOUT))
+  const [projectsOpen, setProjectsOpen] = useState(stored.projectsOpen)
+  const [projectsWidth, setProjectsWidth] = useState(stored.projects)
+  const [diagramOpen, setDiagramOpen] = useState(stored.diagramOpen)
+  const [diagramWidth, setDiagramWidth] = useState(stored.diagram)
+  const [debugOpen, setDebugOpen] = useState(stored.debugOpen)
   const [zone, setZone] = useState<"editor" | "diagram">("editor")
   const [narrow, setNarrow] = useState(() => window.matchMedia("(max-width: 980px)").matches)
-  const [consoleHeight, setConsoleHeight] = useState(176)
-  const [debugHeight, setDebugHeight] = useState(220)
+  const [consoleHeight, setConsoleHeight] = useState(stored.console)
+  const [debugHeight, setDebugHeight] = useState(stored.debug)
+  const [algorithmsHeight, setAlgorithmsHeight] = useState(stored.algorithms)
+  const sideRef = useRef<HTMLDivElement>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [functionsOpen, setFunctionsOpen] = useState(false)
   const [joinOpen, setJoinOpen] = useState(false)
@@ -202,6 +220,21 @@ export function Workbench({
     query.addEventListener("change", apply)
     return () => query.removeEventListener("change", apply)
   }, [])
+
+  useEffect(() => {
+    const layout = {
+      projects: projectsWidth,
+      diagram: diagramWidth,
+      console: consoleHeight,
+      debug: debugHeight,
+      algorithms: algorithmsHeight,
+      projectsOpen,
+      diagramOpen,
+      debugOpen,
+    }
+    const timer = window.setTimeout(() => writeLayout(browserStorage(), LAYOUT_KEY, layout), 300)
+    return () => window.clearTimeout(timer)
+  }, [projectsWidth, diagramWidth, consoleHeight, debugHeight, algorithmsHeight, projectsOpen, diagramOpen, debugOpen])
 
   useEffect(() => {
     if (account.role !== "teacher" || access.features.communities !== true) {
@@ -767,6 +800,8 @@ export function Workbench({
   }
 
   const can = (key: string) => access.features[key] === true
+  const showDiagram = diagramOpen && can("diagram")
+  const insightOpen = showDiagram || debugOpen
   const translationOn = can("translate") && account.translation_enabled !== false
   const pasteBlocked = pasteBlockedFor(account)
   const projectsLeft = access.limits.max_projects
@@ -996,95 +1031,97 @@ export function Workbench({
     const box = workspaceRef.current?.getBoundingClientRect()
     const min = kind === "projects" ? 168 : 200
     if (!box) return { min, max: kind === "projects" ? 560 : 900 }
-    const other = kind === "projects" ? (diagramOpen ? diagramWidth : 136) : projectsOpen ? projectsWidth : 136
+    const other = kind === "projects" ? (insightOpen ? diagramWidth : 56) : projectsOpen ? projectsWidth : 56
     const max = Math.max(min, Math.round(box.width - other - 280 - 12))
     return { min, max }
   }
 
   function setPane(kind: "projects" | "diagram", next: number) {
     const { min, max } = paneLimit(kind)
-    const width = Math.round(Math.min(Math.max(next, min), max))
-    if (kind === "projects") setProjectsWidth(width)
-    else setDiagramWidth(width)
+    if (kind === "projects") setProjectsWidth(clamp(next, min, max))
+    else setDiagramWidth(clamp(next, min, max))
   }
 
   function dragPane(kind: "projects" | "diagram", event: ReactPointerEvent<HTMLElement>) {
     const workspace = workspaceRef.current
     if (!workspace) return
-    event.preventDefault()
-    const handle = event.currentTarget
-    try {
-      handle.setPointerCapture(event.pointerId)
-    } catch {
-      /* El arrastre sigue por los eventos del propio separador. */
-    }
-    const body = document.body
-    const cursor = body.style.cursor
-    const select = body.style.userSelect
-    body.style.cursor = "col-resize"
-    body.style.userSelect = "none"
-    const move = (ev: PointerEvent) => {
+    followPointer(event, "x", (position) => {
       const box = workspace.getBoundingClientRect()
-      const next = kind === "projects" ? ev.clientX - box.left : box.right - ev.clientX
-      setPane(kind, next)
-    }
-    const stop = () => {
-      handle.removeEventListener("pointermove", move)
-      handle.removeEventListener("pointerup", stop)
-      handle.removeEventListener("pointercancel", stop)
-      body.style.cursor = cursor
-      body.style.userSelect = select
-    }
-    handle.addEventListener("pointermove", move)
-    handle.addEventListener("pointerup", stop)
-    handle.addEventListener("pointercancel", stop)
+      setPane(kind, kind === "projects" ? position - box.left : box.right - position)
+    })
   }
 
-  function rowLimit(kind: "console" | "debug") {
-    const box = (kind === "console" ? stageRef.current : insightRef.current)?.getBoundingClientRect()
-    const min = kind === "console" ? 72 : 96
-    const reserved = kind === "console" ? 180 : 96
+  type Row = "console" | "debug" | "algorithms"
+
+  function rowParent(kind: Row) {
+    return kind === "console" ? stageRef.current : kind === "debug" ? insightRef.current : sideRef.current
+  }
+
+  function rowLimit(kind: Row) {
+    const box = rowParent(kind)?.getBoundingClientRect()
+    const min = kind === "console" ? 72 : kind === "debug" ? 96 : 80
+    const reserved = kind === "console" ? 180 : kind === "debug" ? 96 : 72
     const max = box ? Math.max(min, Math.round(box.height - reserved)) : 480
     return { min, max }
   }
 
-  function setRow(kind: "console" | "debug", next: number) {
+  function setRow(kind: Row, next: number) {
     const { min, max } = rowLimit(kind)
-    const height = Math.round(Math.min(Math.max(next, min), max))
+    const height = clamp(next, min, max)
     if (kind === "console") setConsoleHeight(height)
-    else setDebugHeight(height)
+    else if (kind === "debug") setDebugHeight(height)
+    else setAlgorithmsHeight(height)
   }
 
-  function dragRow(kind: "console" | "debug", event: ReactPointerEvent<HTMLButtonElement>) {
-    const parent = kind === "console" ? stageRef.current : insightRef.current
+  function dragRow(kind: Row, event: ReactPointerEvent<HTMLElement>) {
+    const parent = rowParent(kind)
     if (!parent) return
-    event.preventDefault()
-    const handle = event.currentTarget
-    try {
-      handle.setPointerCapture(event.pointerId)
-    } catch {
-      /* El arrastre sigue por los eventos del propio separador. */
-    }
-    const body = document.body
-    const cursor = body.style.cursor
-    const select = body.style.userSelect
-    body.style.cursor = "row-resize"
-    body.style.userSelect = "none"
-    const move = (ev: PointerEvent) => {
-      const box = parent.getBoundingClientRect()
-      setRow(kind, box.bottom - ev.clientY)
-    }
-    const stop = () => {
-      handle.removeEventListener("pointermove", move)
-      handle.removeEventListener("pointerup", stop)
-      handle.removeEventListener("pointercancel", stop)
-      body.style.cursor = cursor
-      body.style.userSelect = select
-    }
-    handle.addEventListener("pointermove", move)
-    handle.addEventListener("pointerup", stop)
-    handle.addEventListener("pointercancel", stop)
+    followPointer(event, "y", (position) => setRow(kind, parent.getBoundingClientRect().bottom - position))
   }
+
+  function rowSplitter(kind: Row, label: string, shown: number) {
+    const { min, max } = rowLimit(kind)
+    const value = shown || Math.round(sideRef.current?.lastElementChild?.getBoundingClientRect().height ?? min)
+    return (
+      <Splitter
+        axis="y"
+        label={label}
+        value={value}
+        min={min}
+        max={max}
+        onPointerDown={(event) => dragRow(kind, event)}
+        onStep={(delta) => setRow(kind, value + delta)}
+      />
+    )
+  }
+
+  function paneSplitter(kind: "projects" | "diagram", label: string, value: number) {
+    const { min, max } = paneLimit(kind)
+    return (
+      <Splitter
+        axis="x"
+        label={label}
+        value={value}
+        min={min}
+        max={max}
+        onPointerDown={(event) => dragPane(kind, event)}
+        onStep={(delta) => setPane(kind, kind === "projects" ? value + delta : value - delta)}
+      />
+    )
+  }
+
+  const debugFold = (
+    <button
+      type="button"
+      className="fold"
+      aria-expanded={debugOpen}
+      aria-label={debugOpen ? t("hideDebugger") : t("showDebugger")}
+      title={debugOpen ? t("hideDebugger") : t("showDebugger")}
+      onClick={() => setDebugOpen((open) => !open)}
+    >
+      {debugOpen ? "−" : "+"}
+    </button>
+  )
 
   const canHalt =
     playing ||
@@ -1397,10 +1434,24 @@ export function Workbench({
       </header>
       {meta?.notice && <p className="notice">{meta.notice}</p>}
       <div
-        className={["workspace", projectsOpen ? "" : "projects-hidden", diagramOpen && can("diagram") ? "" : "diagram-hidden"].filter(Boolean).join(" ")}
+        className={[
+          "workspace",
+          projectsOpen ? "" : "projects-hidden",
+          showDiagram ? "" : "diagram-hidden",
+          debugOpen ? "" : "debug-hidden",
+          insightOpen ? "" : "insight-hidden",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         data-zone={narrow ? zone : "both"}
         ref={workspaceRef}
-        style={{ "--projects-width": `${projectsWidth}px`, "--diagram-width": `${diagramWidth}px` } as CSSProperties}
+        style={
+          {
+            "--projects-width": `${projectsWidth}px`,
+            "--diagram-width": `${diagramWidth}px`,
+            ...(algorithmsHeight > 0 ? { "--algorithms-height": `${algorithmsHeight}px` } : {}),
+          } as CSSProperties
+        }
       >
         <aside className="sidebar" id="proyectos">
           <div className="sidebar-head">
@@ -1411,12 +1462,14 @@ export function Workbench({
               aria-expanded={projectsOpen}
               aria-controls="proyectos-contenido"
               aria-label={projectsOpen ? t("hideProjects") : t("showProjects")}
+              title={projectsOpen ? t("hideProjects") : t("showProjects")}
               onClick={() => setProjectsOpen((open) => !open)}
             >
               {projectsOpen ? "−" : "+"}
             </button>
           </div>
-          <div className="sidebar-body" id="proyectos-contenido">
+          <div className="sidebar-body split" id="proyectos-contenido" ref={sideRef}>
+          <div className="sidebar-part">
           {account.role === "teacher" && can("communities") && (
             <div className="student-review">
               <h2>{t("studentWork")}</h2>
@@ -1526,6 +1579,9 @@ export function Workbench({
               <button type="submit">{t("createProject")}</button>
             </form>
           )}
+          </div>
+          {rowSplitter("algorithms", t("adjustAlgorithmsList"), algorithmsHeight)}
+          <div className="sidebar-part">
           <h2>{t("algorithms")}</h2>
           <ul>
             {algorithms.map((algorithm) => (
@@ -1607,31 +1663,9 @@ export function Workbench({
             </form>
           )}
           </div>
+          </div>
         </aside>
-        {projectsOpen && (
-          <button
-            type="button"
-            className="splitter"
-            role="separator"
-            aria-orientation="vertical"
-            aria-label={t("adjustProjects")}
-            aria-valuenow={projectsWidth}
-            aria-valuemin={168}
-            aria-valuemax={paneLimit("projects").max}
-            onPointerDown={(event) => dragPane("projects", event)}
-            onKeyDown={(event) => {
-              const step = event.shiftKey ? 48 : 16
-              if (event.key === "ArrowRight") {
-                event.preventDefault()
-                setPane("projects", projectsWidth + step)
-              }
-              if (event.key === "ArrowLeft") {
-                event.preventDefault()
-                setPane("projects", projectsWidth - step)
-              }
-            }}
-          />
-        )}
+        {projectsOpen && paneSplitter("projects", t("adjustProjects"), projectsWidth)}
         <section
           className="stage"
           ref={stageRef}
@@ -1750,28 +1784,7 @@ export function Workbench({
             {pasteBlocked && !reviewing ? <span>{t("pasteBlockedNote")}</span> : null}
             {activeLine !== null && <span>{t("cursorLine", { line: activeLine })}</span>}
           </div>
-          <button
-            type="button"
-            className="splitter splitter-row"
-            role="separator"
-            aria-orientation="horizontal"
-            aria-label={t("adjustConsole")}
-            aria-valuenow={consoleHeight}
-            aria-valuemin={rowLimit("console").min}
-            aria-valuemax={rowLimit("console").max}
-            onPointerDown={(event) => dragRow("console", event)}
-            onKeyDown={(event) => {
-              const step = event.shiftKey ? 48 : 16
-              if (event.key === "ArrowUp") {
-                event.preventDefault()
-                setRow("console", consoleHeight + step)
-              }
-              if (event.key === "ArrowDown") {
-                event.preventDefault()
-                setRow("console", consoleHeight - step)
-              }
-            }}
-          />
+          {rowSplitter("console", t("adjustConsole"), consoleHeight)}
           <div className="console-dock">
             <pre className="console" aria-label={t("console")} ref={consoleRef}>
               {execution?.output || t("emptyConsole")}
@@ -1789,28 +1802,7 @@ export function Workbench({
             )}
           </div>
         </section>
-        <button
-          type="button"
-          className="splitter"
-          role="separator"
-          aria-orientation="vertical"
-          aria-label={t("adjustDiagram")}
-          aria-valuenow={diagramWidth}
-          aria-valuemin={200}
-          aria-valuemax={paneLimit("diagram").max}
-          onPointerDown={(event) => dragPane("diagram", event)}
-          onKeyDown={(event) => {
-            const step = event.shiftKey ? 48 : 16
-            if (event.key === "ArrowLeft") {
-              event.preventDefault()
-              setPane("diagram", diagramWidth + step)
-            }
-            if (event.key === "ArrowRight") {
-              event.preventDefault()
-              setPane("diagram", diagramWidth - step)
-            }
-          }}
-        />
+        {insightOpen && paneSplitter("diagram", t("adjustDiagram"), diagramWidth)}
         <div
           className="insight"
           ref={insightRef}
@@ -1830,89 +1822,83 @@ export function Workbench({
               setJump({ line, token: Date.now() })
             }}
           />
-          <button
-            type="button"
-            className="splitter splitter-row"
-            role="separator"
-            aria-orientation="horizontal"
-            aria-label={t("adjustDebugger")}
-            aria-valuenow={debugHeight}
-            aria-valuemin={rowLimit("debug").min}
-            aria-valuemax={rowLimit("debug").max}
-            onPointerDown={(event) => dragRow("debug", event)}
-            onKeyDown={(event) => {
-              const step = event.shiftKey ? 48 : 16
-              if (event.key === "ArrowUp") {
-                event.preventDefault()
-                setRow("debug", debugHeight + step)
-              }
-              if (event.key === "ArrowDown") {
-                event.preventDefault()
-                setRow("debug", debugHeight - step)
-              }
-            }}
-          />
-          <aside className="panel">
-            <section>
-              <h2>{t("debugger")}</h2>
-              {execution?.debug ? (
-                <div className="debug-grid">
-                  <p className="note">
-                    {execution.scope || t("algorithm")}
-                    {execution.line ? ` · ${t("lineMark", { line: execution.line })}` : ""}
-                    {execution.last_condition ? ` · ${t("condition", { value: execution.last_condition })}` : ""}
-                  </p>
-                  <h3>{t("stack")}</h3>
-                  <ul className="stack">
-                    {(execution.call_stack ?? []).map((frame, index) => (
-                      <li key={`${frame.name}-${index}`}>
-                        <button type="button" onClick={() => frame.line && jumpTo({ line: frame.line, column: 1, code: "", message: "", severity: "info", suggestion: null })}>
-                          {frame.name}
-                          {frame.line ? `:${frame.line}` : ""}
+          {showDiagram && debugOpen && rowSplitter("debug", t("adjustDebugger"), debugHeight)}
+          <aside className={debugOpen ? "panel" : "panel panel-folded"} id="depurador">
+            {debugOpen ? (
+              <>
+                <section>
+                  <div className="panel-title">
+                    <h2>{t("debugger")}</h2>
+                    {debugFold}
+                  </div>
+                  {execution?.debug ? (
+                    <div className="debug-grid">
+                      <p className="note">
+                        {execution.scope || t("algorithm")}
+                        {execution.line ? ` · ${t("lineMark", { line: execution.line })}` : ""}
+                        {execution.last_condition ? ` · ${t("condition", { value: execution.last_condition })}` : ""}
+                      </p>
+                      <h3>{t("stack")}</h3>
+                      <ul className="stack">
+                        {(execution.call_stack ?? []).map((frame, index) => (
+                          <li key={`${frame.name}-${index}`}>
+                            <button type="button" onClick={() => frame.line && jumpTo({ line: frame.line, column: 1, code: "", message: "", severity: "info", suggestion: null })}>
+                              {frame.name}
+                              {frame.line ? `:${frame.line}` : ""}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                      <h3>{t("variables")}</h3>
+                      <ul className="variables">
+                        {Object.entries(execution.variables ?? {}).map(([name, value]) => (
+                          <li key={name}>
+                            <span>
+                              {name} = {value}
+                            </span>
+                            {value.includes("celdas") && (
+                              <button type="button" onClick={() => void showArray(name)}>
+                                {t("see")}
+                              </button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      {slice && <p className="note">{slice}</p>}
+                      {Object.keys(execution.variables ?? {}).length === 0 && <p className="note">{t("noVariables")}</p>}
+                    </div>
+                  ) : (
+                    <p className="note">{t("debugHint")}</p>
+                  )}
+                </section>
+                <section>
+                  <h2>{t("diagnostics")}</h2>
+                  {error && <p className="error">{error}</p>}
+                  {diagnostics.length === 0 && <p className="note">{t("noDiagnostics")}</p>}
+                  <ul className="diagnostics">
+                    {diagnostics.map((item) => (
+                      <li key={`${item.code}-${item.line}-${item.column}-${item.message}`}>
+                        <button type="button" onClick={() => jumpTo(item)}>
+                          {item.severity === "warning" ? t("warning") : t("errorWord")} {item.code}
+                          <small>
+                            {t("lineColumn", { line: item.line, column: item.column ?? "", message: item.message })}
+                          </small>
+                          {item.suggestion && <small>{item.suggestion}</small>}
                         </button>
                       </li>
                     ))}
                   </ul>
-                  <h3>{t("variables")}</h3>
-                  <ul className="variables">
-                    {Object.entries(execution.variables ?? {}).map(([name, value]) => (
-                      <li key={name}>
-                        <span>
-                          {name} = {value}
-                        </span>
-                        {value.includes("celdas") && (
-                          <button type="button" onClick={() => void showArray(name)}>
-                            {t("see")}
-                          </button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                  {slice && <p className="note">{slice}</p>}
-                  {Object.keys(execution.variables ?? {}).length === 0 && <p className="note">{t("noVariables")}</p>}
-                </div>
-              ) : (
-                <p className="note">{t("debugHint")}</p>
-              )}
-            </section>
-            <section>
-              <h2>{t("diagnostics")}</h2>
-              {error && <p className="error">{error}</p>}
-              {diagnostics.length === 0 && <p className="note">{t("noDiagnostics")}</p>}
-              <ul className="diagnostics">
-                {diagnostics.map((item) => (
-                  <li key={`${item.code}-${item.line}-${item.column}-${item.message}`}>
-                    <button type="button" onClick={() => jumpTo(item)}>
-                      {item.severity === "warning" ? t("warning") : t("errorWord")} {item.code}
-                      <small>
-                        {t("lineColumn", { line: item.line, column: item.column ?? "", message: item.message })}
-                      </small>
-                      {item.suggestion && <small>{item.suggestion}</small>}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
+                </section>
+              </>
+            ) : (
+              <div className="panel-title">
+                <h2>
+                  {t("debugger")} · {t("diagnostics")}
+                  {diagnostics.length > 0 ? ` (${diagnostics.length})` : ""}
+                </h2>
+                {debugFold}
+              </div>
+            )}
           </aside>
         </div>
       </div>

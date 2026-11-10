@@ -1169,9 +1169,41 @@ button.avatar-button:hover { background: var(--accent); filter: brightness(1.06)
 }
 
 .workspace.projects-hidden { grid-template-columns: auto minmax(0, 1fr) 6px var(--diagram-width, 28rem); }
-.workspace.projects-hidden .sidebar-body { display: none; }
+.workspace.projects-hidden .sidebar-body,
+.workspace.projects-hidden .sidebar-head h2 { display: none; }
+.workspace.projects-hidden .sidebar-head .fold {
+  text-align: center;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
 .workspace:not(.projects-hidden) .sidebar { border-right: 0; }
 .workspace:not(.diagram-hidden) .diagram { border-left: 0; }
+.workspace.insight-hidden { grid-template-columns: var(--projects-width, 16rem) 6px minmax(0, 1fr) auto; }
+.workspace.projects-hidden.insight-hidden { grid-template-columns: auto minmax(0, 1fr) auto; }
+.workspace.insight-hidden .panel { border-left: 1px solid var(--line); }
+.workspace.insight-hidden .diagram-title h2,
+.workspace.insight-hidden .panel-title h2 { display: none; }
+
+.workspace.debug-hidden .insight { grid-template-rows: minmax(0, 1fr) auto; }
+.workspace.diagram-hidden:not(.debug-hidden) .insight { grid-template-rows: auto minmax(0, 1fr); }
+.workspace.diagram-hidden.debug-hidden .insight { grid-template-rows: auto auto; align-content: start; }
+
+.workspace > .sidebar { display: flex; flex-direction: column; }
+.sidebar-body.split {
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-template-rows: minmax(4rem, 1fr) 6px minmax(5rem, var(--algorithms-height, 1.4fr));
+  gap: 0;
+  overflow: hidden;
+}
+.sidebar-part { display: grid; align-content: start; gap: 0.35rem; min-height: 0; overflow: auto; }
+.sidebar .splitter,
+.sidebar .splitter:hover {
+  width: 100%;
+  height: 6px;
+  border-radius: 0;
+  background: transparent;
+}
 
 .splitter {
   position: relative;
@@ -1241,6 +1273,18 @@ button.avatar-button:hover { background: var(--accent); filter: brightness(1.06)
 }
 
 .panel section { min-width: 0; min-height: 0; overflow: auto; }
+.panel-title { display: flex; align-items: center; gap: 0.45rem; }
+.panel .panel-title h2 { margin: 0.2rem 0; }
+.panel-title .fold { border-radius: 8px; font-size: 1rem; }
+.panel.panel-folded {
+  display: flex;
+  align-items: center;
+  height: auto;
+  padding: 0.45rem 0.8rem;
+  border-top: 1px solid var(--line);
+  overflow: hidden;
+}
+.panel.panel-folded h2 { white-space: nowrap; }
 
 .sidebar h2, .panel h2, .diagram-toolbar h2 {
   margin: 0.2rem 0;
@@ -1994,6 +2038,12 @@ button.fold {
   }
   /* La fila no puede medirse con el contenido: si no, proyectos crece,
      el editor queda debajo del borde y el hueco se ve como un bloque gris. */
+  .workspace.insight-hidden,
+  .workspace.projects-hidden.insight-hidden { grid-template-columns: minmax(0, 1fr); }
+  .workspace > .sidebar { display: block; }
+  .workspace .sidebar-body.split { grid-template-rows: none; gap: 0.35rem; overflow: visible; }
+  .workspace .sidebar-body.split > .splitter { display: none; }
+  .workspace .sidebar-part { overflow: visible; }
   .workspace[data-zone="editor"] { grid-template-rows: minmax(0, 34%) minmax(0, 1fr); }
   .workspace[data-zone="diagram"] { grid-template-rows: minmax(0, 1fr); }
   .workspace > .splitter { display: none; }

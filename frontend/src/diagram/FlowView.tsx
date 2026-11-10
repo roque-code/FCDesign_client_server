@@ -253,6 +253,7 @@ export function FlowView({
             aria-expanded={open}
             aria-controls="diagrama-contenido"
             aria-label={open ? t("hideDiagram") : t("showDiagram")}
+            title={open ? t("hideDiagram") : t("showDiagram")}
             onClick={onToggle}
           >
             {open ? "−" : "+"}

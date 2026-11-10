@@ -22,19 +22,19 @@ import {
   localForeignStatus,
   type ForeignRun,
 } from "../runtime"
+import { browserStorage, clamp, followPointer, readLayout, writeLayout } from "../panes"
 import { pasteBlockedFor } from "../paste"
 import { saveDownload } from "../saveFile"
 import { AccountIdentity } from "../shell/Identity"
 import { Logo } from "../shell/Logo"
+import { Splitter } from "../shell/Splitter"
 import { LeaveSubjectButton } from "../subjects/leave"
 import { groupNames, studentLabel, studentsIn } from "../workbench/studentGroups"
 import { AlgorithmPeek } from "./AlgorithmPeek"
 import { runLanguageCases } from "./cases"
 import { ForeignEditor } from "./ForeignEditor"
 import { FOREIGN_LANGUAGES, LANGUAGE_LABELS, type ForeignLanguage } from "./keywords"
-import { browserStorage, clamp, followPointer, readPanes, writePanes, type Panes } from "./panes"
 import { isForeignLanguage, sortPrograms, withProgram } from "./programs"
-import { Splitter } from "./Splitter"
 
 const EXTENSIONS: Record<ForeignLanguage, string> = {
   python: "py",
@@ -59,6 +59,9 @@ const STARTERS: Record<ForeignLanguage, string> = {
 type Link = { id: string; name: string; saved: string }
 
 const NARROW = "(max-width: 980px)"
+const PANES_KEY = "traza.foreign.panes"
+const DEFAULT_PANES = { programs: 256, peek: 340, output: 144, students: 220 }
+type Panes = typeof DEFAULT_PANES
 const FOLDED = 44
 const MIN_CODE = 340
 
@@ -101,7 +104,7 @@ export function ForeignBench({
   const bodyRef = useRef<HTMLDivElement>(null)
   const layoutRef = useRef<HTMLDivElement>(null)
   const sideRef = useRef<HTMLDivElement>(null)
-  const [panes, setPanes] = useState(() => readPanes(browserStorage()))
+  const [panes, setPanes] = useState(() => readLayout(browserStorage(), PANES_KEY, DEFAULT_PANES))
   const [peekOpen, setPeekOpen] = useState(true)
   const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches)
   const [zone, setZone] = useState<"programs" | "code" | "algorithm">("code")
@@ -136,7 +139,7 @@ export function ForeignBench({
   }, [])
 
   useEffect(() => {
-    const timer = window.setTimeout(() => writePanes(browserStorage(), panes), 300)
+    const timer = window.setTimeout(() => writeLayout(browserStorage(), PANES_KEY, panes), 300)
     return () => window.clearTimeout(timer)
   }, [panes])
 
