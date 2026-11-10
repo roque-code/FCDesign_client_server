@@ -358,22 +358,30 @@ def _blank_source(name: object, locale: str = "es") -> str:
 
 @transaction.atomic
 def update_algorithm(algorithm: Algorithm, data: dict) -> Algorithm:
+    # Solo se escriben los campos que llegan: dos PATCH a la vez no deben
+    # devolver el código o las opciones de lenguaje a la versión anterior.
+    fields = {"updated_at"}
     if "name" in data:
         algorithm.name = clean_name(data.get("name"))
+        fields.add("name")
     if "source" in data:
         algorithm.source = clean_source(data.get("source"))
         algorithm.flowchart = None
+        fields.update({"source", "flowchart"})
     if "folder_id" in data:
         algorithm.folder = _optional_folder(algorithm.project, data.get("folder_id"))
+        fields.add("folder")
     if "language_profile" in data:
         algorithm.language_profile = _profile(data.get("language_profile"))
         algorithm.flowchart = None
+        fields.update({"language_profile", "flowchart"})
     if "require_semicolons" in data or "index_base" in data:
         locked = Algorithm.objects.select_for_update().get(pk=algorithm.pk)
         algorithm.language_options = clean_language_option(locked.language_options, data)
         algorithm.flowchart = None
+        fields.update({"language_options", "flowchart"})
     try:
-        algorithm.save()
+        algorithm.save(update_fields=sorted(fields))
     except IntegrityError as exc:
         raise DomainError("Ya existe un algoritmo con ese nombre.") from exc
     return algorithm

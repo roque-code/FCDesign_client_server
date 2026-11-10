@@ -19,7 +19,8 @@ from apps.executions.models import Execution, ExecutionEvent
 from apps.executions.runner import run_in_process
 from apps.language.models import LanguageProfile
 from apps.projects.examples import EXAMPLES
-from apps.projects.models import AlgorithmVersion
+from apps.projects.models import Algorithm, AlgorithmVersion
+from apps.projects.services import update_algorithm
 from apps.tests.helpers import PASSWORD, refresh_csrf, register
 from config.errors import DomainError
 from language_core.grammar import STRICT
@@ -765,6 +766,21 @@ def test_preferences_save_locale_mode_and_language_without_rewriting_source(clie
     )
     assert rejected.status_code == 400
     assert client.get("/api/v1/preferences/").json()["locale"] == "en"
+
+
+def test_saving_options_from_an_old_copy_keeps_the_new_source(client):
+    register(client, email="campos@ejemplo.test")
+    created = _algorithm(client, "Hola mundo")
+    stale = Algorithm.objects.get(pk=created["id"])
+    fixed = 'Algoritmo Hola\n    Escribir "bien";\nFinAlgoritmo\n'
+    saved = client.patch(f"/api/v1/algorithms/{created['id']}/", {"source": fixed}, format="json")
+    assert saved.status_code == 200
+
+    update_algorithm(stale, {"require_semicolons": False})
+
+    kept = client.get(f"/api/v1/algorithms/{created['id']}/").json()
+    assert kept["source"].strip() == fixed.strip()
+    assert kept["require_semicolons"] is False
 
 
 def test_preferences_theme_and_trash(client):

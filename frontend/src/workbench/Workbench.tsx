@@ -185,6 +185,7 @@ export function Workbench({
   const sourceRef = useRef("")
   const profileKey = useRef("strict")
   const pendingSave = useRef<{ id: string; text: string } | null>(null)
+  const saveQueue = useRef<Promise<unknown>>(Promise.resolve())
   const consoleRef = useRef<HTMLPreElement>(null)
   const settingsRef = useRef<HTMLDivElement>(null)
   const functionsRef = useRef<HTMLDivElement>(null)
@@ -498,6 +499,14 @@ export function Workbench({
       .catch((caught: unknown) => setError(messageOf(caught, t("requestError"))))
   }, [algorithmId, focus?.token, reloadToken, reviewId, catalog])
 
+  // Un guardado sale cuando terminó el anterior: si dos viajan a la vez, el
+  // servidor puede quedarse con el texto viejo y validar o ejecutar ese.
+  function queueSave(id: string, text: string) {
+    const saved = saveQueue.current.then(() => api.saveSource(id, text))
+    saveQueue.current = saved.catch(() => undefined)
+    return saved
+  }
+
   function flushPending() {
     const job = pendingSave.current
     if (!job) return
@@ -526,7 +535,7 @@ export function Workbench({
     const previous = pendingSave.current
     if (previous && previous.id !== algorithmId) {
       pendingSave.current = null
-      void api.saveSource(previous.id, previous.text, { keepalive: true }).catch((caught: unknown) => {
+      void queueSave(previous.id, previous.text).catch((caught: unknown) => {
         setError(messageOf(caught, t("requestError")))
       })
     }
@@ -540,8 +549,7 @@ export function Workbench({
     setSaveState({ kind: "saving" })
     const handle = window.setTimeout(() => {
       if (pendingSave.current?.id === id && pendingSave.current.text === text) pendingSave.current = null
-      void api
-        .saveSource(id, text)
+      void queueSave(id, text)
         .then(() => {
           if (selectedId.current === id) {
             setSaveState({ kind: "saved" })
@@ -668,7 +676,7 @@ export function Workbench({
     const job = pendingSave.current
     pendingSave.current = null
     if (job && reviewIdRef.current === null) {
-      void api.saveSource(job.id, job.text).catch((caught: unknown) => {
+      void queueSave(job.id, job.text).catch((caught: unknown) => {
         setError(messageOf(caught, t("requestError")))
       })
     }
@@ -684,7 +692,8 @@ export function Workbench({
 
   async function flushSource() {
     if (!algorithmId || reviewIdRef.current !== null) return
-    await api.saveSource(algorithmId, source)
+    pendingSave.current = null
+    await queueSave(algorithmId, source)
     setDirty(false)
     setSaveState({ kind: "saved" })
   }
@@ -806,11 +815,16 @@ export function Workbench({
 
   async function validate() {
     setError("")
-    await flushSource()
-    const result = inInstalledApp()
-      ? await localValidate(source, currentProfile())
-      : await api.validate(algorithmId)
-    setDiagnostics(result.diagnostics)
+    setDiagnostics([])
+    try {
+      await flushSource()
+      const result = inInstalledApp()
+        ? await localValidate(source, currentProfile())
+        : await api.validate(algorithmId)
+      setDiagnostics(result.diagnostics)
+    } catch (caught) {
+      setError(messageOf(caught, t("requestError")))
+    }
   }
 
   const can = (key: string) => access.features[key] === true
@@ -974,7 +988,7 @@ export function Workbench({
   }
 
   async function saveVersion() {
-    if (dirty) await api.saveSource(algorithmId, source)
+    if (dirty) await queueSave(algorithmId, source)
     const version = await api.saveVersion(algorithmId)
     setDirty(false)
     setSaveState({ kind: "version", number: version.number })
