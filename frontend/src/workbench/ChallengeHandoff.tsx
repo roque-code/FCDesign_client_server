@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useState, type CSSProperties, type FormEvent } from "react"
 
 import { ApiError, api, bumpRunUsage, type Account, type LabPath } from "../api"
 import { translatedMessage, useT } from "../i18n"
@@ -16,11 +16,13 @@ export function ChallengeHandoff({
   onAccount,
   source,
   beforeSend,
+  style,
 }: {
   account: Account
   onAccount: (account: Account) => void
   source: string
   beforeSend: () => Promise<void>
+  style?: CSSProperties
 }) {
   const t = useT()
   const [paths, setPaths] = useState<LabPath[] | null>(null)
@@ -96,7 +98,7 @@ export function ChallengeHandoff({
   }
 
   return (
-    <form className="functions-menu challenge-handoff" role="dialog" aria-label={t("languageAttach")} onSubmit={(event) => void send(event)}>
+    <form className="functions-menu challenge-handoff" role="dialog" aria-label={t("languageAttach")} style={style} onSubmit={(event) => void send(event)}>
       <h2>{t("languageAttach")}</h2>
       <p>{t("pseudoAttachNote")}</p>
       <label>

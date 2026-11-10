@@ -354,6 +354,25 @@ label { display: grid; gap: 0.25rem; font-size: 0.92rem; }
 
 .manuals-menu { width: min(28rem, 80vw); }
 
+.pick-menu { left: 0; right: auto; width: max-content; max-width: 80vw; gap: 0.2rem; padding: 0.4rem; }
+.pick-menu button,
+.functions-menu .menu-back {
+  justify-content: flex-start;
+  text-align: left;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+}
+.pick-menu button:hover,
+.functions-menu .menu-back:hover { background: var(--hover); }
+.functions-menu .menu-back {
+  justify-self: start;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.84rem;
+  color: var(--accent);
+}
+
 .challenge-handoff { left: 0; right: auto; }
 .challenge-handoff label { display: grid; gap: 0.25rem; color: var(--muted); font-size: 0.86rem; }
 
@@ -1803,11 +1822,16 @@ button.fold {
   .foreign-actions button { min-height: 2rem; padding-top: 0.2rem; padding-bottom: 0.2rem; }
 }
 
-.toolbar button.tool-save {
+.toolbar button.tool-save,
+.toolbar .tool-handoff > button {
   margin-left: auto;
   border: 1px solid var(--line);
   background: var(--sheet);
 }
+.toolbar .tool-handoff { flex: 0 0 auto; margin-left: auto; }
+.toolbar .tool-handoff > button { margin-left: 0; }
+.toolbar .tool-handoff + button.tool-save { margin-left: 0; }
+.toolbar .challenge-handoff { position: fixed; right: auto; z-index: 20; }
 
 .status-bar {
   display: flex;

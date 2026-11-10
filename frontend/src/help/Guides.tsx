@@ -73,10 +73,32 @@ const GROUPS: { title: MessageKey; items: { es: string; en: string; text: Messag
   { title: "opGroupGroup", items: [{ es: "( )", en: "( )", text: "opParen" }] },
 ]
 
-export function GuideButtons({ role }: { role: AccountRole }) {
+export function OperatorsGuide() {
   const t = useT()
   const locale = useLocale()
-  const [operatorsOpen, setOperatorsOpen] = useState(false)
+  return (
+    <>
+      <h2>{t("operatorsTitle")}</h2>
+      <p className="note">{t("operatorsNote")}</p>
+      {GROUPS.map((group) => (
+        <section key={group.title}>
+          <h3>{t(group.title)}</h3>
+          <ul>
+            {group.items.map((item) => (
+              <li key={`${item.es}-${item.text}`}>
+                <code>{locale === "en" ? item.en : item.es}</code>
+                <p>{t(item.text)}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </>
+  )
+}
+
+export function GuideButtons({ role }: { role: AccountRole }) {
+  const t = useT()
   const [manualsOpen, setManualsOpen] = useState(false)
   const [viewing, setViewing] = useState<Manual | null>(null)
   const manuals = role === "teacher"
@@ -84,19 +106,15 @@ export function GuideButtons({ role }: { role: AccountRole }) {
     : [MANUALS.language, MANUALS.student]
 
   useEffect(() => {
-    if (!operatorsOpen && !manualsOpen) return
+    if (!manualsOpen) return
     function close(event: MouseEvent) {
       const target = event.target
       const element = target instanceof Element ? target : target instanceof Node ? target.parentElement : null
       if (element?.closest(".guide-anchor, .manual-backdrop")) return
-      setOperatorsOpen(false)
       setManualsOpen(false)
     }
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOperatorsOpen(false)
-        setManualsOpen(false)
-      }
+      if (event.key === "Escape") setManualsOpen(false)
     }
     document.addEventListener("mousedown", close)
     document.addEventListener("keydown", onKey)
@@ -104,7 +122,7 @@ export function GuideButtons({ role }: { role: AccountRole }) {
       document.removeEventListener("mousedown", close)
       document.removeEventListener("keydown", onKey)
     }
-  }, [operatorsOpen, manualsOpen])
+  }, [manualsOpen])
 
   return (
     <>
@@ -112,45 +130,9 @@ export function GuideButtons({ role }: { role: AccountRole }) {
         <button
           className="top-action"
           type="button"
-          aria-expanded={operatorsOpen}
-          aria-controls="operadores"
-          onClick={() => {
-            setManualsOpen(false)
-            setOperatorsOpen((open) => !open)
-          }}
-        >
-          {t("operatorButton")}
-        </button>
-        {operatorsOpen && (
-          <div className="functions-menu" id="operadores" role="dialog" aria-label={t("operatorsTitle")}>
-            <h2>{t("operatorsTitle")}</h2>
-            <p className="note">{t("operatorsNote")}</p>
-            {GROUPS.map((group) => (
-              <section key={group.title}>
-                <h3>{t(group.title)}</h3>
-                <ul>
-                  {group.items.map((item) => (
-                    <li key={`${item.es}-${item.text}`}>
-                      <code>{locale === "en" ? item.en : item.es}</code>
-                      <p>{t(item.text)}</p>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="functions guide-anchor">
-        <button
-          className="top-action"
-          type="button"
           aria-expanded={manualsOpen}
           aria-controls="manuales"
-          onClick={() => {
-            setOperatorsOpen(false)
-            setManualsOpen((open) => !open)
-          }}
+          onClick={() => setManualsOpen((open) => !open)}
         >
           {t("manuals")}
         </button>

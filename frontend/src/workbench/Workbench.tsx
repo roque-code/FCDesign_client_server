@@ -22,7 +22,7 @@ import { applyConsoleOutput } from "../console/output"
 import { FlowView } from "../diagram/FlowView"
 import { CodeEditor } from "../editor/CodeEditor"
 import { editorKeywords } from "../dialect"
-import { GuideButtons } from "../help/Guides"
+import { GuideButtons, OperatorsGuide } from "../help/Guides"
 import { translatedMessage, useLocale, useT, type Locale } from "../i18n"
 import { browserStorage, clamp, followPointer, readLayout, writeLayout } from "../panes"
 import { pasteBlockedFor } from "../paste"
@@ -138,6 +138,9 @@ export function Workbench({
   const [functionsOpen, setFunctionsOpen] = useState(false)
   const [joinOpen, setJoinOpen] = useState(false)
   const [handoffOpen, setHandoffOpen] = useState(false)
+  const [diagramsOpen, setDiagramsOpen] = useState(false)
+  const [reference, setReference] = useState<"menu" | "functions" | "operators">("menu")
+  const [handoffPlace, setHandoffPlace] = useState<CSSProperties>({})
   const [joinCode, setJoinCode] = useState("")
   const [joinError, setJoinError] = useState("")
   const [joinMessage, setJoinMessage] = useState("")
@@ -187,6 +190,7 @@ export function Workbench({
   const functionsRef = useRef<HTMLDivElement>(null)
   const joinRef = useRef<HTMLDivElement>(null)
   const handoffRef = useRef<HTMLDivElement>(null)
+  const diagramsRef = useRef<HTMLDivElement>(null)
   const haltRef = useRef(false)
   const workspaceRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<HTMLElement>(null)
@@ -279,19 +283,21 @@ export function Workbench({
   }, [account, onAccount])
 
   useEffect(() => {
-    if (!settingsOpen && !functionsOpen && !joinOpen && !handoffOpen) return
+    if (!settingsOpen && !functionsOpen && !joinOpen && !handoffOpen && !diagramsOpen) return
     function close(event: MouseEvent) {
       const target = event.target as Node
       if (
         settingsRef.current?.contains(target) ||
         functionsRef.current?.contains(target) ||
         joinRef.current?.contains(target) ||
-        handoffRef.current?.contains(target)
+        handoffRef.current?.contains(target) ||
+        diagramsRef.current?.contains(target)
       ) return
       setSettingsOpen(false)
       setFunctionsOpen(false)
       setJoinOpen(false)
       setHandoffOpen(false)
+      setDiagramsOpen(false)
     }
     function onKey(event: KeyboardEvent) {
       if (event.key !== "Escape") return
@@ -299,6 +305,7 @@ export function Workbench({
       setFunctionsOpen(false)
       setJoinOpen(false)
       setHandoffOpen(false)
+      setDiagramsOpen(false)
     }
     document.addEventListener("mousedown", close)
     document.addEventListener("keydown", onKey)
@@ -306,7 +313,14 @@ export function Workbench({
       document.removeEventListener("mousedown", close)
       document.removeEventListener("keydown", onKey)
     }
-  }, [settingsOpen, functionsOpen, joinOpen, handoffOpen])
+  }, [settingsOpen, functionsOpen, joinOpen, handoffOpen, diagramsOpen])
+
+  useEffect(() => {
+    if (!handoffOpen) return
+    const close = () => setHandoffOpen(false)
+    window.addEventListener("resize", close)
+    return () => window.removeEventListener("resize", close)
+  }, [handoffOpen])
 
   useEffect(() => {
     const node = consoleRef.current
@@ -950,6 +964,15 @@ export function Workbench({
     setInput("")
   }
 
+  function openDiagram(open: typeof onOpenCompose) {
+    const current = algorithms.find((item) => item.id === algorithmId)
+    setDiagramsOpen(false)
+    open({
+      semicolons: requireSemicolons,
+      ...(algorithmId ? { name: current?.name ?? t("diagramFallback"), source } : {}),
+    })
+  }
+
   async function saveVersion() {
     if (dirty) await api.saveSource(algorithmId, source)
     const version = await api.saveVersion(algorithmId)
@@ -1176,57 +1199,39 @@ export function Workbench({
             {t("lab")}
           </button>
           )}
-          {can("compose") && (
-          <button
-            className="top-action"
-            type="button"
-            onClick={() => {
-              const current = algorithms.find((item) => item.id === algorithmId)
-              onOpenCompose({
-                semicolons: requireSemicolons,
-                ...(algorithmId ? { name: current?.name ?? t("diagramFallback"), source } : {}),
-              })
-            }}
-          >
-            {t("compose")}
-          </button>
-          )}
-          {can("nassi") && (
-          <button
-            className="top-action"
-            type="button"
-            onClick={() => {
-              const current = algorithms.find((item) => item.id === algorithmId)
-              onOpenNassi({
-                semicolons: requireSemicolons,
-                ...(algorithmId ? { name: current?.name ?? t("diagramFallback"), source } : {}),
-              })
-            }}
-          >
-            {t("composeNs")}
-          </button>
-          )}
-          {can("lab_route") && !reviewing && (
-            <div className="functions" ref={handoffRef}>
-              <button
-                className="top-action"
-                type="button"
-                aria-expanded={handoffOpen}
-                disabled={!algorithmId}
-                title={algorithmId ? undefined : t("pseudoAttachNeedsAlgorithm")}
-                onClick={() => {
-                  setSettingsOpen(false)
-                  setFunctionsOpen(false)
-                  setJoinOpen(false)
-                  setHandoffOpen((open) => !open)
-                }}
-              >
-                {t("languageAttach")}
-              </button>
-              {handoffOpen && algorithmId && (
-                <ChallengeHandoff account={account} onAccount={onAccount} source={source} beforeSend={flushSource} />
-              )}
-            </div>
+          {(can("compose") || can("nassi")) && (
+          <div className="functions" ref={diagramsRef}>
+            <button
+              className="top-action"
+              type="button"
+              aria-expanded={diagramsOpen}
+              aria-controls="diagramas"
+              aria-haspopup="menu"
+              onClick={() => {
+                setSettingsOpen(false)
+                setFunctionsOpen(false)
+                setJoinOpen(false)
+                setHandoffOpen(false)
+                setDiagramsOpen((open) => !open)
+              }}
+            >
+              {t("diagramsMenu")}
+            </button>
+            {diagramsOpen && (
+              <div className="functions-menu pick-menu" id="diagramas" role="menu" aria-label={t("diagramsMenu")}>
+                {can("compose") && (
+                  <button type="button" role="menuitem" onClick={() => openDiagram(onOpenCompose)}>
+                    {t("compose")}
+                  </button>
+                )}
+                {can("nassi") && (
+                  <button type="button" role="menuitem" onClick={() => openDiagram(onOpenNassi)}>
+                    {t("composeNs")}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           )}
           {(account.role === "student" || account.role === "teacher") && (
             <div className="functions" ref={joinRef}>
@@ -1240,6 +1245,7 @@ export function Workbench({
                   setHandoffOpen(false)
                   setJoinError("")
                   setJoinMessage("")
+                  setDiagramsOpen(false)
                   setJoinOpen((open) => !open)
                 }}
               >
@@ -1296,40 +1302,67 @@ export function Workbench({
               {t("communities")}
             </button>
           )}
-          {can("editor") && (
           <div className="functions" ref={functionsRef}>
             <button
               className="top-action"
               type="button"
               aria-expanded={functionsOpen}
-              aria-controls="funciones"
+              aria-controls="referencia"
+              aria-haspopup="menu"
               onClick={() => {
                 setSettingsOpen(false)
                 setHandoffOpen(false)
+                setDiagramsOpen(false)
+                setReference("menu")
                 setFunctionsOpen((open) => !open)
               }}
             >
-              {t("functions")}
+              {t("referenceMenu")}
             </button>
-            {functionsOpen && (
-              <div className="functions-menu" id="funciones" role="dialog" aria-label={t("includedFunctions")}>
-                <h2>{t("includedFunctions")}</h2>
-                <p className="note">{t("functionsNote")}</p>
-                <ul>
-                  {stdlib.map((name) => {
-                    const help = stdlibHelp(prefs.locale, name)
-                    return (
-                      <li key={name}>
-                        <code>{help?.signature ?? name}</code>
-                        {help && <p>{help.summary}</p>}
-                      </li>
-                    )
-                  })}
-                </ul>
+            {functionsOpen && reference === "menu" && (
+              <div className="functions-menu pick-menu" id="referencia" role="menu" aria-label={t("referenceMenu")}>
+                {can("editor") && (
+                  <button type="button" role="menuitem" onClick={() => setReference("functions")}>
+                    {t("functions")}
+                  </button>
+                )}
+                <button type="button" role="menuitem" onClick={() => setReference("operators")}>
+                  {t("operatorButton")}
+                </button>
+              </div>
+            )}
+            {functionsOpen && reference !== "menu" && (
+              <div
+                className="functions-menu"
+                id="referencia"
+                role="dialog"
+                aria-label={t(reference === "functions" ? "includedFunctions" : "operatorsTitle")}
+              >
+                <button className="menu-back" type="button" onClick={() => setReference("menu")}>
+                  ‹ {t("referenceBack")}
+                </button>
+                {reference === "functions" ? (
+                  <>
+                    <h2>{t("includedFunctions")}</h2>
+                    <p className="note">{t("functionsNote")}</p>
+                    <ul>
+                      {stdlib.map((name) => {
+                        const help = stdlibHelp(prefs.locale, name)
+                        return (
+                          <li key={name}>
+                            <code>{help?.signature ?? name}</code>
+                            {help && <p>{help.summary}</p>}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </>
+                ) : (
+                  <OperatorsGuide />
+                )}
               </div>
             )}
           </div>
-          )}
           <GuideButtons role={account.role} />
           <div className="settings" ref={settingsRef}>
             <button
@@ -1340,6 +1373,7 @@ export function Workbench({
               onClick={() => {
                 setFunctionsOpen(false)
                 setHandoffOpen(false)
+                setDiagramsOpen(false)
                 setSettingsOpen((open) => !open)
               }}
             >
@@ -1740,6 +1774,42 @@ export function Workbench({
               </button>
             </div>
             </>
+            )}
+            {can("lab_route") && !reviewing && (
+              <div className="functions tool-handoff" ref={handoffRef}>
+                <button
+                  type="button"
+                  aria-expanded={handoffOpen}
+                  disabled={!algorithmId}
+                  title={algorithmId ? undefined : t("pseudoAttachNeedsAlgorithm")}
+                  onClick={(event) => {
+                    const box = event.currentTarget.getBoundingClientRect()
+                    const width = Math.min(416, window.innerWidth - 16)
+                    setHandoffPlace({
+                      top: box.bottom + 6,
+                      left: clamp(box.right - width, 8, window.innerWidth - width - 8),
+                      width,
+                      maxHeight: window.innerHeight - box.bottom - 14,
+                    })
+                    setSettingsOpen(false)
+                    setFunctionsOpen(false)
+                    setJoinOpen(false)
+                    setDiagramsOpen(false)
+                    setHandoffOpen((open) => !open)
+                  }}
+                >
+                  {t("languageAttach")}
+                </button>
+                {handoffOpen && algorithmId && (
+                  <ChallengeHandoff
+                    account={account}
+                    onAccount={onAccount}
+                    source={source}
+                    beforeSend={flushSource}
+                    style={handoffPlace}
+                  />
+                )}
+              </div>
             )}
             <button className="tool-save" type="button" onClick={() => void saveVersion()} disabled={!algorithmId || reviewing}>
               {t("saveVersion")}
