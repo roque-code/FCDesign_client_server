@@ -251,6 +251,40 @@ export type ClassroomStudent = {
   communities: string[]
 }
 
+export type ExerciseKind = "algorithm" | "program"
+
+export type ExerciseFeedback = {
+  id: string
+  kind: ExerciseKind
+  exercise_id: string
+  exercise_name: string
+  context: string
+  grade: number | null
+  comment: string
+  teacher: { id: number; display_name: string }
+  student_id: number
+  updated_at: string
+}
+
+export type FeedbackFilter = {
+  kind?: ExerciseKind | ""
+  language?: string
+  exercise?: string
+  page?: number
+  pageSize?: number
+}
+
+export type FeedbackPage = {
+  results: ExerciseFeedback[]
+  count: number
+  page: number
+  pages: number
+  page_size: number
+  average: number | null
+  totals: { all: number; algorithm: number; program: number }
+  languages: { code: string; label: string; count: number }[]
+}
+
 export type LanguageProgram = {
   id: string
   name: string
@@ -780,6 +814,17 @@ export function attemptCheckPath(attemptId: string): string {
   return `/api/v1/learning/attempts/${attemptId}/check/`
 }
 
+export function feedbackQuery(filter: FeedbackFilter): string {
+  const params = new URLSearchParams()
+  if (filter.kind) params.set("kind", filter.kind)
+  if (filter.language) params.set("language", filter.language)
+  if (filter.exercise) params.set("exercise", filter.exercise)
+  if (filter.page && filter.page > 1) params.set("page", String(filter.page))
+  if (filter.pageSize) params.set("page_size", String(filter.pageSize))
+  const text = params.toString()
+  return text ? `?${text}` : ""
+}
+
 function desktopProxyEnabled(): boolean {
   return typeof window !== "undefined" && (window as Window & { __TRAZA_DESKTOP_PROXY__?: boolean }).__TRAZA_DESKTOP_PROXY__ === true
 }
@@ -1046,6 +1091,18 @@ export const api = {
   classroomStudents: () => request<{ results: ClassroomStudent[] }>("/api/v1/classroom/students/"),
   studentProjects: (userId: number) =>
     request<StudentWork>(`/api/v1/classroom/students/${userId}/projects/`),
+  exerciseFeedback: (kind: ExerciseKind, id: string) =>
+    request<{ feedback: ExerciseFeedback | null }>(`/api/v1/classroom/feedback/${kind}/${id}/`),
+  saveExerciseFeedback: (kind: ExerciseKind, id: string, body: { grade: string | null; comment: string }) =>
+    request<{ feedback: ExerciseFeedback | null }>(`/api/v1/classroom/feedback/${kind}/${id}/`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  myFeedback: (filter: FeedbackFilter = {}) => request<FeedbackPage>(`/api/v1/feedback/${feedbackQuery(filter)}`),
+  gradesCsv: (lang: "es" | "en", community = "") =>
+    requestText(
+      `/api/v1/classroom/grades/?lang=${lang}${community === "" ? "" : `&community=${encodeURIComponent(community)}`}`,
+    ),
   logout: () => request<void>("/api/v1/auth/logout/", { method: "POST" }),
   reset: (email: string) =>
     request<{ message: string }>("/api/v1/auth/password-reset/", {

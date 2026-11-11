@@ -20,6 +20,7 @@ import {
 } from "../api"
 import { applyConsoleOutput } from "../console/output"
 import { FlowView } from "../diagram/FlowView"
+import { FeedbackForm, FeedbackNotes, GradesDownload, MyGradesMenu, useMyFeedback } from "../feedback/Feedback"
 import { CodeEditor } from "../editor/CodeEditor"
 import { editorKeywords } from "../dialect"
 import { GuideButtons, OperatorsGuide } from "../help/Guides"
@@ -199,6 +200,7 @@ export function Workbench({
   const localeNotify = useRef(onLocale)
   localeNotify.current = onLocale
   const reviewing = reviewId !== null
+  const myFeedback = useMyFeedback(account.role === "student", "algorithm", algorithmId)
   const reviewedStudent = students.find((item) => item.id === reviewId)
   const shownGroup = reviewedStudent && !reviewedStudent.communities.includes(reviewGroup)
     ? reviewedStudent.communities[0] ?? ""
@@ -1377,6 +1379,7 @@ export function Workbench({
               </div>
             )}
           </div>
+          {account.role === "student" && <MyGradesMenu />}
           <GuideButtons role={account.role} />
           <div className="settings" ref={settingsRef}>
             <button
@@ -1567,6 +1570,14 @@ export function Workbench({
                 <p className="note">{t("studentWorkNote", { name: reviewedStudent.display_name })}</p>
               )}
               {reviewing && !reviewLoading && projects.length === 0 && <p className="note">{t("noStudentProjects")}</p>}
+              {reviewing && algorithmId && (
+                <FeedbackForm
+                  kind="algorithm"
+                  exerciseId={algorithmId}
+                  exerciseName={algorithms.find((item) => item.id === algorithmId)?.name ?? ""}
+                />
+              )}
+              {students.length > 0 && <GradesDownload group={shownGroup} />}
             </div>
           )}
           <ul>
@@ -1631,6 +1642,9 @@ export function Workbench({
           {rowSplitter("algorithms", t("adjustAlgorithmsList"), algorithmsHeight)}
           <div className="sidebar-part">
           <h2>{t("algorithms")}</h2>
+          {account.role === "student" && algorithmId && (
+            <FeedbackNotes items={myFeedback} kind="algorithm" exerciseId={algorithmId} />
+          )}
           <ul>
             {algorithms.map((algorithm) => (
               <li key={algorithm.id} className="name-row">

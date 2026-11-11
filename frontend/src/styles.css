@@ -1352,6 +1352,99 @@ button.avatar-button:hover { background: var(--accent); filter: brightness(1.06)
 
 .sidebar form button:hover { background: color-mix(in srgb, var(--accent) 12%, var(--sheet)); }
 
+.feedback-form,
+.grades-download,
+.feedback-notes { display: grid; gap: 0.35rem; }
+.feedback-form { padding-top: 0.5rem; border-top: 1px solid var(--line); }
+.feedback-form h2,
+.feedback-notes h2 { margin: 0; }
+.feedback-form label { display: grid; gap: 0.2rem; color: var(--muted); font-size: 0.86rem; }
+.feedback-form input,
+.feedback-form textarea { width: 100%; box-sizing: border-box; font: inherit; color: var(--ink); }
+.feedback-form textarea { resize: vertical; min-height: 4.5rem; padding: 0.4rem 0.55rem; }
+.feedback-form .note,
+.grades-download .note { margin: 0; font-size: 0.8rem; }
+.sidebar .grades-download button {
+  border-radius: 999px;
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  background: var(--sheet);
+  color: var(--accent);
+  text-align: center;
+  font-weight: 650;
+}
+.sidebar .grades-download button:hover { background: color-mix(in srgb, var(--accent) 12%, var(--sheet)); }
+.feedback-notes {
+  padding: 0.5rem 0.6rem;
+  border-radius: 10px;
+  background: var(--accent-soft);
+}
+.feedback-item { display: grid; gap: 0.15rem; }
+.feedback-item + .feedback-item { padding-top: 0.4rem; border-top: 1px solid var(--line); }
+.feedback-item p { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.5rem; }
+.feedback-item .note { font-size: 0.8rem; }
+.feedback-grade { font-weight: 750; font-size: 1.1rem; color: var(--accent); }
+.feedback-comment { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); }
+.grades-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: color-mix(in srgb, var(--ink) 35%, transparent);
+}
+.grades-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: min(44rem, 100%);
+  height: min(40rem, 100%);
+  padding: 1rem;
+  overflow: hidden;
+  background: var(--sheet);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+.grades-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.grades-dialog h2 { margin: 0; font-size: 1.15rem; }
+.grades-dialog p { margin: 0; }
+.grades-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 0.5rem 0.8rem; }
+.grades-filters .tabs { flex: 1 1 22rem; }
+.grades-filters label { flex: 0 1 14rem; }
+.grades-filters select { width: 100%; }
+.grades-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.grades-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.grade-row {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+}
+.grade-row-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.5rem; }
+.grade-kind {
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 650;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.grade-kind.is-program {
+  background: color-mix(in srgb, var(--code-string) 14%, var(--sheet));
+  color: color-mix(in srgb, var(--code-string) 85%, var(--ink));
+}
+.grades-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--line);
+}
+.grades-pager span { color: var(--muted); font-size: 0.9rem; }
+
 .name-row { display: flex; align-items: center; gap: 0.2rem; min-width: 0; }
 .sidebar .name-row > button:first-child,
 .sidebar .name-row > .rename-input {
@@ -2328,6 +2421,7 @@ button.fold {
   .manual-backdrop,
   .profile-dialog,
   .translate-backdrop,
+  .grades-backdrop,
   .reload-backdrop {
     padding: 0.75rem;
   }
@@ -2338,6 +2432,11 @@ button.fold {
   .reload-dialog {
     max-height: calc(100dvh - 1.5rem);
   }
+
+  .grades-dialog { height: calc(100dvh - 1.5rem); padding: 0.75rem; }
+  .grades-filters .tabs { flex-basis: 100%; }
+  .grades-filters .tabs button { padding-inline: 0.3rem; font-size: 0.82rem; }
+  .grades-filters label { flex-basis: 100%; }
 
   .translate-dialog {
     height: min(32rem, calc(100dvh - 1.5rem));

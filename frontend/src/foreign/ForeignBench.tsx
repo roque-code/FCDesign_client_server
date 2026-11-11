@@ -12,6 +12,7 @@ import {
   type LabPath,
   type LanguageProgram,
 } from "../api"
+import { FeedbackForm, FeedbackNotes, GradesDownload, useMyFeedback } from "../feedback/Feedback"
 import { translatedMessage, useT } from "../i18n"
 import {
   installedLocal,
@@ -129,6 +130,7 @@ export function ForeignBench({
   const [viewing, setViewing] = useState<{ program: LanguageProgram; student: string } | null>(null)
   const shownSource = viewing ? (viewing.program.source ?? "") : source
   const dirty = link !== null && !viewing && source !== link.saved
+  const myFeedback = useMyFeedback(account.role === "student", "program", link?.id ?? "")
 
   useEffect(() => {
     const query = window.matchMedia(NARROW)
@@ -677,6 +679,9 @@ export function ForeignBench({
                       </button>
                     </div>
                   )}
+                  {link && account.role === "student" && (
+                    <FeedbackNotes items={myFeedback} kind="program" exerciseId={link.id} />
+                  )}
                   <form onSubmit={(event) => void saveNew(event)}>
                     <label>
                       {t("programName")}
@@ -756,6 +761,10 @@ export function ForeignBench({
                           ))}
                         </ul>
                       ))}
+                    {viewing && (
+                      <FeedbackForm kind="program" exerciseId={viewing.program.id} exerciseName={viewing.program.name} />
+                    )}
+                    <GradesDownload group={group} />
                   </>
                 )}
               </div>

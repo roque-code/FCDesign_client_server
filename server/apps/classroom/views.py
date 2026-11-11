@@ -1,7 +1,9 @@
+from django.http import HttpResponse
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.classroom.feedback import grades_csv, received_feedback, save_feedback, teacher_feedback
 from apps.classroom.services import (
     add_member,
     classroom_students,
@@ -120,6 +122,39 @@ class ClassroomStudentListView(APIView):
 class ClassroomStudentProjectsView(APIView):
     def get(self, request: Request, user_id: int) -> Response:
         return Response(student_projects(current_user(request), user_id))
+
+
+class ExerciseFeedbackView(APIView):
+    def get(self, request: Request, kind: str, exercise_id) -> Response:
+        return Response({"feedback": teacher_feedback(current_user(request), kind, exercise_id)})
+
+    def put(self, request: Request, kind: str, exercise_id) -> Response:
+        saved = save_feedback(
+            current_user(request),
+            kind,
+            exercise_id,
+            object_body(request.data),
+            client_ip(request),
+        )
+        return Response({"feedback": saved})
+
+
+class ClassroomGradesView(APIView):
+    def get(self, request: Request) -> HttpResponse:
+        community = request.query_params.get("community", "")
+        filename, body = grades_csv(
+            current_user(request),
+            community if isinstance(community, str) else "",
+            str(request.query_params.get("lang", "es")),
+        )
+        response = HttpResponse(body, content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+
+
+class MyFeedbackView(APIView):
+    def get(self, request: Request) -> Response:
+        return Response(received_feedback(current_user(request), request.query_params))
 
 
 class PeopleSearchView(APIView):

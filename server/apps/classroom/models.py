@@ -59,3 +59,68 @@ class Membership(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id} en {self.community_id}"
+
+
+class ExerciseFeedback(models.Model):
+    """Calificación y comentario de un docente sobre un ejercicio de su alumno."""
+
+    ALGORITHM = "algorithm"
+    PROGRAM = "program"
+    KINDS = (ALGORITHM, PROGRAM)
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    teacher = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="feedback_given",
+    )
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="feedback_received",
+    )
+    algorithm = models.ForeignKey(
+        "projects.Algorithm",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="feedback",
+    )
+    program = models.ForeignKey(
+        "languages.LanguageProgram",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="feedback",
+    )
+    grade = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    comment = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=(Q(algorithm__isnull=False) & Q(program__isnull=True))
+                | (Q(algorithm__isnull=True) & Q(program__isnull=False)),
+                name="feedback_one_exercise",
+            ),
+            models.CheckConstraint(
+                condition=Q(grade__isnull=True) | (Q(grade__gte=0) & Q(grade__lte=100)),
+                name="feedback_grade_range",
+            ),
+            models.UniqueConstraint(
+                fields=["teacher", "algorithm"],
+                condition=Q(algorithm__isnull=False),
+                name="uniq_feedback_teacher_algorithm",
+            ),
+            models.UniqueConstraint(
+                fields=["teacher", "program"],
+                condition=Q(program__isnull=False),
+                name="uniq_feedback_teacher_program",
+            ),
+        ]
+        ordering = ["-updated_at"]
+
+    def __str__(self) -> str:
+        return f"{self.teacher_id} → {self.student_id}"

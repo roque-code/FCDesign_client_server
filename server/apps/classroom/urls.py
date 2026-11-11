@@ -1,14 +1,17 @@
 from django.urls import path
 
 from apps.classroom.views import (
+    ClassroomGradesView,
     ClassroomStudentListView,
     ClassroomStudentProjectsView,
     CommunityCodeView,
     CommunityDetailView,
     CommunityJoinView,
     CommunityListView,
+    ExerciseFeedbackView,
     MemberDetailView,
     MemberListView,
+    MyFeedbackView,
     PeopleSearchView,
 )
 
@@ -38,4 +41,11 @@ urlpatterns = [
         ClassroomStudentProjectsView.as_view(),
         name="classroom-student-projects",
     ),
+    path(
+        "classroom/feedback/<str:kind>/<uuid:exercise_id>/",
+        ExerciseFeedbackView.as_view(),
+        name="classroom-feedback",
+    ),
+    path("classroom/grades/", ClassroomGradesView.as_view(), name="classroom-grades"),
+    path("feedback/", MyFeedbackView.as_view(), name="my-feedback"),
 ]
