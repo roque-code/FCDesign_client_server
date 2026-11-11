@@ -181,10 +181,18 @@ def test_register_sends_confirmation_before_login(client):
         format="json",
     )
     assert confirmed.status_code == 200, confirmed.content
-    assert confirmed.json()["display_name"] == "Nuevo"
-    refresh_csrf(client)
-    assert client.get("/api/v1/auth/me/").status_code == 200
+    assert confirmed.json()["confirmed"] is True
+    assert client.get("/api/v1/auth/me/").status_code == 403
     assert User.objects.get(email="nuevo@ejemplo.test").email_confirmed is True
+    refresh_csrf(client)
+    entered = client.post(
+        "/api/v1/auth/login/",
+        {"email": "nuevo@ejemplo.test", "password": PASSWORD},
+        format="json",
+    )
+    assert entered.status_code == 200, entered.content
+    assert entered.json()["display_name"] == "Nuevo"
+    refresh_csrf(client)
     duplicate = register(client, email="nuevo@ejemplo.test")
     assert duplicate.status_code == 400
 
@@ -267,24 +275,22 @@ def test_el_enlace_del_correo_confirma_aunque_otra_sesion_este_abierta(client):
     again = register(fresh, email="libre@ejemplo.test")
     assert again.status_code == 201
     fresh_query = _confirmation_query()
-    visitor = APIClient(enforce_csrf_checks=True)
-    refresh_csrf(visitor)
-    visited = visitor.get(
-        "/api/v1/auth/confirm-email/open/",
-        {"confirmar": fresh_query["confirmar"][0], "token": fresh_query["token"][0]},
-    )
-    assert visited.status_code == 302
-    assert visited["Location"] == "/"
-    assert visitor.get("/api/v1/auth/me/").json()["email"] == "libre@ejemplo.test"
+    link = {"confirmar": fresh_query["confirmar"][0], "token": fresh_query["token"][0]}
+    # El revisor de enlaces del correo y el navegador del correo en el celular.
+    for visitor in (APIClient(), APIClient(enforce_csrf_checks=True)):
+        visited = visitor.get("/api/v1/auth/confirm-email/open/", link)
+        assert visited.status_code == 302
+        assert visited["Location"] == "/?correo=confirmado"
+        assert visitor.get("/api/v1/auth/me/").status_code == 403
+    assert User.objects.get(email="libre@ejemplo.test").session_key == ""
     refresh_csrf(fresh)
     home = fresh.post(
         "/api/v1/auth/login/",
         {"email": "libre@ejemplo.test", "password": PASSWORD},
         format="json",
     )
-    assert home.status_code == 409, home.content
-    assert home.json()["error"]["code"] == "session_open"
-    assert visitor.get("/api/v1/auth/me/").status_code == 200
+    assert home.status_code == 200, home.content
+    assert home.json()["email"] == "libre@ejemplo.test"
 
 
 def test_login_rate_limit_and_csrf(client):

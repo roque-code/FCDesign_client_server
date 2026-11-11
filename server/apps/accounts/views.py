@@ -28,7 +28,7 @@ from apps.accounts.guard import begin_session
 from apps.http import client_ip, current_user, object_body
 from config.errors import DomainError
 
-_CONFIRMED_ELSEWHERE = "El correo quedó confirmado. Esa cuenta ya puede entrar desde cualquier equipo."
+_CONFIRMED = "El correo quedó confirmado. Entra con tu correo y tu contraseña."
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
@@ -102,39 +102,27 @@ class MeView(APIView):
         return Response(user_payload(user))
 
 
-def _other_session(request, user) -> bool:
-    current = getattr(request, "user", None)
-    return bool(getattr(current, "is_authenticated", False) and getattr(current, "pk", None) != user.pk)
-
-
 class EmailConfirmView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [AllowAny]
 
     def post(self, request: Request) -> Response:
         data = object_body(request.data)
-        user = confirm_email(data.get("uid"), data.get("token"), client_ip(request))
-        if _other_session(request, user):
-            return Response({"confirmed": True, "message": _CONFIRMED_ELSEWHERE})
-        try:
-            begin_session(request, user)
-        except DomainError as exc:
-            if exc.code != "session_open":
-                raise
-            return Response({"confirmed": True, "message": exc.message})
-        return Response(user_payload(user))
+        confirm_email(data.get("uid"), data.get("token"), client_ip(request))
+        return Response({"confirmed": True, "message": _CONFIRMED})
 
 
 class EmailConfirmOpenView(View):
-    """El enlace del correo confirma la cuenta en cualquier equipo.
+    """El enlace del correo solo confirma la cuenta; la entrada pide correo y contraseña.
 
-    Si ese navegador ya entró con otra cuenta, la sesión no cambia: el alta
-    queda confirmada y se puede usar desde el equipo donde se creó.
+    El enlace lo abre a veces otro navegador (el del correo en el celular) o el
+    revisor de enlaces del servidor de correo. Una sesión abierta ahí ocuparía
+    la única sesión de la cuenta y el alumno no podría entrar en 30 minutos.
     """
 
     def get(self, request):
         try:
-            user = confirm_email(
+            confirm_email(
                 request.GET.get("confirmar"),
                 request.GET.get("token"),
                 client_ip(request),
@@ -150,15 +138,7 @@ class EmailConfirmOpenView(View):
                 status=exc.status_code,
                 content_type="text/html; charset=utf-8",
             )
-        if _other_session(request, user):
-            return HttpResponseRedirect("/?correo=confirmado")
-        try:
-            begin_session(request, user)
-        except DomainError as exc:
-            if exc.code != "session_open":
-                raise
-            return HttpResponseRedirect("/?sesion=abierta")
-        return HttpResponseRedirect("/")
+        return HttpResponseRedirect("/?correo=confirmado")
 
 
 class EmailConfirmResendView(APIView):
