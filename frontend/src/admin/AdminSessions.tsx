@@ -3,10 +3,13 @@ import { useEffect, useRef, useState } from "react"
 import { ApiError, api, type AccountRole, type ConnectedAccount } from "../api"
 import { useT } from "../i18n"
 
-export function AdminSessions() {
+export function AdminSessions({ selfId }: { selfId: number }) {
   const t = useT()
   const [rows, setRows] = useState<ConnectedAccount[]>([])
   const [count, setCount] = useState(0)
+  const [held, setHeld] = useState(0)
+  const [closing, setClosing] = useState<number | null>(null)
+  const [notice, setNotice] = useState("")
   const [fetchedAt, setFetchedAt] = useState(Date.now())
   const [now, setNow] = useState(Date.now())
   const [error, setError] = useState("")
@@ -17,10 +20,27 @@ export function AdminSessions() {
       const listed = await api.connectedAccounts()
       setRows(listed.results)
       setCount(listed.count)
+      setHeld(listed.held ?? 0)
       setFetchedAt(Date.now())
       setError("")
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : t("requestError"))
+    }
+  }
+
+  async function closeSession(row: ConnectedAccount) {
+    if (!window.confirm(t("closeSessionConfirm", { name: row.display_name }))) return
+    setClosing(row.id)
+    setNotice("")
+    setError("")
+    try {
+      await api.closeAccountSession(row.id)
+      setNotice(t("sessionClosed", { name: row.display_name }))
+      await refresh()
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : t("requestError"))
+    } finally {
+      setClosing(null)
     }
   }
 
@@ -47,13 +67,17 @@ export function AdminSessions() {
         <div>
           <h2>{t("connected")}</h2>
           <p className="note">{t("connectedHint")}</p>
-          <p className="note">{count === 1 ? t("connectedCountOne") : t("connectedCount", { count })}</p>
+          <p className="note">
+            {count === 1 ? t("connectedCountOne") : t("connectedCount", { count })}
+            {held > 0 ? ` · ${held === 1 ? t("heldCountOne") : t("heldCount", { count: held })}` : ""}
+          </p>
         </div>
         <button type="button" onClick={() => void refresh()}>
           {t("refresh")}
         </button>
       </header>
-      {error ? <p className="error">{error}</p> : null}
+      {error ? <p className="error" role="alert">{error}</p> : null}
+      {notice ? <p className="note" role="status">{notice}</p> : null}
       {rows.length === 0 ? (
         <p className="note">{t("nobodyConnected")}</p>
       ) : (
@@ -66,6 +90,8 @@ export function AdminSessions() {
                 <th>{t("accountType")}</th>
                 <th>{t("sessionSince")}</th>
                 <th>{t("sessionLength")}</th>
+                <th>{t("sessionState")}</th>
+                <th aria-label={t("closeSession")} />
               </tr>
             </thead>
             <tbody>
@@ -74,12 +100,20 @@ export function AdminSessions() {
                 const elapsed = Math.max(0, Math.floor((now - origin) / 1000))
                 const clock = new Date(origin).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
                 return (
-                  <tr key={row.id}>
+                  <tr key={row.id} className={row.present ? undefined : "session-away"}>
                     <td>{row.display_name}</td>
                     <td>{row.email}</td>
                     <td>{roleLabel(row.role, t)}</td>
                     <td>{clock}</td>
                     <td className="session-time">{formatSession(elapsed, t)}</td>
+                    <td>{row.present ? t("sessionOnScreen") : t("sessionAway", { time: clockOf(row.frees_at) })}</td>
+                    <td>
+                      {row.id === selfId ? null : (
+                        <button type="button" disabled={closing !== null} onClick={() => void closeSession(row)}>
+                          {t("closeSession")}
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 )
               })}
@@ -104,6 +138,12 @@ function sessionOrigin(
   const origin = known === undefined ? candidate : Math.min(known, candidate)
   origins.set(row.id, origin)
   return origin
+}
+
+function clockOf(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ""
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 }
 
 function roleLabel(role: AccountRole, t: ReturnType<typeof useT>): string {

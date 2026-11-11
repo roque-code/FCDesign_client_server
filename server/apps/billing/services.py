@@ -668,6 +668,25 @@ def set_blocked(actor: User, person: User, blocked: object) -> None:
         close_account_session(person)
 
 
+def close_session_for(actor: User, person: User, ip_address: str | None = None) -> None:
+    """El administrador libera la sesión de otra cuenta para que pueda volver a entrar."""
+    from apps.accounts.guard import close_account_session
+    from apps.audit.services import record
+
+    if person.pk == actor.pk:
+        raise DomainError("Para cerrar tu propia sesión usa Salir.")
+    had_session = bool(person.session_key)
+    close_account_session(person)
+    record(
+        "auth.session_closed",
+        actor=actor,
+        object_type="user",
+        object_id=str(person.pk),
+        metadata={"email": person.email, "had_session": had_session},
+        ip_address=ip_address,
+    )
+
+
 def assign_plan(user: User, data: dict) -> Subscription:
     if user.profile.role == Profile.ADMIN:
         raise DomainError("El administrador no tiene un nivel de alumno o docente.")

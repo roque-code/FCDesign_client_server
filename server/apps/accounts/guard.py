@@ -202,7 +202,11 @@ def presence_of(users) -> dict[int, str]:
 
 
 def active_sessions() -> list[dict[str, object]]:
-    """Cuentas cuya sesión sigue abierta y no venció por inactividad."""
+    """Cuentas cuya sesión sigue abierta y no venció por inactividad.
+
+    present es False cuando nadie tiene la pantalla abierta, pero la sesión
+    todavía impide entrar desde otro equipo hasta frees_at.
+    """
     now = int(time.time())
     idle = int(settings.SESSION_IDLE_SECONDS)
     rows: list[dict[str, object]] = []
@@ -216,13 +220,12 @@ def active_sessions() -> list[dict[str, object]]:
         if not store.exists(user.session_key):
             continue
         last = store.get("last_activity")
-        if isinstance(last, int) and now - last >= idle:
+        if not isinstance(last, int) or now - last >= idle:
             continue
         seen = store.get("last_seen")
         if not isinstance(seen, int):
-            seen = last if isinstance(last, int) else None
-        if not isinstance(seen, int) or now - seen > _PRESENT_SECONDS:
-            continue
+            seen = last
+        present = now - seen <= _PRESENT_SECONDS
         started = store.get("session_started")
         if not isinstance(started, int):
             marks = [value for value in (last, seen) if isinstance(value, int)]
@@ -239,9 +242,17 @@ def active_sessions() -> list[dict[str, object]]:
                 "role": profile.role,
                 "seconds": seconds,
                 "started_at": datetime.fromtimestamp(started, UTC).isoformat(),
+                "present": present,
+                "frees_at": datetime.fromtimestamp(last + idle, UTC).isoformat(),
             }
         )
-    rows.sort(key=lambda row: (-int(row["seconds"]), str(row["display_name"]).casefold()))
+    rows.sort(
+        key=lambda row: (
+            not row["present"],
+            -int(row["seconds"]),
+            str(row["display_name"]).casefold(),
+        )
+    )
     return rows
 
 

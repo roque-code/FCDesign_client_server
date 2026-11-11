@@ -2330,6 +2330,8 @@ button.fold {
 }
 .account-table select { min-width: 8rem; }
 .session-time { font-variant-numeric: tabular-nums; font-weight: 700; }
+.session-away td { color: var(--muted); }
+.session-away td:first-child { color: var(--ink); }
 .admin-pager {
   display: flex;
   align-items: center;

@@ -314,7 +314,7 @@ export function AdminHome({
         </div>
       </header>
       <main className="admin-home">
-        {panel === "live" ? <AdminSessions /> : null}
+        {panel === "live" ? <AdminSessions selfId={account.id} /> : null}
         {panel === "levels" && error ? <p className="error">{error}</p> : null}
         {panel === "levels" && notice ? <p className="note">{notice}</p> : null}
         {panel === "levels" ? (<>

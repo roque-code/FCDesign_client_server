@@ -113,11 +113,51 @@ def test_el_tiempo_de_sesion_no_vuelve_a_cero(client):
     kept = next(item for item in again.json()["results"] if item["email"] == "presente@ejemplo.test")
     assert kept["seconds"] >= 500
 
+    assert kept["present"] is True
+
     session = client.session
     session["last_seen"] = int(time.time()) - 120
     session.save()
-    gone = admin.get("/api/v1/billing/sessions/").json()["results"]
-    assert "presente@ejemplo.test" not in [item["email"] for item in gone]
+    away = admin.get("/api/v1/billing/sessions/").json()
+    left = next(item for item in away["results"] if item["email"] == "presente@ejemplo.test")
+    assert left["present"] is False
+    assert left["frees_at"]
+    assert away["held"] >= 1
+
+
+def test_el_administrador_cierra_una_sesion_que_impide_entrar(client):
+    created = register(client, email="atorado@ejemplo.test", display_name="Leo")
+    assert created.status_code == 201, created.content
+    session = client.session
+    session["last_seen"] = int(time.time()) - 600
+    session.save()
+
+    phone = APIClient(enforce_csrf_checks=True)
+    refresh_csrf(phone)
+    login = {"email": "atorado@ejemplo.test", "password": PASSWORD}
+    refused = phone.post("/api/v1/auth/login/", login, format="json")
+    assert refused.status_code == 409
+    assert refused.json()["error"]["code"] == "session_open"
+
+    admin = _admin()
+    rows = admin.get("/api/v1/billing/sessions/").json()["results"]
+    row = next(item for item in rows if item["email"] == "atorado@ejemplo.test")
+    assert row["present"] is False
+    closed = admin.delete(f"/api/v1/billing/sessions/{row['id']}/")
+    assert closed.status_code == 204, closed.content
+    assert client.get("/api/v1/auth/me/").status_code == 403
+    rows = admin.get("/api/v1/billing/sessions/").json()["results"]
+    assert "atorado@ejemplo.test" not in [item["email"] for item in rows]
+
+    refresh_csrf(phone)
+    entered = phone.post("/api/v1/auth/login/", login, format="json")
+    assert entered.status_code == 200, entered.content
+
+    me = admin.get("/api/v1/auth/me/").json()["id"]
+    assert admin.delete(f"/api/v1/billing/sessions/{me}/").status_code == 400
+    assert admin.delete("/api/v1/billing/sessions/999999/").status_code == 404
+    refresh_csrf(phone)
+    assert phone.delete(f"/api/v1/billing/sessions/{row['id']}/").status_code == 403
 
 
 def test_un_alumno_no_ve_el_tablero_ni_bloquea(client):

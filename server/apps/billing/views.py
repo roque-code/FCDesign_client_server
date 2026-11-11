@@ -11,6 +11,7 @@ from apps.billing.models import Plan
 from apps.billing.services import (
     assign_plan,
     catalog_payload,
+    close_session_for,
     consume_execution,
     create_plan,
     plan_payload,
@@ -18,7 +19,7 @@ from apps.billing.services import (
     update_plan,
     user_row,
 )
-from apps.http import current_user, object_body
+from apps.http import client_ip, current_user, object_body
 from config.errors import DomainError
 
 
@@ -116,7 +117,18 @@ class ConnectedSessionView(APIView):
     def get(self, request: Request) -> Response:
         _admin(request)
         rows = active_sessions()
-        return Response({"results": rows, "count": len(rows)})
+        present = sum(1 for row in rows if row["present"])
+        return Response({"results": rows, "count": present, "held": len(rows) - present})
+
+
+class ConnectedSessionDetailView(APIView):
+    def delete(self, request: Request, user_id: int) -> Response:
+        actor = _admin(request)
+        person = User.objects.filter(pk=user_id).first()
+        if person is None:
+            raise DomainError("No se encontró la cuenta.", code="not_found", status_code=404)
+        close_session_for(actor, person, client_ip(request))
+        return Response(status=204)
 
 
 class ConsumeExecutionView(APIView):

@@ -199,6 +199,8 @@ export type ConnectedAccount = {
   role: AccountRole
   seconds: number
   started_at: string
+  present: boolean
+  frees_at: string
 }
 
 export type PendingConfirmation = {
@@ -1372,7 +1374,9 @@ export const api = {
       `/api/v1/billing/users/?q=${encodeURIComponent(query)}&page=${page}`,
     ),
   connectedAccounts: () =>
-    request<{ results: ConnectedAccount[]; count: number }>("/api/v1/billing/sessions/"),
+    request<{ results: ConnectedAccount[]; count: number; held: number }>("/api/v1/billing/sessions/"),
+  closeAccountSession: (userId: number) =>
+    request<void>(`/api/v1/billing/sessions/${userId}/`, { method: "DELETE" }),
   assignPlan: (
     userId: number,
     body: { plan_id?: string; paid_until?: string | null; browser_allowed?: boolean | null; blocked?: boolean },
