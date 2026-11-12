@@ -163,6 +163,15 @@ export type ForeignRun = {
   session: string
 }
 
+export type ForeignDiagnostic = {
+  line: number | null
+  column: number | null
+  severity: "error" | "warning"
+  message: string
+}
+
+export type ForeignCheck = Omit<ForeignRun, "session"> & { diagnostics: ForeignDiagnostic[] }
+
 export type ForeignStatus = {
   platform: string
   languages: { language: string; label: string; ready: boolean; via: "system" | "cached" | "missing" }[]
@@ -178,6 +187,10 @@ export function localForeignRun(language: string, source: string, stdin: string)
 
 export function localForeignOpen(language: string, source: string): Promise<ForeignRun> {
   return foreignJson("/local/v1/foreign/open", { language, source })
+}
+
+export function localForeignCheck(language: string, source: string): Promise<ForeignCheck> {
+  return foreignJson("/local/v1/foreign/check", { language, source })
 }
 
 export function localForeignInput(session: string, text: string): Promise<ForeignRun> {
@@ -202,6 +215,7 @@ const SERVER_FOREIGN: Record<string, string> = {
   "/local/v1/foreign/status": "/api/v1/languages/status/",
   "/local/v1/foreign/run": "/api/v1/languages/run/",
   "/local/v1/foreign/open": "/api/v1/languages/open/",
+  "/local/v1/foreign/check": "/api/v1/languages/check/",
   "/local/v1/foreign/input": "/api/v1/languages/input/",
   "/local/v1/foreign/poll": "/api/v1/languages/poll/",
   "/local/v1/foreign/close": "/api/v1/languages/close/",

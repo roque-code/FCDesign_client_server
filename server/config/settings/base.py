@@ -150,4 +150,5 @@ MAX_MEMBERS_PER_COMMUNITY = 200
 MAX_FOLDER_DEPTH = 8
 RATE_LIMITS = {
     "execution.start": (30, 60),
+    "language.check": (30, 60),
 }

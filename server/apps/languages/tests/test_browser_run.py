@@ -80,3 +80,56 @@ def test_el_navegador_ejecuta_python_y_puede_enviar_un_dato():
     assert fed.status_code == 200, fed.content
     assert fed.json()["status"] == "ok"
     assert fed.json()["stdout"].endswith("hola\n")
+
+
+def test_validar_marca_la_linea_y_no_gasta_ejecuciones():
+    _enable_languages()
+    client = _browser()
+    created = register(client, email="lenguaje.validar@ejemplo.test")
+    assert created.status_code == 201, created.content
+    plan = Plan.objects.get(audience="student", code="premium")
+    plan.max_executions_per_day = 1
+    plan.save(update_fields=["max_executions_per_day"])
+
+    ran = client.post(
+        "/api/v1/languages/open/",
+        {"language": "python", "source": 'print("hola")\n'},
+        format="json",
+    )
+    assert ran.status_code == 200, ran.content
+    broken = client.post(
+        "/api/v1/languages/check/",
+        {"language": "python", "source": 'x = 1\nprint("hola"\n'},
+        format="json",
+    )
+    assert broken.status_code == 200, broken.content
+    body = broken.json()
+    assert body["status"] == "error"
+    assert body["diagnostics"][0]["line"] == 2
+    assert "SyntaxError" in body["diagnostics"][0]["message"]
+    clean = client.post(
+        "/api/v1/languages/check/",
+        {"language": "python", "source": 'print("hola")\n'},
+        format="json",
+    )
+    assert clean.status_code == 200, clean.content
+    assert clean.json()["status"] == "ok"
+    assert clean.json()["diagnostics"] == []
+    assert client.get("/api/v1/auth/me/").json()["usage"]["executions_today"] == 1
+
+
+def test_validar_tiene_un_tope_por_minuto():
+    _enable_languages()
+    client = _browser()
+    created = register(client, email="lenguaje.tope@ejemplo.test")
+    assert created.status_code == 201, created.content
+    answers = [
+        client.post(
+            "/api/v1/languages/check/",
+            {"language": "python", "source": 'print("hola")\n'},
+            format="json",
+        )
+        for _ in range(4)
+    ]
+    assert [answer.status_code for answer in answers] == [200, 200, 200, 429]
+    assert answers[-1].json()["error"]["code"] == "rate_limited"

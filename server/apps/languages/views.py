@@ -13,6 +13,7 @@ from apps.languages.services import (
     student_programs,
     update_program,
 )
+from config.ratelimit import allow
 
 
 class ProgramListView(APIView):
@@ -57,6 +58,14 @@ class LanguageOpenView(APIView):
     def post(self, request: Request) -> Response:
         consume_execution(current_user(request))
         return Response(dispatch("open", object_body(request.data)))
+
+
+class LanguageCheckView(APIView):
+    """Validar no gasta ejecuciones del día: el código no corre."""
+
+    def post(self, request: Request) -> Response:
+        allow("language.check", str(current_user(request).pk))
+        return Response(dispatch("check", object_body(request.data)))
 
 
 class LanguageInputView(APIView):

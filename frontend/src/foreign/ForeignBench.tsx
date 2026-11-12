@@ -17,11 +17,14 @@ import { FocusNotice, useExerciseFocus } from "../focus/FocusWatch"
 import { translatedMessage, useT } from "../i18n"
 import {
   installedLocal,
+  localForeignCheck,
   localForeignClose,
   localForeignInput,
   localForeignOpen,
   localForeignPoll,
   localForeignStatus,
+  type ForeignCheck,
+  type ForeignDiagnostic,
   type ForeignRun,
 } from "../runtime"
 import { browserStorage, clamp, followPointer, readLayout, writeLayout } from "../panes"
@@ -62,6 +65,7 @@ type Link = { id: string; name: string; saved: string }
 type SaveJob = { id: string; language: ForeignLanguage; text: string }
 
 const AUTOSAVE_MS = 3000
+const SYNTAX_ONLY = new Set<ForeignLanguage>(["python", "javascript", "typescript"])
 
 const NARROW = "(max-width: 980px)"
 const PANES_KEY = "traza.foreign.panes"
@@ -99,6 +103,8 @@ export function ForeignBench({
   const [copied, setCopied] = useState(false)
   const [failure, setFailure] = useState("")
   const [result, setResult] = useState<ForeignRun | null>(null)
+  const [checking, setChecking] = useState(false)
+  const [marks, setMarks] = useState<ForeignDiagnostic[]>([])
   const [ready, setReady] = useState<Record<string, string>>({})
   const [paths, setPaths] = useState<LabPath[] | null>(null)
   const [routeId, setRouteId] = useState("")
@@ -340,6 +346,8 @@ export function ForeignBench({
     dropSession()
     busyRef.current = false
     setBusy(false)
+    setChecking(false)
+    setMarks([])
   }
 
   function stopRun() {
@@ -469,6 +477,7 @@ export function ForeignBench({
   function newProgram() {
     flushSave()
     setAutoState("idle")
+    setMarks([])
     edit(STARTERS[language])
     linkTo(language, null)
     setProgramNote("")
@@ -546,6 +555,47 @@ export function ForeignBench({
     }
   }
 
+  function checkReport(checked: ForeignCheck): string {
+    const found = checked.diagnostics
+    if (checked.status === "ok" && found.length === 0) {
+      return `${t(SYNTAX_ONLY.has(language) ? "foreignCheckSyntaxClean" : "foreignCheckClean")}\n`
+    }
+    if (found.length === 0) return `${checked.stderr}${checked.stdout}`
+    const lines = found.map((item) =>
+      item.line ? `${t("foreignCheckLine", { line: item.line })}: ${item.message}` : item.message,
+    )
+    return `${t("foreignCheckFound", { count: found.length })}\n${lines.join("\n")}\n`
+  }
+
+  async function validate() {
+    const ticket = ++runTicket.current
+    dropSession()
+    setBusy(true)
+    busyRef.current = true
+    setChecking(true)
+    setFailure("")
+    setResult(null)
+    setMarks([])
+    try {
+      const checked = await localForeignCheck(language, shownSource)
+      if (runTicket.current !== ticket) return
+      if (checked.via === "cached" || checked.via === "system") {
+        setReady((current) => ({ ...current, [language]: checked.via }))
+      }
+      setMarks(checked.diagnostics)
+      setResult({ ...checked, session: "", stdout: "", stderr: checkReport(checked) })
+    } catch (caught) {
+      if (runTicket.current !== ticket) return
+      setFailure(caught instanceof ApiError ? translatedMessage(caught.message) : t("foreignCheckFailed"))
+    } finally {
+      if (runTicket.current === ticket) {
+        busyRef.current = false
+        setBusy(false)
+        setChecking(false)
+      }
+    }
+  }
+
   async function run() {
     const ticket = ++runTicket.current
     dropSession()
@@ -553,6 +603,7 @@ export function ForeignBench({
     busyRef.current = true
     setFailure("")
     setResult(null)
+    setMarks([])
     setStdin("")
     try {
       if (onThisMachine) {
@@ -880,6 +931,7 @@ export function ForeignBench({
             onChange={viewing ? () => undefined : edit}
             pasteBlocked={pasteBlocked}
             readOnly={viewing !== null}
+            marks={marks}
           />
           <div className="foreign-actions">
             <button type="button" onClick={() => void copy()}>
@@ -904,6 +956,9 @@ export function ForeignBench({
             <button type="button" onClick={() => void showAttach()} disabled={viewing !== null}>
               {t("languageAttach")}
             </button>
+            <button type="button" onClick={() => void validate()} disabled={busy} title={t("foreignCheckTitle")}>
+              {busy && checking ? t("foreignChecking") : t("validate")}
+            </button>
             <button
               className="primary"
               type="button"
@@ -911,7 +966,7 @@ export function ForeignBench({
               disabled={busy || !canExecuteToday(account)}
               title={!canExecuteToday(account) ? t("executionsGone") : undefined}
             >
-              {busy && !waiting ? t("foreignRunning") : t("run")}
+              {busy && !waiting && !checking ? t("foreignRunning") : t("run")}
             </button>
             <button
               type="button"

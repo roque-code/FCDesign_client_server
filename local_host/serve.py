@@ -83,6 +83,9 @@ class LocalHandler(BaseHTTPRequestHandler):
             if self.command == "POST" and path == "/local/v1/foreign/open":
                 self._json(200, self.server.host_engine.foreign_open(body))
                 return
+            if self.command == "POST" and path == "/local/v1/foreign/check":
+                self._json(200, self.server.host_engine.foreign_check(body))
+                return
             if self.command == "POST" and path == "/local/v1/foreign/input":
                 self._json(200, self.server.host_engine.foreign_input(body))
                 return

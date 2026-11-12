@@ -4,7 +4,6 @@ from datetime import timedelta
 
 import pytest
 from django.core.management import call_command
-from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -335,8 +334,8 @@ def test_el_admin_pone_el_tope_diario_o_lo_deja_sin_limite(client):
     assert capped.json()["max_executions_per_day"] == 5
 
 
-@override_settings(RATE_LIMITS={"execution.start": (30, 60)})
 def test_el_nivel_limita_las_ejecuciones_del_dia(client, settings):
+    settings.RATE_LIMITS = {**settings.RATE_LIMITS, "execution.start": (30, 60)}
     settings.TRAZA_SIGNUP_PLAN = "gratis"
     created = register(client, email="cupo-run@ejemplo.test")
     assert created.status_code == 201, created.content
@@ -368,8 +367,8 @@ def test_el_nivel_limita_las_ejecuciones_del_dia(client, settings):
     assert me["usage"]["executions_today"] == 3
 
 
-@override_settings(RATE_LIMITS={"execution.start": (30, 60)})
-def test_sin_tope_el_nivel_deja_seguir_ejecutando(client):
+def test_sin_tope_el_nivel_deja_seguir_ejecutando(client, settings):
+    settings.RATE_LIMITS = {**settings.RATE_LIMITS, "execution.start": (30, 60)}
     created = register(client, email="cupo-libre@ejemplo.test")
     assert created.status_code == 201, created.content
     assert created.json()["access"]["limits"]["max_executions_per_day"] is None

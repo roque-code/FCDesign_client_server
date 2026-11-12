@@ -292,6 +292,17 @@ class Host:
         download, isolated = _compiler_flags(body)
         return open_session(language, source, download=download, isolated=isolated)
 
+    def foreign_check(self, body: dict[str, Any]) -> dict[str, object]:
+        self._need("languages")
+        from local_host.foreign_run import check_source
+
+        language = body.get("language")
+        source = body.get("source")
+        if not isinstance(language, str) or not isinstance(source, str):
+            raise HostError("El cuerpo no es válido.")
+        download, isolated = _compiler_flags(body)
+        return check_source(language, source, download=download, isolated=isolated)
+
     def foreign_input(self, body: dict[str, Any]) -> dict[str, object]:
         self._need("languages")
         from local_host.foreign_run import feed_session

@@ -312,6 +312,169 @@ def close_session(session_id: str) -> None:
         _shutdown(job)
 
 
+def check_source(
+    language: str,
+    source: str,
+    *,
+    root: Path | None = None,
+    manifest: dict[str, Any] | None = None,
+    finder: Finder | None = None,
+    fetch: Fetch | None = None,
+    download: bool = True,
+    isolated: bool = False,
+) -> dict[str, object]:
+    """Revisa el código sin ejecutarlo.
+
+    Java, C, C++ y C# pasan por su compilador. Python, JavaScript y TypeScript
+    solo revisan la sintaxis: los errores de nombres o tipos aparecen al ejecutar.
+    """
+    prepared, failed = _ready(
+        language,
+        source,
+        root=root,
+        manifest=manifest,
+        finder=finder,
+        fetch=fetch,
+        download=download,
+    )
+    if failed is not None or prepared is None:
+        result = failed or _result("error", "missing", None, "", "", "No se pudo validar.")
+        return {**result, "diagnostics": []}
+    with tempfile.TemporaryDirectory(prefix="traza-check-") as folder_name:
+        folder = Path(folder_name)
+        env = (
+            _isolated_env(language, prepared.commands, prepared.via)
+            if isolated
+            else _child_env(language, prepared.commands, prepared.via)
+        )
+        result = _check(language, source, folder, env, prepared)
+        stdout = _hide_folder(str(result["stdout"]), folder)
+        stderr = _hide_folder(str(result["stderr"]), folder)
+    if language == "typescript":
+        stdout = stdout.replace("programa.js", "programa.ts")
+        stderr = stderr.replace("programa.js", "programa.ts")
+    return {
+        **result,
+        "stdout": stdout,
+        "stderr": stderr,
+        "diagnostics": check_diagnostics(language, f"{stderr}\n{stdout}"),
+    }
+
+
+_GCC_LINE = re.compile(
+    r"^(?:.*[\\/])?programa\.(?:c|cpp):(\d+):(\d+): (?:fatal )?(error|warning): (.+)$", re.M
+)
+_JAVAC_LINE = re.compile(r"^(?:.*[\\/])?\w+\.java:(\d+): (error|warning): (.+)$", re.M)
+_DOTNET_LINE = re.compile(
+    r"^(?:.*[\\/])?Programa\.cs\((\d+),(\d+)\): (error|warning) (\w+): (.+?)(?: \[[^\]]*\])?$",
+    re.M,
+)
+_PYTHON_PLACE = re.compile(r'File "(?:.*[\\/])?programa\.py", line (\d+)')
+_SCRIPT_PLACE = re.compile(r"programa\.(?:js|ts):(\d+)(?::(\d+))?")
+_ERROR_TEXT = re.compile(r"^(\w*(?:Error|Exception))(?: \[\w+\])?: (.+)$", re.M)
+
+
+def check_diagnostics(language: str, text: str) -> list[dict[str, object]]:
+    """Lleva la salida del compilador a una lista de línea, columna y mensaje."""
+    found: list[dict[str, object]] = []
+    if language in {"c", "cpp"}:
+        for line, column, severity, message in _GCC_LINE.findall(text):
+            found.append(_diagnostic(line, column, severity, message))
+    elif language == "java":
+        for line, severity, message in _JAVAC_LINE.findall(text):
+            found.append(_diagnostic(line, "", severity, message))
+    elif language == "csharp":
+        for line, column, severity, code, message in _DOTNET_LINE.findall(text):
+            found.append(_diagnostic(line, column, severity, f"{code}: {message}"))
+    else:
+        place = (_PYTHON_PLACE if language == "python" else _SCRIPT_PLACE).search(text)
+        errors = _ERROR_TEXT.findall(text)
+        if errors:
+            kind, message = errors[-1]
+            line = place.group(1) if place else ""
+            column = (place.group(2) or "") if place and language != "python" else ""
+            found.append(_diagnostic(line, column, "error", f"{kind}: {message}"))
+    unique: list[dict[str, object]] = []
+    for item in found:
+        if item not in unique:
+            unique.append(item)
+    return unique
+
+
+def _diagnostic(line: str, column: str, severity: str, message: str) -> dict[str, object]:
+    return {
+        "line": int(line) if line.isdigit() else None,
+        "column": int(column) if column.isdigit() else None,
+        "severity": "warning" if severity == "warning" else "error",
+        "message": message.strip(),
+    }
+
+
+def _hide_folder(text: str, folder: Path) -> str:
+    for name in {str(folder.resolve()), str(folder)}:
+        text = text.replace(name + os.sep, "").replace(name, "")
+    return text
+
+
+_STRIP_TYPES = (
+    "const fs = require('node:fs'); const m = require('node:module');"
+    "if (typeof m.stripTypeScriptTypes !== 'function') {"
+    " fs.copyFileSync('programa.ts', 'programa.js'); process.exit(0) }"
+    "try { fs.writeFileSync('programa.js', m.stripTypeScriptTypes("
+    "fs.readFileSync('programa.ts', 'utf8'), { mode: 'strip', sourceUrl: 'programa.ts' })) }"
+    "catch (error) { console.error(require('node:util').inspect(error).split('\\n')"
+    ".filter((line) => !/^\\s+at |^\\s*code: |^\\}$/.test(line)).join('\\n')); process.exit(1) }"
+)
+
+
+def _check(
+    language: str,
+    source: str,
+    folder: Path,
+    env: dict[str, str],
+    prepared: _Prepared,
+) -> dict[str, object]:
+    via = prepared.via
+    if language == "python":
+        (folder / "programa.py").write_text(source, encoding="utf-8")
+        argv = [prepared.commands["python"], "-m", "py_compile", "programa.py"]
+        return _spawn(argv, "", folder, env, via, timeout=COMPILE_TIMEOUT)
+    if language == "javascript":
+        (folder / "programa.js").write_text(source, encoding="utf-8")
+        argv = [prepared.commands["node"], "--check", "programa.js"]
+        return _spawn(argv, "", folder, env, via, timeout=COMPILE_TIMEOUT)
+    if language == "typescript":
+        (folder / "programa.ts").write_text(source, encoding="utf-8")
+        node = prepared.commands["node"]
+        stripped = _spawn(
+            [node, "--no-warnings", "-e", _STRIP_TYPES],
+            "",
+            folder,
+            env,
+            via,
+            timeout=COMPILE_TIMEOUT,
+        )
+        if stripped["status"] != "ok":
+            return stripped
+        return _spawn(
+            [node, "--check", "programa.js"], "", folder, env, via, timeout=COMPILE_TIMEOUT
+        )
+    if language == "java":
+        name = java_file_name(source)
+        (folder / name).write_text(source, encoding="utf-8")
+        argv = [prepared.commands["javac"], "-d", "clases", name]
+        return _spawn(argv, "", folder, env, via, timeout=COMPILE_TIMEOUT)
+    if language in {"c", "cpp"}:
+        filename = "programa.c" if language == "c" else "programa.cpp"
+        (folder / filename).write_text(source, encoding="utf-8")
+        compiler = prepared.commands["cc" if language == "c" else "cxx"]
+        argv = [*_compiler_head(compiler, language), _standard(language), "-fsyntax-only", filename]
+        return _spawn(argv, "", folder, env, via, timeout=COMPILE_TIMEOUT)
+    _write_csharp(folder, source, prepared.commands["dotnet"], env)
+    argv = [prepared.commands["dotnet"], "build", str(folder), "--nologo", "-clp:NoSummary"]
+    return _spawn(argv, "", folder, env, via, timeout=60)
+
+
 def java_file_name(source: str) -> str:
     public = _class_name(source, public=True)
     name = public or _class_name(source, public=False) or "Programa"
@@ -594,11 +757,18 @@ def ssl_context() -> ssl.SSLContext:
 
 def _compile_argv(compiler: str, language: str, binary: Path, source: Path) -> list[str]:
     """Zig se invoca como `zig cc` o `zig c++`. gcc recibe los mismos argumentos de siempre."""
-    standard = "-std=c11" if language == "c" else "-std=c++17"
-    head = [compiler]
+    head = _compiler_head(compiler, language)
+    return [*head, _standard(language), "-o", str(binary), str(source), "-lm"]
+
+
+def _compiler_head(compiler: str, language: str) -> list[str]:
     if Path(compiler).name.lower() in {"zig", "zig.exe"}:
-        head.append("cc" if language == "c" else "c++")
-    return [*head, standard, "-o", str(binary), str(source), "-lm"]
+        return [compiler, "cc" if language == "c" else "c++"]
+    return [compiler]
+
+
+def _standard(language: str) -> str:
+    return "-std=c11" if language == "c" else "-std=c++17"
 
 
 def _mark_exec(path: Path) -> None:
@@ -740,7 +910,16 @@ def _program_command(
         if compiled["status"] != "ok":
             return None, compiled, RUN_TIMEOUT
         return [str(binary)], None, RUN_TIMEOUT
-    framework = _dotnet_tfm(prepared.commands["dotnet"])
+    _write_csharp(folder, source, prepared.commands["dotnet"], env)
+    return (
+        [prepared.commands["dotnet"], "run", "--project", str(folder), "--nologo"],
+        None,
+        60,
+    )
+
+
+def _write_csharp(folder: Path, source: str, dotnet: str, env: dict[str, str]) -> None:
+    framework = _dotnet_tfm(dotnet)
     project = (
         '<Project Sdk="Microsoft.NET.Sdk">\n'
         "  <PropertyGroup>\n"
@@ -755,11 +934,6 @@ def _program_command(
     (folder / "Programa.csproj").write_text(project, encoding="utf-8")
     (folder / "Programa.cs").write_text(source, encoding="utf-8")
     _dotnet_workspace(folder, env)
-    return (
-        [prepared.commands["dotnet"], "run", "--project", str(folder), "--nologo"],
-        None,
-        60,
-    )
 
 
 class _Job:

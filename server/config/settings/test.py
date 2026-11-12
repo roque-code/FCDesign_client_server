@@ -11,4 +11,5 @@ TRAZA_MAIL_UI = ""
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 RATE_LIMITS = {
     "execution.start": (3, 60),
+    "language.check": (3, 60),
 }

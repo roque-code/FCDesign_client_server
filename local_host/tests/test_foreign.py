@@ -28,6 +28,8 @@ from local_host.foreign_run import (
     _spawn,
     _sweep_sessions,
     _take_run_slot,
+    check_diagnostics,
+    check_source,
     java_file_name,
     load_manifest,
     open_session,
@@ -183,6 +185,59 @@ def test_python_del_sistema_escribe_la_salida() -> None:
     assert body["status"] == "ok"
     assert body["stdout"] == "6\n"
     assert body["via"] == "system"
+
+
+def test_validar_python_marca_la_linea_sin_ejecutar(tmp_path: Path) -> None:
+    witness = tmp_path / "corrio.txt"
+    source = f'open({str(witness)!r}, "w").write("si")\nprint("hola"\n'
+    server, origin = _server()
+    try:
+        code, body = _call(
+            origin, "/local/v1/foreign/check", {"language": "python", "source": source}
+        )
+    finally:
+        server.shutdown()
+    assert code == 200
+    assert body["status"] == "error"
+    assert body["diagnostics"][0]["line"] == 2
+    assert not witness.exists()
+
+
+def test_validar_un_programa_correcto_no_lo_corre(tmp_path: Path) -> None:
+    witness = tmp_path / "corrio.txt"
+    source = f'open({str(witness)!r}, "w").write("si")\n'
+    checked = check_source("python", source, download=False, isolated=True)
+    assert checked["status"] == "ok", checked
+    assert checked["diagnostics"] == []
+    assert not witness.exists()
+
+
+def test_validar_lee_los_errores_de_cada_compilador() -> None:
+    gcc = "programa.c:4:12: error: expected ';' before '}' token\nprograma.c:2:5: warning: unused variable 'x'\n"
+    javac = "Programa.java:3: error: ';' expected\n        int x = 1\n                 ^\n1 error\n"
+    dotnet = (
+        "Programa.cs(5,22): error CS1002: ; expected [Programa.csproj]\n"
+        "Programa.cs(5,22): error CS1002: ; expected [Programa.csproj]\n"
+    )
+    node = "programa.js:3\n  let = ;\n      ^\n\nSyntaxError: Unexpected token '='\n"
+    assert check_diagnostics("c", gcc) == [
+        {"line": 4, "column": 12, "severity": "error", "message": "expected ';' before '}' token"},
+        {"line": 2, "column": 5, "severity": "warning", "message": "unused variable 'x'"},
+    ]
+    assert check_diagnostics("java", javac) == [
+        {"line": 3, "column": None, "severity": "error", "message": "';' expected"}
+    ]
+    assert check_diagnostics("csharp", dotnet) == [
+        {"line": 5, "column": 22, "severity": "error", "message": "CS1002: ; expected"}
+    ]
+    assert check_diagnostics("javascript", node) == [
+        {
+            "line": 3,
+            "column": None,
+            "severity": "error",
+            "message": "SyntaxError: Unexpected token '='",
+        }
+    ]
 
 
 def test_sin_la_funcion_del_plan_no_corre() -> None:

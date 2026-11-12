@@ -40,7 +40,7 @@ def dispatch(action: str, body: dict[str, Any]) -> dict[str, object]:
     from local_host.engine import HostError
 
     payload = dict(body)
-    if action in {"run", "open"}:
+    if action in {"run", "open", "check"}:
         payload["download"] = True
         payload["isolated"] = True
     try:
@@ -159,6 +159,8 @@ def _direct(action: str, body: dict[str, Any]) -> dict[str, object]:
         return engine.foreign_run(body)
     if action == "open":
         return engine.foreign_open(body)
+    if action == "check":
+        return engine.foreign_check(body)
     if action == "input":
         return engine.foreign_input(body)
     if action == "poll":

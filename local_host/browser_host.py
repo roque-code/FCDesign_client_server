@@ -68,6 +68,10 @@ class LanguageHandler(BaseHTTPRequestHandler):
             if path == "/local/v1/foreign/open":
                 self._json(200, engine.foreign_open(_browser_flags(body)))
                 return
+            if path == "/local/v1/foreign/check":
+                self._json(200, engine.foreign_check(_browser_flags(body)))
+                return
+                return
             if path == "/local/v1/foreign/input":
                 self._json(200, engine.foreign_input(body))
                 return
