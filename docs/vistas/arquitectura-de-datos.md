@@ -1,6 +1,6 @@
 # Arquitectura de datos
 
-Fecha de referencia: 2026-11-06. Las imágenes del enunciado de un reto viven en `ChallengeFigure`, dentro de PostgreSQL; el enunciado guarda solo su dirección. Los correos de las cuentas se guardan en minúsculas. Cada comunidad guarda su materia. Los mensajes viven en `Conversation`, `Message` y `ReadCursor`, y `MessageLifetime` es una fila con las horas que viven. Los exámenes viven en `Exam`, `ExamSeat`, `ExamQuestion`, `ExamAttempt`, `ExamResponse` y `ExamNotice`; el CSV de calificaciones no es tabla. `Plan.features` guarda a qué materias entra el nivel y si tiene Exámenes y Mensajes en cada una. Los diagramas entidad-relación no tienen tabla: se guardan en el navegador. `SignupPolicy` es una fila: qué altas están abiertas. El reto y su colocación en la ruta guardan `weights`, la ponderación de la nota. La comunidad y la membresía guardan si la traducción y el pegado están habilitados. La foto vive en el perfil. El nivel de suscripción está en `Plan` y `Subscription`. El CSV de notas y el del banco de retos no son tablas. Motor: PostgreSQL 16. La traducción no se almacena. La ventana de escritorio lee y escribe las mismas tablas a través de la API. El detalle de columnas, índices y borrado está en [modelo-de-datos.md](../modelo-de-datos.md).
+Fecha de referencia: 2026-11-11. Los programas de Lenguajes viven en `LanguageProgram`. La calificación y el comentario del docente sobre un algoritmo o un programa viven en `ExerciseFeedback`, y el registro de salidas en un ejercicio, en `ExerciseFocus`. El intento de examen y el de reto guardan sus salidas en `focus`; la comunidad y la membresía guardan si se vigilan. El CSV de calificaciones de ejercicios no es tabla. Las imágenes del enunciado de un reto viven en `ChallengeFigure`, dentro de PostgreSQL; el enunciado guarda solo su dirección. Los correos de las cuentas se guardan en minúsculas. Cada comunidad guarda su materia. Los mensajes viven en `Conversation`, `Message` y `ReadCursor`, y `MessageLifetime` es una fila con las horas que viven. Los exámenes viven en `Exam`, `ExamSeat`, `ExamQuestion`, `ExamAttempt`, `ExamResponse` y `ExamNotice`; el CSV de calificaciones no es tabla. `Plan.features` guarda a qué materias entra el nivel y si tiene Exámenes y Mensajes en cada una. Los diagramas entidad-relación no tienen tabla: se guardan en el navegador. `SignupPolicy` es una fila: qué altas están abiertas. El reto y su colocación en la ruta guardan `weights`, la ponderación de la nota. La comunidad y la membresía guardan si la traducción y el pegado están habilitados. La foto vive en el perfil. El nivel de suscripción está en `Plan` y `Subscription`. El CSV de notas y el del banco de retos no son tablas. Motor: PostgreSQL 16. La traducción no se almacena. La ventana de escritorio lee y escribe las mismas tablas a través de la API. El detalle de columnas, índices y borrado está en [modelo-de-datos.md](../modelo-de-datos.md).
 
 Hay dos grupos que no se mezclan. El banco de trabajo cuelga de `Algorithm`. El laboratorio cuelga de `Challenge` y de `Practice`. Un intento no es una fila de `Execution`.
 
@@ -32,6 +32,11 @@ erDiagram
     Exam ||--o{ ExamAttempt : recibe
     ExamAttempt ||--o{ ExamResponse : guarda
     Exam ||--o{ ExamNotice : avisa
+    User ||--o{ LanguageProgram : guarda
+    Algorithm ||--o{ ExerciseFeedback : califica
+    LanguageProgram ||--o{ ExerciseFeedback : califica
+    Algorithm ||--o| ExerciseFocus : vigila
+    LanguageProgram ||--o| ExerciseFocus : vigila
 ```
 
 | Grupo | Qué se guarda | Qué no se guarda |
@@ -42,6 +47,8 @@ erDiagram
 | Laboratorio | Rutas, retos con el enunciado en Markdown, las imágenes de ese enunciado, fotos del lienzo, pistas usadas, predicción y reflexión | Una fila de `Execution` |
 | Mensajes | Conversación, texto, remitente, fecha y hasta dónde leyó cada persona | Un mensaje más viejo que la duración |
 | Exámenes | Ajustes, preguntas con sus respuestas correctas, alumnos elegidos, intentos con el orden que vio el alumno, respuestas, puntos, comentarios y avisos | El CSV de calificaciones ni el archivo exportado |
+| Lenguajes | Nombre, lenguaje y código de cada programa guardado | La salida de una ejecución |
+| Calificación y salidas | Nota de 0 a 100, comentario, cuántas veces salió el alumno, tiempo fuera, salidas de pantalla completa e intentos de pegar | Lo que hizo fuera de la plataforma. El CSV no se guarda |
 | Auditoría | Acción, actor, objeto y dirección | El fuente completo ni secretos |
 
 Claves públicas de proyecto, algoritmo, ejecución, comunidad y laboratorio: UUID versión 4. Eventos y versiones: entero. Marcas de tiempo: `timestamptz`. El borrado de proyectos y algoritmos es lógico con `deleted_at`.

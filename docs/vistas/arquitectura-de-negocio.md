@@ -1,14 +1,14 @@
 # Arquitectura de negocio
 
-Fecha de referencia: 2026-11-06. Aulivana-FCDdesign enseña programación estructurada. El canónico del lenguaje es el español y la cuenta puede ver la interfaz y las palabras reservadas en inglés. El estudiante escribe pseudocódigo, lo valida, lo ejecuta, lo depura, ve el diagrama y puede pedir el mismo algoritmo en otro lenguaje de programación. El docente agrupa cuentas ya registradas y sigue el avance del laboratorio. La ventana de escritorio ofrece lo mismo: el intérprete corre en la máquina y la cuenta sigue en el servidor.
+Fecha de referencia: 2026-11-11. Aulivana-FCDdesign enseña programación estructurada. El canónico del lenguaje es el español y la cuenta puede ver la interfaz y las palabras reservadas en inglés. El estudiante escribe pseudocódigo, lo valida, lo ejecuta, lo depura, ve el diagrama y puede pedir el mismo algoritmo en otro lenguaje de programación. El docente agrupa cuentas ya registradas y sigue el avance del laboratorio. La ventana de escritorio ofrece lo mismo: el intérprete corre en la máquina y la cuenta sigue en el servidor.
 
 ## Actores
 
 | Actor | Objetivo |
 | --- | --- |
-| Estudiante | Practicar algoritmos con diagnóstico de línea y columna, consola y diagrama |
-| Docente | Formar comunidades, publicar rutas, apagar traducción y pegado, ver el tablero, descargar notas y retos, y abrir el trabajo de un alumno, dentro de su nivel |
-| Administrador | Definir niveles, precios y funciones, y asignar un nivel a una cuenta ya creada |
+| Estudiante | Practicar algoritmos con diagnóstico de línea y columna, consola y diagrama, guardar sus programas de otros lenguajes y ver las calificaciones de su docente |
+| Docente | Formar comunidades, publicar rutas, apagar traducción y pegado, vigilar las salidas en exámenes y retos, ver el tablero, descargar notas y retos, abrir el trabajo de un alumno y calificarlo, dentro de su nivel |
+| Administrador | Definir niveles, precios y funciones, asignar un nivel a una cuenta ya creada y cerrar la sesión de una cuenta |
 | Plataforma | Conservar la cuenta, el fuente y el intento, y ejecutar el programa fuera del proceso web |
 
 Quedan fuera del negocio actual las actividades y las entregas del aula, la orientación a objetos, los archivos del pseudocódigo y la concurrencia.

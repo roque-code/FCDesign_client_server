@@ -1,6 +1,6 @@
 # Diccionario de datos
 
-Fecha de referencia: 2026-11-06. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. Los mensajes viven en las tablas `chat_*`. Los exámenes viven en las tablas `exams_*`. Los diagramas entidad-relación de Bases de datos no tienen tabla: se guardan en el navegador. Los niveles viven en `billing_plan` y `billing_subscription`. El cupo del día vive en `billing_dailyexecution`. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
+Fecha de referencia: 2026-11-11. Sirve para armar consultas sobre la base del compose. La traducción y la ventana de escritorio no agregan columnas: el código generado no se guarda. Los mensajes viven en las tablas `chat_*`. Los exámenes viven en las tablas `exams_*`. Los diagramas entidad-relación de Bases de datos no tienen tabla: se guardan en el navegador. Los programas guardados de Lenguajes viven en `languages_languageprogram`. La calificación de ejercicios vive en `classroom_exercisefeedback` y las salidas en un ejercicio, en `classroom_exercisefocus`. Los niveles viven en `billing_plan` y `billing_subscription`. El cupo del día vive en `billing_dailyexecution`. El relato del modelo está en [modelo-de-datos.md](modelo-de-datos.md).
 
 La base se llama `traza` y, con los contenedores levantados, escucha en `127.0.0.1:5434`. El usuario de desarrollo es `traza`. No es la base del contenedor anterior `traza-pg` del puerto `5433`.
 
@@ -64,6 +64,14 @@ La columna foránea se llama `campo_id` y apunta a la clave de la otra tabla. `A
 | `classroom_community` | `owner_id` | `accounts_user.id` | 1 docente, muchas comunidades | se borran sus comunidades |
 | `classroom_membership` | `community_id` | `classroom_community.id` | 1 comunidad, muchos miembros | se borran las membresías |
 | `classroom_membership` | `user_id` | `accounts_user.id` | 1 usuario, muchas membresías | se borran las membresías |
+| `languages_languageprogram` | `owner_id` | `accounts_user.id` | 1 cuenta, muchos programas | se borran sus programas |
+| `classroom_exercisefeedback` | `teacher_id` | `accounts_user.id` | 1 docente, muchas calificaciones | se borran sus calificaciones |
+| `classroom_exercisefeedback` | `student_id` | `accounts_user.id` | 1 alumno, muchas calificaciones | se borran sus calificaciones |
+| `classroom_exercisefeedback` | `algorithm_id` | `projects_algorithm.id` | o el algoritmo, o el programa | se borra la calificación |
+| `classroom_exercisefeedback` | `program_id` | `languages_languageprogram.id` | o el algoritmo, o el programa | se borra la calificación |
+| `classroom_exercisefocus` | `student_id` | `accounts_user.id` | 1 alumno, muchos registros | se borran sus registros |
+| `classroom_exercisefocus` | `algorithm_id` | `projects_algorithm.id` | 1 a 1, o el programa | se borra el registro |
+| `classroom_exercisefocus` | `program_id` | `languages_languageprogram.id` | 1 a 1, o el algoritmo | se borra el registro |
 | `chat_conversation` | `community_id` | `classroom_community.id` | 1 comunidad, muchas conversaciones | se borran las conversaciones |
 | `chat_conversation` | `teacher_id` | `accounts_user.id` | el docente de la personal; nulo en la de grupo | se borran sus conversaciones |
 | `chat_conversation` | `student_id` | `accounts_user.id` | el alumno de la personal; nulo en la de grupo | se borran sus conversaciones |
@@ -237,6 +245,22 @@ Reglas del lenguaje. `strict` es el predeterminado. Un perfil con `is_system` ve
 | `config` | `jsonb` | NO | Banderas: base de índices, punto y coma, declaraciones, ensanche, globales, avisos y límites |
 | `is_system` | `boolean` | NO | Verdadero en los perfiles de fábrica |
 
+### `languages_languageprogram`
+
+Programa guardado en la ventana Lenguajes. `languages.0001`.
+
+| Campo | Tipo | Nulo | Descripción |
+| --- | --- | --- | --- |
+| `id` | `uuid` | NO | Clave |
+| `owner_id` | `bigint` | NO | Dueño |
+| `name` | `varchar(120)` | NO | Nombre. Único por dueño y lenguaje (`uniq_language_program_name`) |
+| `language` | `varchar(16)` | NO | `python`, `javascript`, `typescript`, `java`, `c`, `cpp` o `csharp` (`language_program_language`) |
+| `source` | `text` | NO | Código. El servicio admite hasta 256 KB |
+| `created_at` | `timestamptz` | NO | Alta |
+| `updated_at` | `timestamptz` | NO | Último guardado |
+
+Índice: `(owner_id, updated_at)`. Tope de aplicación: 300 programas por cuenta.
+
 ### `projects_project`
 
 Carpeta de algoritmos de una cuenta.
@@ -372,6 +396,8 @@ No hay actividades ni entregas. Una comunidad solo agrupa cuentas que ya existen
 | `subject` | `varchar(32)` | NO | Materia: `fundamentos`, `bases`, `objetos` o `software`. `classroom.0005`. Las que ya existían quedaron en `fundamentos` |
 | `translation_enabled` | `boolean` | NO | Si los alumnos heredan la traducción de código. Nace en verdadero |
 | `paste_enabled` | `boolean` | NO | Si los alumnos heredan el permiso de pegar. Nace en verdadero |
+| `focus_watch` | `boolean` | NO | Si se vigilan las salidas en exámenes y retos. Nace en falso. `classroom.0007` |
+| `focus_limit` | `smallint` | SÍ | Salida en la que se entrega solo, de 1 a 10 (`community_focus_limit`). Nulo es Nunca |
 | `join_code` | `varchar(8)` | NO | Código único de 6 caracteres. `classroom.0004`. El alumno lo escribe en Unirme. Uno nuevo invalida el anterior |
 | `created_at` | `timestamptz` | NO | Alta |
 | `updated_at` | `timestamptz` | NO | Último cambio |
@@ -387,9 +413,43 @@ Tope de aplicación: 30 comunidades por docente y 200 personas por comunidad.
 | `user_id` | `bigint` | NO | Miembro. Único dentro de la comunidad. No es el dueño: el dueño no se agrega a sí mismo |
 | `translation_enabled` | `boolean` | SÍ | Ajuste de traducción del alumno. Nulo significa heredar el de la comunidad |
 | `paste_enabled` | `boolean` | SÍ | Ajuste de pegar del alumno. Nulo significa heredar el de la comunidad |
+| `focus_watch` | `boolean` | SÍ | Si se vigilan sus salidas. Nulo significa heredar el de la comunidad. `classroom.0007` |
 | `created_at` | `timestamptz` | NO | Momento en que se agregó |
 
 El papel de alumno o docente de esa fila sale de `accounts_profile.role`, no de esta tabla.
+
+### `classroom_exercisefeedback`
+
+Calificación y comentario de un docente sobre un algoritmo o un programa de un alumno. `classroom.0006`.
+
+| Campo | Tipo | Nulo | Descripción |
+| --- | --- | --- | --- |
+| `id` | `uuid` | NO | Clave |
+| `teacher_id` | `bigint` | NO | Docente que califica |
+| `student_id` | `bigint` | NO | Alumno calificado |
+| `algorithm_id` | `uuid` | SÍ | Algoritmo calificado. Único por docente (`uniq_feedback_teacher_algorithm`) |
+| `program_id` | `uuid` | SÍ | Programa calificado. Único por docente (`uniq_feedback_teacher_program`) |
+| `grade` | `numeric(5,2)` | SÍ | Nota de 0 a 100 (`feedback_grade_range`). Nula si solo hay comentario |
+| `comment` | `text` | NO | Comentario para el alumno, hasta 2000 caracteres |
+| `created_at` | `timestamptz` | NO | Primera calificación |
+| `updated_at` | `timestamptz` | NO | Último cambio |
+
+`feedback_one_exercise` exige que haya algoritmo o programa, no los dos.
+
+### `classroom_exercisefocus`
+
+Registro de salidas de un alumno vigilado en un algoritmo o en un programa. `classroom.0008`. Nunca entrega ni bloquea.
+
+| Campo | Tipo | Nulo | Descripción |
+| --- | --- | --- | --- |
+| `id` | `bigint` | NO | Clave |
+| `student_id` | `bigint` | NO | Alumno |
+| `algorithm_id` | `uuid` | SÍ | Algoritmo. Único |
+| `program_id` | `uuid` | SÍ | Programa. Único |
+| `focus` | `jsonb` | NO | Salidas, tiempo fuera, salidas de pantalla completa, intentos de pegar y hasta 200 eventos |
+| `updated_at` | `timestamptz` | NO | Último evento |
+
+`exercise_focus_one_exercise` exige que haya algoritmo o programa, no los dos.
 
 ## 6.1 Mensajes
 
@@ -505,6 +565,7 @@ Alumno elegido cuando `audience` es `selected`.
 | `max_score` | `numeric(8,2)` | NO | Suma de los puntos de las preguntas |
 | `percent` | `numeric(5,2)` | SÍ | Porcentaje |
 | `passed` | `boolean` | SÍ | Si aprobó. Nulo si no hay nota mínima o falta calificar |
+| `focus` | `jsonb` | NO | Registro de salidas. Vacío si el alumno no estaba vigilado al empezar. `exams.0002` |
 
 ### `exams_examresponse`
 
@@ -678,6 +739,7 @@ Intento de un alumno en un reto. No apunta a `projects_algorithm` ni a `executio
 | `elapsed_seconds` | `integer` | SÍ | Segundos usados. Nulo si no se cerró |
 | `started_at` | `timestamptz` | NO | Apertura |
 | `finished_at` | `timestamptz` | SÍ | Cierre. Nulo si sigue abierto |
+| `focus` | `jsonb` | NO | Registro de salidas. Vacío si el alumno no estaba vigilado al empezar. `learning.0021` |
 
 Índice: `(user_id, started_at desc)`.
 

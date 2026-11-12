@@ -1,6 +1,6 @@
 # Arquitectura de seguridad
 
-Fecha de referencia: 2026-11-06. El perímetro de desarrollo tiene tres zonas. La ventana de escritorio añade el anfitrión local, que solo acepta el token de arranque y solo proxifica `/api/`. La de producción, cuando exista, sustituye Mailpit por un SMTP real y pone TLS delante de Nginx.
+Fecha de referencia: 2026-11-11. El perímetro de desarrollo tiene tres zonas. La ventana de escritorio añade el anfitrión local, que solo acepta el token de arranque y solo proxifica `/api/`. La de producción, cuando exista, sustituye Mailpit por un SMTP real y pone TLS delante de Nginx.
 
 ```mermaid
 flowchart TB
@@ -27,12 +27,12 @@ flowchart TB
 | Control | Dónde |
 | --- | --- |
 | Contraseña solo con el hasher de Django | `accounts` |
-| Correo confirmado antes de la sesión, en contenedores | token de un solo uso ligado a `email_confirmed` |
+| Correo confirmado antes de la sesión, en contenedores | token de un solo uso ligado a `email_confirmed`. El enlace no abre sesión |
 | CSRF en los cambios de estado | middleware y cabecera `X-CSRFToken` |
 | Objeto ajeno responde 404 | proyectos, intentos y comunidades |
 | Tope de 64 KiB antes de lexicar | servicio, no el núcleo |
 | Límite de ingreso | 3 intentos; luego el correo queda bloqueado 15 minutos |
-| Una sesión por cuenta | La web, otra ventana, la aplicación y otra máquina no conviven. Tras 30 minutos sin uso se cierra. Una pestaña oculta o sin tocar en 5 minutos marca `X-Traza-Presence` y no renueva el uso |
+| Una sesión por cuenta | La web, otra ventana, la aplicación y otra máquina no conviven. Tras 30 minutos sin uso se cierra. Una pestaña oculta o sin tocar en 5 minutos marca `X-Traza-Presence` y no renueva el uso. El administrador puede cerrar la de otra cuenta |
 | Límite de peticiones | ejecución |
 | Auditoría sin fuente completo ni secretos | `audit` |
 | Credencial Redis del runner acotada a `traza:*` | ACL |
@@ -45,10 +45,11 @@ flowchart TB
 | Traducción | No ejecuta el texto generado ni lo guarda en la base. Responde 403 si el docente o el nivel la apagaron |
 | Pegar | El editor rechaza el pegado. El texto se sigue escribiendo. La foto del perfil solo acepta JPG o PNG de hasta 120 KB |
 | Repaso | El docente lee algoritmos solo de alumnos de sus comunidades. No crea versiones |
+| Programas, calificaciones y salidas | El docente los ve solo de alumnos de sus comunidades; el alumno solo los suyos. Las salidas se registran desde el navegador: avisan y anotan, no bloquean el equipo. El CSV antepone un apóstrofo a una celda que parece fórmula |
 | Retos en CSV | Solo un docente descarga el banco. La carga no escribe en el banco de concurso |
 | Enunciado del reto | El Markdown se dibuja sin HTML. Solo enlaza `https://` y las imágenes del reto. Una imagen es JPG, PNG, GIF o WEBP de hasta 1.2 MB, revisada por su firma; la ve su dueño o, si el reto está publicado, cualquier cuenta con sesión |
 
-El enlace de confirmación lleva `uid` y `token` en la query del origen público. Al confirmar, el token deja de servir. Entrar antes responde `email_unconfirmed`.
+El enlace de confirmación lleva `uid` y `token` en la query del origen público. Al confirmar, el token deja de servir y no se abre una sesión. Entrar antes responde `email_unconfirmed`.
 
 El intérprete no abre archivos del sistema, ni red, ni variables de entorno del estudiante. Los límites de instrucciones, tiempo, profundidad, celdas y salida cortan el programa. El contenedor corta memoria, CPU y procesos.
 

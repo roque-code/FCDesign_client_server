@@ -246,7 +246,7 @@ Consecuencias:
 
 `!=` es sinónimo de `<>`. `%` es sinónimo de `MOD`.
 
-El botón **Operadores** del editor abre asignación, aritmética, comparación, lógica y paréntesis. En asignación lista `<-` y `=`. En comparación, la igualdad es `==`. El orden de una expresión sigue esta tabla: `^`, luego `* / DIV MOD`, luego `+` y `-`, luego las comparaciones, y al final `NO`, `Y` y `O`. `<-` y `=` no van dentro de una expresión. Con el idioma en inglés, el panel escribe `Div`, `Mod`, `Not`, `And` y `Or`. Los signos no cambian.
+**Operadores**, en el menú **Referencia** del editor, abre asignación, aritmética, comparación, lógica y paréntesis. En asignación lista `<-` y `=`. En comparación, la igualdad es `==`. El orden de una expresión sigue esta tabla: `^`, luego `* / DIV MOD`, luego `+` y `-`, luego las comparaciones, y al final `NO`, `Y` y `O`. `<-` y `=` no van dentro de una expresión. Con el idioma en inglés, el panel escribe `Div`, `Mod`, `Not`, `And` y `Or`. Los signos no cambian.
 
 ## 6. Tipos
 
@@ -380,7 +380,7 @@ Cuando el texto sí se acepta, la consola lo muestra en su propia línea, en el 
 
 Cada función registrada tiene nombre canónico, firma, tipo de retorno, documentación, ejemplo y una implementación que solo usa valores del intérprete.
 
-El editor y el menú **Funciones** muestran estos nombres, con tilde donde corresponde. El idioma de la cuenta traduce la explicación, no el nombre. Escribirlos sin tilde también vale, porque el nombre se compara como palabra clave.
+El editor y **Funciones**, en el menú **Referencia**, muestran estos nombres, con tilde donde corresponde. El idioma de la cuenta traduce la explicación, no el nombre. Escribirlos sin tilde también vale, porque el nombre se compara como palabra clave.
 
 Matemáticas: `Abs`, `Raíz`, `Potencia`, `Redon`, `Trunc`, `Sen`, `Cos`, `Tan`, `Ln`, `Exp`, `Aleatorio`.
 

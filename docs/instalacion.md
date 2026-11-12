@@ -16,7 +16,7 @@ Estado: los servicios corren en contenedores con `DEBUG` en verdadero. No es el 
 
 La aplicación se abre en `http://127.0.0.1:18080`. El buzón, en `http://127.0.0.1:8025`.
 
-Al crear una cuenta, Django envía un enlace de confirmación al contenedor `mail`. La sesión no empieza hasta abrir ese enlace. El alta en la máquina, sin estas variables, sigue entrando al momento: el correo va a la consola y no hay buzón.
+Al crear una cuenta, Django envía un enlace de confirmación al contenedor `mail`. La cuenta no entra hasta abrir ese enlace. El enlace solo confirma: no abre sesión y regresa a la aplicación con «El correo quedó confirmado. Entra con tu correo y tu contraseña.» El alta en la máquina, sin estas variables, sigue entrando al momento: el correo va a la consola y no hay buzón.
 
 El contenedor anterior `traza-pg` puede seguir en el puerto `5433`. El compose no lo usa y no lo detiene.
 
