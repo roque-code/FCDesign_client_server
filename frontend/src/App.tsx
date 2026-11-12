@@ -295,6 +295,7 @@ function openNassi(payload: { name?: string; source?: string; semicolons: boolea
           onOpenCompose={openCompose}
           onOpenNassi={openNassi}
           focus={editorFocus}
+          active={screen === "editor"}
           onLocale={applyLocale}
         />
       </div>

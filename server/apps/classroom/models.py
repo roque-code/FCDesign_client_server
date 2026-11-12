@@ -133,3 +133,41 @@ class ExerciseFeedback(models.Model):
 
     def __str__(self) -> str:
         return f"{self.teacher_id} → {self.student_id}"
+
+
+class ExerciseFocus(models.Model):
+    """Salidas de la plataforma mientras el alumno trabaja un ejercicio del editor."""
+
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="exercise_focus",
+    )
+    algorithm = models.OneToOneField(
+        "projects.Algorithm",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="focus_log",
+    )
+    program = models.OneToOneField(
+        "languages.LanguageProgram",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="focus_log",
+    )
+    focus = models.JSONField(default=dict)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=(Q(algorithm__isnull=False) & Q(program__isnull=True))
+                | (Q(algorithm__isnull=True) & Q(program__isnull=False)),
+                name="exercise_focus_one_exercise",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.student_id} foco"

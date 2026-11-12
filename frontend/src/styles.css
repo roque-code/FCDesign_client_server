@@ -673,6 +673,11 @@ a.manual-download:hover, button.manual-download:hover { background: var(--hover)
 .focus-notice p:first-child { flex: 1 1 22rem; }
 .focus-notice button { padding: 0.35rem 0.8rem; }
 
+.foreign-body > .focus-notice { margin: 0; }
+.status-bar:has(.focus-status) { flex-wrap: wrap; row-gap: 0.15rem; justify-content: flex-start; }
+.focus-status { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.15rem 0.45rem; color: var(--warn); white-space: nowrap; }
+.focus-status button { padding: 0.05rem 0.55rem; font-size: inherit; }
+
 .focus-summary { color: var(--muted); }
 .focus-summary.is-away { color: var(--warn); font-weight: 600; }
 .exam-focus-cell { max-width: 22rem; font-size: 0.85rem; }

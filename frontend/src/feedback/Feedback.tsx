@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import { createPortal } from "react-dom"
 
-import { ApiError, api, type ExerciseFeedback, type ExerciseKind, type FeedbackPage } from "../api"
+import { ApiError, api, type ExerciseFeedback, type ExerciseKind, type FeedbackPage, type FocusReport } from "../api"
+import { FocusSummary } from "../focus/FocusWatch"
 import { translatedMessage, useLocale, useT } from "../i18n"
 import { saveDownload } from "../saveFile"
 import { feedbackOn, formatDay, formatGrade, gradeInput, withBom } from "./grades"
@@ -36,6 +37,7 @@ export function FeedbackForm({ kind, exerciseId, exerciseName }: { kind: Exercis
   const [busy, setBusy] = useState(true)
   const [note, setNote] = useState("")
   const [failure, setFailure] = useState("")
+  const [focus, setFocus] = useState<FocusReport | null>(null)
 
   useEffect(() => {
     let ignore = false
@@ -44,11 +46,13 @@ export function FeedbackForm({ kind, exerciseId, exerciseName }: { kind: Exercis
     setFailure("")
     setGrade("")
     setComment("")
+    setFocus(null)
     void api.exerciseFeedback(kind, exerciseId).then(
       (payload) => {
         if (ignore) return
         setGrade(gradeInput(payload.feedback?.grade ?? null))
         setComment(payload.feedback?.comment ?? "")
+        setFocus(payload.focus ?? null)
         setBusy(false)
       },
       (caught: unknown) => {
@@ -86,6 +90,7 @@ export function FeedbackForm({ kind, exerciseId, exerciseName }: { kind: Exercis
     <form className="feedback-form" onSubmit={(event) => void save(event)} aria-busy={busy}>
       <h2>{t("feedbackTitle")}</h2>
       <p className="note">{t("feedbackFor", { name: exerciseName })}</p>
+      <FocusSummary report={focus} />
       <label>
         {t("feedbackGrade")}
         <input

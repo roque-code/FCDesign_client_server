@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react"
-import type { FocusEvent, FocusReport } from "../api"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { api, type ExerciseKind, type FocusEvent, type FocusReport } from "../api"
 import { useT } from "../i18n"
-import { awayClock, enterFullscreen, exitsLeft, fullscreenSupported, inFullscreen } from "./watch"
+import { awayClock, enterFullscreen, exitsLeft, fullscreenSupported, inFullscreen, leaveFullscreen } from "./watch"
 
 const SETTLE_MS = 400
 
@@ -69,6 +69,59 @@ export function useFocusWatch(active: boolean, send: (event: FocusEvent, reason?
   return { fullscreen, away }
 }
 
+/**
+ * Vigilancia en los editores: cada ejercicio guarda sus propias salidas.
+ * El servidor decide si el alumno está vigilado; sin vigilancia devuelve `null` y no se escucha nada.
+ */
+export function useExerciseFocus(kind: ExerciseKind, exerciseId: string, enabled: boolean) {
+  const target = enabled ? exerciseId : ""
+  const current = useRef(target)
+  const [report, setReport] = useState<FocusReport | null>(null)
+
+  useEffect(() => {
+    current.current = target
+    if (!target) {
+      setReport(null)
+      return
+    }
+    let ignore = false
+    void api.exerciseFocus(kind, target, "open").then(
+      (payload) => {
+        if (ignore) return
+        setReport(payload.focus)
+        if (payload.focus) enterFullscreen()
+      },
+      () => undefined,
+    )
+    return () => {
+      ignore = true
+    }
+  }, [kind, target])
+
+  const send = useCallback(
+    (event: FocusEvent, reason?: "hidden" | "blur") => {
+      if (!target) return
+      void api.exerciseFocus(kind, target, event, reason).then(
+        (payload) => {
+          if (current.current === target) setReport(payload.focus)
+        },
+        () => undefined,
+      )
+    },
+    [kind, target],
+  )
+
+  const watched = report !== null
+  const { fullscreen } = useFocusWatch(watched, send)
+
+  useEffect(() => {
+    if (!watched) return
+    return () => leaveFullscreen()
+  }, [watched])
+
+  return { report, fullscreen }
+}
+
 export function FocusNotice({ report, fullscreen }: { report: FocusReport; fullscreen: boolean }) {
   const t = useT()
   const left = exitsLeft(report)
@@ -89,6 +142,21 @@ export function FocusNotice({ report, fullscreen }: { report: FocusReport; fulls
         </button>
       ) : null}
     </div>
+  )
+}
+
+export function FocusStatus({ report, fullscreen }: { report: FocusReport; fullscreen: boolean }) {
+  const t = useT()
+  return (
+    <span className="focus-status" role="status" title={t("focusNotice")}>
+      <strong>{t("focusWatched")}</strong>
+      <span>{t("focusExits", { count: report.exits })}</span>
+      {fullscreenSupported() && !fullscreen ? (
+        <button type="button" onClick={enterFullscreen}>
+          {t("focusFullscreen")}
+        </button>
+      ) : null}
+    </span>
   )
 }
 

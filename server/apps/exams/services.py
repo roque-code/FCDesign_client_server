@@ -19,6 +19,7 @@ from apps.accounts.services import clean_label
 from apps.audit.services import record
 from apps.classroom.focus import (
     apply_event,
+    away_text,
     close_focus,
     focus_event,
     focus_report,
@@ -1287,11 +1288,6 @@ def _answer_text(question: ExamQuestion, answer: object) -> str:
     else:
         text = answer.get("source") if isinstance(answer.get("source"), str) else ""
     return " ".join(str(text).split())[:500]
-
-
-def away_text(seconds: int) -> str:
-    minutes, rest = divmod(seconds, 60)
-    return f"{minutes} min {rest} s" if minutes else f"{rest} s"
 
 
 def _focus_cells(attempt: ExamAttempt) -> list[object]:

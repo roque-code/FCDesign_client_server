@@ -2,7 +2,9 @@
 
 from rest_framework.test import APIClient
 
+from apps.classroom.models import ExerciseFocus
 from apps.exams.models import ExamAttempt
+from apps.languages.models import LanguageProgram
 from apps.learning.models import ChallengeAttempt
 from apps.tests.helpers import refresh_csrf, register
 
@@ -185,3 +187,60 @@ def test_el_reto_se_cierra_solo_y_el_docente_ve_las_salidas(client):
     assert work.status_code == 200, work.content
     assert work.json()["attempt"]["focus"]["exits"] == 2
     assert work.json()["attempt"]["focus"]["auto_submitted"] is True
+
+
+def test_los_editores_registran_salidas_por_ejercicio(client):
+    group, (ana, ana_me), (luis, luis_me) = _classroom(client)
+    rows = ana.get("/api/v1/algorithms/?page_size=100").json()["results"]
+    algorithm = rows[0]["id"]
+    program = LanguageProgram.objects.create(
+        owner_id=ana_me["id"], name="Suma", language="python", source="print(1)\n"
+    )
+    algorithm_url = f"/api/v1/focus/algorithm/{algorithm}/"
+    program_url = f"/api/v1/focus/program/{program.id}/"
+
+    quiet = ana.post(algorithm_url, {"event": "open"}, format="json")
+    assert quiet.status_code == 200, quiet.content
+    assert quiet.json() == {"focus": None}
+    assert not ExerciseFocus.objects.exists()
+
+    client.patch(
+        f"/api/v1/communities/{group['id']}/",
+        {"focus_watch": True, "focus_limit": 1},
+        format="json",
+    )
+    opened = ana.post(algorithm_url, {"event": "open"}, format="json").json()["focus"]
+    assert opened["exits"] == 0
+    assert opened["limit"] is None
+    ana.post(algorithm_url, {"event": "leave", "reason": "hidden"}, format="json")
+    log = ExerciseFocus.objects.get(algorithm_id=algorithm)
+    log.focus["left_at"] -= 70
+    log.save(update_fields=["focus"])
+    back = ana.post(algorithm_url, {"event": "back"}, format="json").json()["focus"]
+    assert back["exits"] == 1
+    assert back["away_seconds"] >= 70
+    assert back["auto_submitted"] is False
+    ana.post(algorithm_url, {"event": "paste"}, format="json")
+    ana.post(algorithm_url, {"event": "leave", "reason": "blur"}, format="json")
+    reopened = ana.post(algorithm_url, {"event": "open"}, format="json").json()["focus"]
+    assert reopened["exits"] == 2
+    assert reopened["away_now"] is False
+    assert reopened["away_seconds"] < 80
+
+    ana.post(program_url, {"event": "open"}, format="json")
+    ana.post(program_url, {"event": "fullscreen"}, format="json")
+    assert ana.post(program_url, {"event": "nada"}, format="json").status_code == 400
+    assert luis.post(program_url, {"event": "open"}, format="json").status_code == 404
+
+    seen = client.get(f"/api/v1/classroom/feedback/algorithm/{algorithm}/").json()["focus"]
+    assert seen["exits"] == 2
+    assert seen["pastes"] == 1
+    assert (
+        client.get(f"/api/v1/classroom/feedback/program/{program.id}/").json()["focus"][
+            "fullscreen_exits"
+        ]
+        == 1
+    )
+    grades = client.get("/api/v1/classroom/grades/").content.decode("utf-8")
+    assert "Salidas" in grades
+    assert ",2,1 min" in grades

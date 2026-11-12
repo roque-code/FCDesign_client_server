@@ -58,7 +58,7 @@ def test_el_docente_califica_y_el_alumno_lo_ve():
 
     assert teacher.put(algorithm_url, {"grade": 90}, format="json").status_code == 404
     _group(teacher, "Grupo A", student_id)
-    assert teacher.get(algorithm_url).json() == {"feedback": None}
+    assert teacher.get(algorithm_url).json() == {"feedback": None, "focus": None}
 
     saved = teacher.put(
         algorithm_url, {"grade": "9,5", "comment": "  Bien hecho.  "}, format="json"
@@ -182,6 +182,8 @@ def test_el_csv_lista_alumnos_ejercicios_y_calificaciones():
         "Calificación",
         "Comentario",
         "Fecha de la calificación",
+        "Salidas",
+        "Tiempo fuera",
     ]
     hello = next(row for row in rows if row[0] == "Ana" and row[5] == "Hola mundo")
     assert hello[3] == "Pseudocódigo"

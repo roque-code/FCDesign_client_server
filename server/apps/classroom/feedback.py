@@ -16,10 +16,19 @@ from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.audit.services import record
-from apps.classroom.models import Community, ExerciseFeedback
+from apps.classroom.focus import (
+    apply_event,
+    away_text,
+    focus_event,
+    focus_report,
+    focus_start,
+    watching,
+)
+from apps.classroom.models import Community, ExerciseFeedback, ExerciseFocus
 from apps.classroom.services import (
     NOT_FOUND,
     classroom_students,
+    focus_rules,
     require_teacher,
     teacher_has_student,
 )
@@ -50,6 +59,8 @@ _LABELS = {
         "grade": "Calificación",
         "comment": "Comentario",
         "graded_at": "Fecha de la calificación",
+        "exits": "Salidas",
+        "away": "Tiempo fuera",
         "algorithm": "Pseudocódigo",
         "program": "Lenguaje",
     },
@@ -63,6 +74,8 @@ _LABELS = {
         "grade": "Grade",
         "comment": "Comment",
         "graded_at": "Graded on",
+        "exits": "Exits",
+        "away": "Time away",
         "algorithm": "Pseudocode",
         "program": "Language",
     },
@@ -171,6 +184,39 @@ def teacher_feedback(teacher: User, kind: str, exercise_id) -> dict[str, object]
     exercise = _for_teacher(teacher, kind, exercise_id)
     found = _query().filter(teacher=teacher, **_lookup(kind, exercise)).first()
     return feedback_payload(found) if found else None
+
+
+def _focus_summary(log: ExerciseFocus | None) -> dict[str, object] | None:
+    if log is None:
+        return None
+    report = focus_report(log.focus, None)
+    if report is not None:
+        # Una salida sin regreso puede ser un navegador cerrado; no se presenta como ausencia viva.
+        report["away_now"] = False
+    return report
+
+
+def teacher_focus(teacher: User, kind: str, exercise_id) -> dict[str, object] | None:
+    exercise = _for_teacher(teacher, kind, exercise_id)
+    return _focus_summary(ExerciseFocus.objects.filter(**_lookup(kind, exercise)).first())
+
+
+def exercise_focus(student: User, kind: str, exercise_id, data: dict) -> dict[str, object] | None:
+    """Salidas del alumno en su propio ejercicio. Sin vigilancia no se registra nada."""
+    event, reason = focus_event(data, ("open",))
+    exercise = _exercise(kind, exercise_id)
+    if exercise.owner_id != student.pk:
+        raise _missing()
+    if not focus_rules(student)["watched"]:
+        return None
+    with transaction.atomic():
+        log, _created = ExerciseFocus.objects.select_for_update().get_or_create(
+            student=student, **_lookup(kind, exercise)
+        )
+        current = log.focus if watching(log.focus) else focus_start({"watched": True})
+        log.focus, _reached = apply_event(current, event, reason, timezone.now())
+        log.save(update_fields=["focus", "updated_at"])
+    return _focus_summary(log)
 
 
 @transaction.atomic
@@ -313,6 +359,15 @@ def grades_csv(teacher: User, community: str, lang: str) -> tuple[str, str]:
     programs: dict[int, list[LanguageProgram]] = {}
     for item in LanguageProgram.objects.filter(owner_id__in=ids).order_by("language", "name"):
         programs.setdefault(item.owner_id, []).append(item)
+    exits: dict[tuple[str, object], dict[str, object]] = {}
+    for log in ExerciseFocus.objects.filter(student_id__in=ids):
+        summary = _focus_summary(log)
+        if summary is None:
+            continue
+        if log.algorithm_id:
+            exits[(ExerciseFeedback.ALGORITHM, log.algorithm_id)] = summary
+        else:
+            exits[(ExerciseFeedback.PROGRAM, log.program_id)] = summary
     marks: dict[tuple[str, object], ExerciseFeedback] = {}
     for item in ExerciseFeedback.objects.filter(teacher=teacher, student_id__in=ids):
         if item.algorithm_id:
@@ -334,6 +389,8 @@ def grades_csv(teacher: User, community: str, lang: str) -> tuple[str, str]:
             labels["grade"],
             labels["comment"],
             labels["graded_at"],
+            labels["exits"],
+            labels["away"],
         ]
     )
     for row in students:
@@ -344,14 +401,14 @@ def grades_csv(teacher: User, community: str, lang: str) -> tuple[str, str]:
             _cell(row["email"]),
             _cell(" | ".join(name for name in names if chosen == "" or name == chosen)),
         ]
-        exercises: list[tuple[str, str, str, ExerciseFeedback | None]] = []
+        exercises: list[tuple[str, str, str, tuple[str, object]]] = []
         for algorithm in algorithms.get(row["id"], []):
             exercises.append(
                 (
                     labels["algorithm"],
                     algorithm.project.name,
                     algorithm.name,
-                    marks.get((ExerciseFeedback.ALGORITHM, algorithm.pk)),
+                    (ExerciseFeedback.ALGORITHM, algorithm.pk),
                 )
             )
         for program in programs.get(row["id"], []):
@@ -360,12 +417,14 @@ def grades_csv(teacher: User, community: str, lang: str) -> tuple[str, str]:
                     labels["program"],
                     LANGUAGE_LABELS.get(program.language, program.language),
                     program.name,
-                    marks.get((ExerciseFeedback.PROGRAM, program.pk)),
+                    (ExerciseFeedback.PROGRAM, program.pk),
                 )
             )
         if not exercises:
-            writer.writerow([*person, "", "", "", "", "", ""])
-        for kind, context, name, mark in exercises:
+            writer.writerow([*person, "", "", "", "", "", "", "", ""])
+        for kind, context, name, key in exercises:
+            mark = marks.get(key)
+            watched = exits.get(key)
             writer.writerow(
                 [
                     *person,
@@ -375,6 +434,8 @@ def grades_csv(teacher: User, community: str, lang: str) -> tuple[str, str]:
                     grade_text(mark.grade) if mark else "",
                     _cell(mark.comment) if mark else "",
                     _day(mark.updated_at) if mark else "",
+                    watched["exits"] if watched else "",
+                    away_text(int(watched["away_seconds"])) if watched else "",
                 ]
             )
     return _filename(chosen), buffer.getvalue()

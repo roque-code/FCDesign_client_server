@@ -13,6 +13,7 @@ import {
   type LanguageProgram,
 } from "../api"
 import { FeedbackForm, FeedbackNotes, GradesDownload, useMyFeedback } from "../feedback/Feedback"
+import { FocusNotice, useExerciseFocus } from "../focus/FocusWatch"
 import { translatedMessage, useT } from "../i18n"
 import {
   installedLocal,
@@ -58,6 +59,9 @@ const STARTERS: Record<ForeignLanguage, string> = {
 }
 
 type Link = { id: string; name: string; saved: string }
+type SaveJob = { id: string; language: ForeignLanguage; text: string }
+
+const AUTOSAVE_MS = 3000
 
 const NARROW = "(max-width: 980px)"
 const PANES_KEY = "traza.foreign.panes"
@@ -131,6 +135,11 @@ export function ForeignBench({
   const shownSource = viewing ? (viewing.program.source ?? "") : source
   const dirty = link !== null && !viewing && source !== link.saved
   const myFeedback = useMyFeedback(account.role === "student", "program", link?.id ?? "")
+  const watch = useExerciseFocus("program", link?.id ?? "", account.role === "student" && !viewing)
+  const [autoState, setAutoState] = useState<"idle" | "saving" | "saved">("idle")
+  const pendingSave = useRef<SaveJob | null>(null)
+  const saveQueue = useRef<Promise<unknown>>(Promise.resolve())
+  const flushRef = useRef<(keepalive?: boolean) => void>(() => undefined)
 
   useEffect(() => {
     const query = window.matchMedia(NARROW)
@@ -258,6 +267,58 @@ export function ForeignBench({
     }
   }, [])
 
+  // Un guardado sale cuando terminó el anterior: si dos viajan a la vez, el
+  // servidor puede quedarse con el texto viejo.
+  function persist(job: SaveJob, keepalive = false): Promise<void> {
+    const sent = saveQueue.current.then(() => api.saveProgram(job.id, { source: job.text }, keepalive))
+    saveQueue.current = sent.catch(() => undefined)
+    return sent.then((saved) => {
+      setPrograms((current) => withProgram(current ?? [], saved))
+      const current = links.get(job.language)
+      if (current?.id !== job.id) return
+      const next = { ...current, name: saved.name, saved: job.text }
+      links.set(job.language, next)
+      setLink((shown) => (shown?.id === job.id ? next : shown))
+    })
+  }
+
+  function flushSave(keepalive = false) {
+    const job = pendingSave.current
+    if (!job) return
+    pendingSave.current = null
+    persist(job, keepalive).catch((caught: unknown) => setProgramNote(problem(caught)))
+  }
+  flushRef.current = flushSave
+
+  useEffect(() => {
+    const onHide = () => flushRef.current(true)
+    window.addEventListener("pagehide", onHide)
+    return () => {
+      window.removeEventListener("pagehide", onHide)
+      flushRef.current(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    pendingSave.current = null
+    if (!link || viewing || source === link.saved) return
+    const job = { id: link.id, language, text: source }
+    pendingSave.current = job
+    const timer = window.setTimeout(() => {
+      if (pendingSave.current !== job) return
+      pendingSave.current = null
+      setAutoState("saving")
+      persist(job).then(
+        () => setAutoState("saved"),
+        (caught: unknown) => {
+          setAutoState("idle")
+          setProgramNote(problem(caught))
+        },
+      )
+    }, AUTOSAVE_MS)
+    return () => window.clearTimeout(timer)
+  }, [source, link, viewing, language])
+
   function show(payload: ForeignRun) {
     setResult(payload)
     sessionRef.current = payload.session
@@ -300,6 +361,8 @@ export function ForeignBench({
   }
 
   function choose(next: ForeignLanguage) {
+    flushSave()
+    setAutoState("idle")
     drafts.set(language, source)
     cancelRun()
     setViewing(null)
@@ -330,11 +393,14 @@ export function ForeignBench({
   async function openProgram(item: LanguageProgram) {
     if (!isForeignLanguage(item.language)) return
     const target = item.language
-    const kept = links.get(target)?.saved ?? STARTERS[target]
+    const queued = pendingSave.current?.language === target ? pendingSave.current.text : null
+    const kept = queued ?? links.get(target)?.saved ?? STARTERS[target]
     const draft = target === language ? source : draftOf(target)
     if (draft !== kept && !window.confirm(t("programDiscard", { language: LANGUAGE_LABELS[target] }))) return
     setProgramNote("")
+    flushSave()
     try {
+      await saveQueue.current
       const full = await api.program(item.id)
       const text = full.source ?? ""
       choose(target)
@@ -349,6 +415,7 @@ export function ForeignBench({
 
   async function saveChanges() {
     if (!link) return
+    pendingSave.current = null
     setSaving(true)
     setProgramNote("")
     try {
@@ -389,6 +456,7 @@ export function ForeignBench({
     if (!window.confirm(t("programDeleteConfirm", { name: item.name }))) return
     setProgramNote("")
     try {
+      if (pendingSave.current?.id === item.id) pendingSave.current = null
       await api.deleteProgram(item.id)
       setPrograms((current) => (current ?? []).filter((row) => row.id !== item.id))
       for (const [key, value] of links) if (value.id === item.id) links.delete(key)
@@ -399,6 +467,8 @@ export function ForeignBench({
   }
 
   function newProgram() {
+    flushSave()
+    setAutoState("idle")
     edit(STARTERS[language])
     linkTo(language, null)
     setProgramNote("")
@@ -672,7 +742,13 @@ export function ForeignBench({
                     <div className="program-current">
                       <p>
                         {t("programOpenNamed", { name: link.name })}
-                        {dirty && <strong> · {t("programUnsaved")}</strong>}
+                        {autoState === "saving" ? (
+                          <span> · {t("saving")}</span>
+                        ) : dirty ? (
+                          <strong> · {t("programUnsaved")}</strong>
+                        ) : autoState === "saved" ? (
+                          <span> · {t("saved")}</span>
+                        ) : null}
                       </p>
                       <button type="button" disabled={saving || !dirty} onClick={() => void saveChanges()}>
                         {t("programSave")}
@@ -796,6 +872,7 @@ export function ForeignBench({
           ) : (
             <p className="note">{onThisMachine ? t("foreignNote") : t("foreignServerNote")}</p>
           )}
+          {watch.report ? <FocusNotice report={watch.report} fullscreen={watch.fullscreen} /> : null}
           <ForeignEditor
             key={language}
             language={language}

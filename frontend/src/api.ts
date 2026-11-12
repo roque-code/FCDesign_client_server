@@ -1121,7 +1121,15 @@ export const api = {
   studentProjects: (userId: number) =>
     request<StudentWork>(`/api/v1/classroom/students/${userId}/projects/`),
   exerciseFeedback: (kind: ExerciseKind, id: string) =>
-    request<{ feedback: ExerciseFeedback | null }>(`/api/v1/classroom/feedback/${kind}/${id}/`),
+    request<{ feedback: ExerciseFeedback | null; focus?: FocusReport | null }>(
+      `/api/v1/classroom/feedback/${kind}/${id}/`,
+    ),
+  exerciseFocus: (kind: ExerciseKind, id: string, event: FocusEvent | "open", reason = "") =>
+    request<{ focus: FocusReport | null }>(`/api/v1/focus/${kind}/${id}/`, {
+      method: "POST",
+      body: JSON.stringify({ event, reason }),
+      keepalive: true,
+    }),
   saveExerciseFeedback: (kind: ExerciseKind, id: string, body: { grade: string | null; comment: string }) =>
     request<{ feedback: ExerciseFeedback | null }>(`/api/v1/classroom/feedback/${kind}/${id}/`, {
       method: "PUT",
@@ -1387,8 +1395,12 @@ export const api = {
   program: (id: string) => request<LanguageProgram>(`/api/v1/languages/programs/${id}/`),
   createProgram: (body: { name: string; language: string; source: string }) =>
     request<LanguageProgram>("/api/v1/languages/programs/", { method: "POST", body: JSON.stringify(body) }),
-  saveProgram: (id: string, body: { name?: string; source?: string }) =>
-    request<LanguageProgram>(`/api/v1/languages/programs/${id}/`, { method: "PATCH", body: JSON.stringify(body) }),
+  saveProgram: (id: string, body: { name?: string; source?: string }, keepalive = false) =>
+    request<LanguageProgram>(`/api/v1/languages/programs/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+      keepalive,
+    }),
   deleteProgram: (id: string) => request<void>(`/api/v1/languages/programs/${id}/`, { method: "DELETE" }),
   studentPrograms: (userId: number) =>
     request<{ student: Person; programs: LanguageProgram[] }>(`/api/v1/classroom/students/${userId}/programs/`),

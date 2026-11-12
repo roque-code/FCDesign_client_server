@@ -21,6 +21,7 @@ import {
 import { applyConsoleOutput } from "../console/output"
 import { FlowView } from "../diagram/FlowView"
 import { FeedbackForm, FeedbackNotes, GradesDownload, MyGradesMenu, useMyFeedback } from "../feedback/Feedback"
+import { FocusStatus, useExerciseFocus } from "../focus/FocusWatch"
 import { CodeEditor } from "../editor/CodeEditor"
 import { editorKeywords } from "../dialect"
 import { GuideButtons, OperatorsGuide } from "../help/Guides"
@@ -88,6 +89,7 @@ export function Workbench({
   onOpenCompose,
   onOpenNassi,
   focus,
+  active,
   onLocale,
 }: {
   account: Account
@@ -99,6 +101,7 @@ export function Workbench({
   onOpenCompose: (payload: { name?: string; source?: string; semicolons: boolean }) => void
   onOpenNassi: (payload: { name?: string; source?: string; semicolons: boolean }) => void
   focus: { projectId: string; algorithmId: string; token: number } | null
+  active: boolean
   onLocale: (locale: Locale) => void
 }) {
   const t = useT()
@@ -201,6 +204,7 @@ export function Workbench({
   localeNotify.current = onLocale
   const reviewing = reviewId !== null
   const myFeedback = useMyFeedback(account.role === "student", "algorithm", algorithmId)
+  const watch = useExerciseFocus("algorithm", algorithmId, active && account.role === "student" && !reviewing)
   const reviewedStudent = students.find((item) => item.id === reviewId)
   const shownGroup = reviewedStudent && !reviewedStudent.communities.includes(reviewGroup)
     ? reviewedStudent.communities[0] ?? ""
@@ -1879,6 +1883,7 @@ export function Workbench({
           />
           <div className="status-bar">
             <span>{saveLabel}</span>
+            {watch.report ? <FocusStatus report={watch.report} fullscreen={watch.fullscreen} /> : null}
             {pasteBlocked && !reviewing ? <span>{t("pasteBlockedNote")}</span> : null}
             {activeLine !== null && <span>{t("cursorLine", { line: activeLine })}</span>}
           </div>

@@ -3,7 +3,14 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.classroom.feedback import grades_csv, received_feedback, save_feedback, teacher_feedback
+from apps.classroom.feedback import (
+    exercise_focus,
+    grades_csv,
+    received_feedback,
+    save_feedback,
+    teacher_feedback,
+    teacher_focus,
+)
 from apps.classroom.services import (
     add_member,
     classroom_students,
@@ -134,7 +141,13 @@ class ClassroomStudentProjectsView(APIView):
 
 class ExerciseFeedbackView(APIView):
     def get(self, request: Request, kind: str, exercise_id) -> Response:
-        return Response({"feedback": teacher_feedback(current_user(request), kind, exercise_id)})
+        user = current_user(request)
+        return Response(
+            {
+                "feedback": teacher_feedback(user, kind, exercise_id),
+                "focus": teacher_focus(user, kind, exercise_id),
+            }
+        )
 
     def put(self, request: Request, kind: str, exercise_id) -> Response:
         saved = save_feedback(
@@ -158,6 +171,12 @@ class ClassroomGradesView(APIView):
         response = HttpResponse(body, content_type="text/csv; charset=utf-8")
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response
+
+
+class ExerciseFocusView(APIView):
+    def post(self, request: Request, kind: str, exercise_id) -> Response:
+        focus = exercise_focus(current_user(request), kind, exercise_id, object_body(request.data))
+        return Response({"focus": focus})
 
 
 class MyFeedbackView(APIView):

@@ -1,4 +1,4 @@
-"""Salidas de la plataforma durante un examen o un reto. Avisa y registra; no bloquea."""
+"""Salidas de la plataforma durante un examen, un reto o un ejercicio. Avisa y registra; no bloquea."""
 
 from __future__ import annotations
 
@@ -56,9 +56,14 @@ def focus_report(focus: object, until: datetime | None) -> dict[str, object] | N
     }
 
 
-def focus_event(data: dict) -> tuple[str, str]:
+def away_text(seconds: int) -> str:
+    minutes, rest = divmod(seconds, 60)
+    return f"{minutes} min {rest} s" if minutes else f"{rest} s"
+
+
+def focus_event(data: dict, extra: tuple[str, ...] = ()) -> tuple[str, str]:
     event = data.get("event")
-    if event not in EVENTS:
+    if event not in EVENTS and event not in extra:
         raise DomainError("El evento no es válido.")
     reason = data.get("reason")
     return str(event), reason if reason in REASONS else ""
@@ -84,6 +89,9 @@ def apply_event(focus: dict, event: str, reason: str, now: datetime) -> tuple[di
             focus["away_seconds"] = _count(focus, "away_seconds") + seconds
             focus["left_at"] = None
             events.append({"kind": "back", "at": stamp, "seconds": seconds})
+    elif event == "open":
+        # Una salida sin regreso de una visita anterior: cuenta la salida, no el tiempo.
+        focus["left_at"] = None
     elif event == "fullscreen":
         focus["fullscreen_exits"] = _count(focus, "fullscreen_exits") + 1
         events.append({"kind": "fullscreen", "at": stamp})
