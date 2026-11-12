@@ -9,6 +9,7 @@ import {
   type LabRosterRoute,
 } from "../api"
 import { spellText } from "../dialect"
+import { FocusSummary } from "../focus/FocusWatch"
 import { LANGUAGE_LABELS, type ForeignLanguage } from "../foreign/keywords"
 import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
 import { saveDownload } from "../saveFile"
@@ -98,6 +99,7 @@ function StudentWork({
             </p>
             {attempt.elapsed_seconds != null ? <p>{t("answeredIn", { time: formatClock(attempt.elapsed_seconds) })}</p> : null}
             {attempt.finished_at ? <p>{formatWhen(attempt.finished_at, locale)}</p> : null}
+            <FocusSummary report={attempt.focus} />
             <p>{attempt.summary || t("alreadyClosed")}</p>
             {attempt.prediction ? <p>{t("answerIs", { answer: attempt.prediction.answer })}</p> : null}
             {attempt.reflection ? <blockquote>{attempt.reflection}</blockquote> : null}
@@ -107,8 +109,15 @@ function StudentWork({
       ) : null}
       {!finished && attempt ? (
         <article className="result-card">
-          <p className="enunciado-kicker">{timedOut ? t("timeWord") : t("resultWord")}</p>
-          <h2>{timedOut ? t("timeUp") : t("attemptOpen")}</h2>
+          <p className="enunciado-kicker">{timedOut && !attempt.focus?.auto_submitted ? t("timeWord") : t("resultWord")}</p>
+          <h2>
+            {attempt.focus?.auto_submitted
+              ? t("focusAutoTitle")
+              : timedOut
+                ? t("timeUp")
+                : t("attemptOpen")}
+          </h2>
+          <FocusSummary report={attempt.focus} />
           {attempt.score != null ? <p className="result-score">{attempt.score}</p> : null}
           {attempt.next_stage && attempt.next_stage !== "cerrado" && STAGE[attempt.next_stage] ? (
             <p>{t("reachedStage", { stage: t(STAGE[attempt.next_stage]) })}</p>

@@ -45,6 +45,7 @@ def person_payload(
     member: bool | None = None,
     translation_enabled: bool | None = None,
     paste_enabled: bool | None = None,
+    focus_watch: bool | None = None,
 ) -> dict[str, object]:
     profile = user.profile
     payload: dict[str, object] = {
@@ -59,6 +60,8 @@ def person_payload(
         payload["translation_enabled"] = translation_enabled
     if paste_enabled is not None:
         payload["paste_enabled"] = paste_enabled
+    if focus_watch is not None:
+        payload["focus_watch"] = focus_watch
     return payload
 
 
@@ -89,6 +92,8 @@ def community_summary(community: Community) -> dict[str, object]:
         "teacher_count": teachers,
         "translation_enabled": community.translation_enabled,
         "paste_enabled": community.paste_enabled,
+        "focus_watch": community.focus_watch,
+        "focus_limit": community.focus_limit,
     }
 
 
@@ -107,12 +112,16 @@ def _split(community: Community) -> tuple[list[dict[str, object]], list[dict[str
     for item in memberships:
         enabled = None
         paste = None
+        watched = None
         if item.user.profile.role != Profile.TEACHER:
             choice = item.translation_enabled
             enabled = community.translation_enabled if choice is None else choice
             paste_choice = item.paste_enabled
             paste = community.paste_enabled if paste_choice is None else paste_choice
-        person = person_payload(item.user, translation_enabled=enabled, paste_enabled=paste)
+            watched = _watched(item)
+        person = person_payload(
+            item.user, translation_enabled=enabled, paste_enabled=paste, focus_watch=watched
+        )
         if item.user.profile.role == Profile.TEACHER:
             teachers.append(person)
         else:
@@ -132,6 +141,8 @@ def community_detail(community: Community) -> dict[str, object]:
         "teacher_count": len(teachers),
         "translation_enabled": community.translation_enabled,
         "paste_enabled": community.paste_enabled,
+        "focus_watch": community.focus_watch,
+        "focus_limit": community.focus_limit,
         "students": students,
         "teachers": teachers,
     }
@@ -488,6 +499,93 @@ def set_member_paste(
         object_type="community",
         object_id=str(community.id),
         metadata={"user_id": membership.user_id, "paste_enabled": flag},
+        ip_address=ip_address,
+    )
+    return community
+
+
+def _watched(membership: Membership) -> bool:
+    choice = membership.focus_watch
+    return membership.community.focus_watch if choice is None else choice
+
+
+def focus_rules(user: User, community: Community | None = None) -> dict[str, object]:
+    """Vigilancia que se aplica al iniciar un examen (de su grupo) o un reto (de cualquier grupo)."""
+    if user.profile.role != Profile.STUDENT:
+        return {"watched": False, "limit": None}
+    memberships = Membership.objects.filter(user=user).select_related("community")
+    if community is not None:
+        memberships = memberships.filter(community=community)
+    watched = [item for item in memberships if _watched(item)]
+    limits = [item.community.focus_limit for item in watched if item.community.focus_limit]
+    return {"watched": bool(watched), "limit": min(limits) if limits else None}
+
+
+def _focus_limit(value: object) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 10:
+        raise DomainError("El número de salidas va de 1 a 10.")
+    return value
+
+
+@transaction.atomic
+def set_community_focus(
+    user: User,
+    community_id,
+    data: dict,
+    ip_address: str | None,
+) -> Community:
+    community = get_community(user, community_id)
+    fields = ["updated_at"]
+    if "focus_watch" in data:
+        community.focus_watch = _enabled_flag(
+            data.get("focus_watch"), "Indica si se vigilan las salidas."
+        )
+        fields.append("focus_watch")
+        community.memberships.filter(user__profile__role=Profile.STUDENT).update(focus_watch=None)
+    if "focus_limit" in data:
+        community.focus_limit = _focus_limit(data.get("focus_limit"))
+        fields.append("focus_limit")
+    community.save(update_fields=fields)
+    record(
+        "community.focus",
+        actor=user,
+        object_type="community",
+        object_id=str(community.id),
+        metadata={"focus_watch": community.focus_watch, "focus_limit": community.focus_limit},
+        ip_address=ip_address,
+    )
+    return community
+
+
+def set_member_focus(
+    user: User,
+    community_id,
+    user_id,
+    enabled: object,
+    ip_address: str | None,
+) -> Community:
+    flag = _enabled_flag(enabled, "Indica si se vigilan las salidas.")
+    community = get_community(user, community_id)
+    try:
+        membership = community.memberships.select_related("user__profile").get(user_id=user_id)
+    except Membership.DoesNotExist as exc:
+        raise DomainError(
+            "Esa persona no está en la comunidad.",
+            code=NOT_FOUND,
+            status_code=404,
+        ) from exc
+    if membership.user.profile.role != Profile.STUDENT:
+        raise DomainError("La vigilancia se ajusta para un alumno.")
+    membership.focus_watch = flag
+    membership.save(update_fields=["focus_watch"])
+    record(
+        "community.member_focus",
+        actor=user,
+        object_type="community",
+        object_id=str(community.id),
+        metadata={"user_id": membership.user_id, "focus_watch": flag},
         ip_address=ip_address,
     )
     return community

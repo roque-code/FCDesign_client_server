@@ -37,6 +37,7 @@ class ChallengeAttempt(models.Model):
     score = models.PositiveSmallIntegerField(null=True, blank=True)
     summary = models.TextField(blank=True)
     elapsed_seconds = models.PositiveIntegerField(null=True, blank=True)
+    focus = models.JSONField(default=dict, blank=True)
     started_at = models.DateTimeField(auto_now_add=True)
     finished_at = models.DateTimeField(null=True, blank=True)
 

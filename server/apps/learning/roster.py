@@ -10,6 +10,7 @@ from apps.accounts.services import standing_of
 from apps.classroom.models import Membership
 from apps.learning.models import Challenge, ChallengeAttempt, ConceptMastery, PathEntry, Reflection
 from apps.learning.progress import (
+    _focus_of,
     _language_public,
     _next,
     _public_challenge,
@@ -309,6 +310,7 @@ def _attempt_work(challenge: Challenge, attempt: ChallengeAttempt) -> dict[str, 
         "next_stage": "cerrado" if attempt.status != ChallengeAttempt.OPEN else _next(attempt),
         "elapsed_seconds": attempt.elapsed_seconds,
         "finished_at": None if attempt.finished_at is None else attempt.finished_at.isoformat(),
+        "focus": _focus_of(attempt),
         "reflection": reflection,
         "prediction": (
             None

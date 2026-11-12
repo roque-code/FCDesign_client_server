@@ -1,4 +1,4 @@
-import { request } from "../api"
+import { request, type FocusEvent } from "../api"
 import type {
   AttemptView,
   ExamCard,
@@ -86,6 +86,15 @@ export function examSubmit(id: string, answers: { question_id: string; answer: R
   return request<AttemptView>(`/api/v1/exams/attempts/${id}/submit/`, {
     method: "POST",
     body: JSON.stringify({ answers }),
+  })
+}
+
+export function examFocus(id: string, body: { event: FocusEvent; reason?: string; answers?: { question_id: string; answer: Record<string, unknown> }[] }) {
+  const text = JSON.stringify(body)
+  return request<AttemptView>(`/api/v1/exams/attempts/${id}/focus/`, {
+    method: "POST",
+    body: text,
+    keepalive: text.length < 60_000,
   })
 }
 

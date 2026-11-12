@@ -17,6 +17,7 @@ import { SUBJECTS, subjectsFor, type SubjectId } from "../subjects/catalog"
 import { LeaveSubjectButton } from "../subjects/leave"
 
 const PAGE = 15
+const FOCUS_LIMITS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 const PRESENCE_REFRESH_MS = 20_000
 const NARROW = "(max-width: 980px)"
 
@@ -190,6 +191,8 @@ export function CommunitiesPanel({
               subject: saved.subject,
               translation_enabled: saved.translation_enabled,
               paste_enabled: saved.paste_enabled,
+              focus_watch: saved.focus_watch,
+              focus_limit: saved.focus_limit,
             }
           : item,
       ),
@@ -223,6 +226,26 @@ export function CommunitiesPanel({
       remember(await api.setMemberPaste(selectedId, person.id, enabled))
     } catch (caught) {
       setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("pasteSaveError"))
+    }
+  }
+
+  async function setGroupFocus(change: { focus_watch?: boolean; focus_limit?: number | null }) {
+    if (!selectedId) return
+    setError("")
+    try {
+      remember(await api.setCommunityFocus(selectedId, change))
+    } catch (caught) {
+      setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("focusSaveError"))
+    }
+  }
+
+  async function setStudentFocus(person: Person, enabled: boolean) {
+    if (!selectedId) return
+    setError("")
+    try {
+      remember(await api.setMemberFocus(selectedId, person.id, enabled))
+    } catch (caught) {
+      setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("focusSaveError"))
     }
   }
 
@@ -365,6 +388,31 @@ export function CommunitiesPanel({
                       />
                       <span>{t("blockPasteForGroup")}</span>
                     </label>
+                    <label className="translation-switch">
+                      <input
+                        type="checkbox"
+                        role="switch"
+                        checked={detail.focus_watch}
+                        onChange={(event) => void setGroupFocus({ focus_watch: event.target.checked })}
+                      />
+                      <span>{t("focusForGroup")}</span>
+                    </label>
+                    <label className="focus-limit">
+                      <span>{t("focusLimitLabel")}</span>
+                      <select
+                        value={detail.focus_limit ?? ""}
+                        onChange={(event) =>
+                          void setGroupFocus({ focus_limit: event.target.value ? Number(event.target.value) : null })
+                        }
+                      >
+                        <option value="">{t("focusLimitNever")}</option>
+                        {FOCUS_LIMITS.map((count) => (
+                          <option key={count} value={count}>
+                            {t("focusLimitAt", { count })}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                   </div>
                   {error && <p className="error">{error}</p>}
                 </div>
@@ -400,6 +448,7 @@ export function CommunitiesPanel({
                       onRemove={remove}
                       onTranslation={(person, enabled) => void setStudentTranslation(person, enabled)}
                       onPaste={(person, enabled) => void setStudentPaste(person, enabled)}
+                      onFocusWatch={(person, enabled) => void setStudentFocus(person, enabled)}
                     />
                   </div>
                   {pages > 1 ? (
@@ -438,6 +487,7 @@ function MemberList({
   onRemove,
   onTranslation,
   onPaste,
+  onFocusWatch,
 }: {
   people: Person[]
   empty: string
@@ -445,6 +495,7 @@ function MemberList({
   onRemove: (person: Person) => void
   onTranslation?: (person: Person, enabled: boolean) => void
   onPaste?: (person: Person, enabled: boolean) => void
+  onFocusWatch?: (person: Person, enabled: boolean) => void
 }) {
   const t = useT()
   if (people.length === 0) return empty ? <p className="note">{empty}</p> : null
@@ -489,6 +540,18 @@ function MemberList({
                   onChange={(event) => onPaste(person, !event.target.checked)}
                 />
                 <span>{t("blockPasteShort")}</span>
+              </label>
+            )}
+            {onFocusWatch && (
+              <label className="translation-switch">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={person.focus_watch === true}
+                  aria-label={t("focusForStudent", { name: person.display_name })}
+                  onChange={(event) => onFocusWatch(person, event.target.checked)}
+                />
+                <span>{t("focusShort")}</span>
               </label>
             )}
             <button type="button" className="danger" onClick={() => onRemove(person)}>{removeLabel}</button>

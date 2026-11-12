@@ -17,7 +17,16 @@ from django.utils.dateparse import parse_datetime
 from apps.accounts.models import Profile, User
 from apps.accounts.services import clean_label
 from apps.audit.services import record
+from apps.classroom.focus import (
+    apply_event,
+    close_focus,
+    focus_event,
+    focus_report,
+    focus_start,
+    watching,
+)
 from apps.classroom.models import Community, Membership
+from apps.classroom.services import focus_rules
 from apps.exams.exchange import dump_exam, parse_exam, sniff
 from apps.exams.grading import as_number, grade_question, money
 from apps.exams.models import Exam, ExamAttempt, ExamNotice, ExamQuestion, ExamResponse, ExamSeat
@@ -783,6 +792,7 @@ def start_attempt(user: User, exam_id, ip_address: str | None) -> ExamAttempt:
                 deadline=_deadline(exam, started),
                 layout=_layout(exam, questions),
                 max_score=sum((item.points for item in questions), Decimal(0)),
+                focus=focus_start(focus_rules(user, exam.community)),
             )
     except IntegrityError as exc:
         current = ExamAttempt.objects.filter(
@@ -942,6 +952,41 @@ def submit_attempt(user: User, attempt_id, data: dict, ip_address: str | None) -
                 metadata={"percent": as_number(attempt.percent)},
                 ip_address=ip_address,
             )
+    return attempt
+
+
+def focus_attempt(user: User, attempt_id, data: dict, ip_address: str | None) -> ExamAttempt:
+    """Registra una salida o un regreso. Al llegar al límite del grupo entrega lo que haya."""
+    event, reason = focus_event(data)
+    attempt = _student_attempt(user, attempt_id)
+    with transaction.atomic():
+        attempt = ExamAttempt.objects.select_for_update().select_related("exam").get(pk=attempt.pk)
+        if attempt.state != ExamAttempt.OPEN or not watching(attempt.focus):
+            return attempt
+        now = timezone.now()
+        if attempt.deadline is not None and now > attempt.deadline:
+            return _grade_open(attempt, None)
+        attempt.focus, reached = apply_event(attempt.focus, event, reason, now)
+        if not reached:
+            attempt.save(update_fields=["focus"])
+            return attempt
+        attempt.focus = close_focus(attempt.focus, now)
+        try:
+            answers = _answers(attempt, data.get("answers"))
+        except DomainError:
+            answers = _answers(attempt, None)
+        _write_answers(attempt, answers, grade=True)
+        _recompute(attempt)
+        if attempt.state == ExamAttempt.GRADED:
+            _notify_graded(attempt)
+    record(
+        "exam.focus_submit",
+        actor=user,
+        object_type="exam_attempt",
+        object_id=str(attempt.id),
+        metadata={"exits": attempt.focus.get("exits")},
+        ip_address=ip_address,
+    )
     return attempt
 
 
@@ -1141,6 +1186,9 @@ def attempt_view(attempt: ExamAttempt, *, teacher: bool) -> dict[str, object]:
         "graded_visible": secrets and attempt.state != ExamAttempt.OPEN,
         "pending": attempt.state == ExamAttempt.SUBMITTED,
         "questions": questions,
+        "focus": focus_report(
+            attempt.focus, now if attempt.state == ExamAttempt.OPEN else attempt.submitted_at
+        ),
     }
     if secrets and attempt.state != ExamAttempt.OPEN:
         body["score"] = as_number(attempt.score)
@@ -1183,6 +1231,7 @@ def results(user: User, exam_id) -> dict[str, object]:
                     "passed": view.get("passed"),
                     "pending": view["pending"],
                     "questions": view["questions"],
+                    "focus": view["focus"],
                 }
             )
         rows.append(
@@ -1240,6 +1289,18 @@ def _answer_text(question: ExamQuestion, answer: object) -> str:
     return " ".join(str(text).split())[:500]
 
 
+def away_text(seconds: int) -> str:
+    minutes, rest = divmod(seconds, 60)
+    return f"{minutes} min {rest} s" if minutes else f"{rest} s"
+
+
+def _focus_cells(attempt: ExamAttempt) -> list[object]:
+    report = focus_report(attempt.focus, attempt.submitted_at or timezone.now())
+    if report is None:
+        return ["", ""]
+    return [report["exits"], away_text(int(report["away_seconds"]))]
+
+
 def grades_csv(user: User, exam_id) -> dict[str, str]:
     exam = _owned(user, exam_id)
     questions = list(exam.questions.order_by("position"))
@@ -1262,6 +1323,8 @@ def grades_csv(user: User, exam_id) -> dict[str, str]:
         "Maximo",
         "Porcentaje",
         "Aprobado",
+        "Salidas",
+        "Tiempo fuera",
     ]
     for index, _question in enumerate(questions, start=1):
         header.extend([f"P{index} puntaje", f"P{index} respuesta"])
@@ -1281,6 +1344,8 @@ def grades_csv(user: User, exam_id) -> dict[str, str]:
                     "",
                     "",
                     "sin iniciar",
+                    "",
+                    "",
                     "",
                     "",
                     "",
@@ -1305,6 +1370,7 @@ def grades_csv(user: User, exam_id) -> dict[str, str]:
                 as_number(attempt.max_score),
                 "" if attempt.percent is None else as_number(attempt.percent),
                 passed,
+                *_focus_cells(attempt),
             ]
             for question in questions:
                 response = responses.get(str(question.id))

@@ -5,6 +5,7 @@ from apps.exams.views import (
     ExamCloseView,
     ExamDetailView,
     ExamExportView,
+    ExamFocusView,
     ExamGradesView,
     ExamGradeView,
     ExamImportView,
@@ -32,4 +33,5 @@ urlpatterns = [
     path("exams/attempts/<uuid:attempt_id>/", ExamAttemptView.as_view(), name="exam-attempt"),
     path("exams/attempts/<uuid:attempt_id>/submit/", ExamSubmitView.as_view(), name="exam-submit"),
     path("exams/attempts/<uuid:attempt_id>/grade/", ExamGradeView.as_view(), name="exam-grade"),
+    path("exams/attempts/<uuid:attempt_id>/focus/", ExamFocusView.as_view(), name="exam-focus"),
 ]

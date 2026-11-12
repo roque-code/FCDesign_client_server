@@ -11,6 +11,7 @@ from apps.exams.services import (
     delete_exam,
     exam_detail,
     export_exam,
+    focus_attempt,
     get_exam,
     grade_manual,
     grades_csv,
@@ -122,6 +123,14 @@ class ExamAttemptView(APIView):
 class ExamSubmitView(APIView):
     def post(self, request: Request, attempt_id) -> Response:
         attempt = submit_attempt(
+            current_user(request), attempt_id, object_body(request.data), client_ip(request)
+        )
+        return Response(attempt_view(attempt, teacher=False))
+
+
+class ExamFocusView(APIView):
+    def post(self, request: Request, attempt_id) -> Response:
+        attempt = focus_attempt(
             current_user(request), attempt_id, object_body(request.data), client_ip(request)
         )
         return Response(attempt_view(attempt, teacher=False))

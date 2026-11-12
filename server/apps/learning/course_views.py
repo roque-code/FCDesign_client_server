@@ -10,6 +10,7 @@ from apps.learning.progress import (
     check_attempt,
     close_attempt,
     expire_attempt,
+    focus_attempt,
     path_payload,
     paths_payload,
     reveal_hint,
@@ -98,6 +99,11 @@ class AttemptRunView(APIView):
 class AttemptExpireView(APIView):
     def post(self, request: Request, attempt_id) -> Response:
         return Response(expire_attempt(current_user(request), attempt_id))
+
+
+class AttemptFocusView(APIView):
+    def post(self, request: Request, attempt_id) -> Response:
+        return Response(focus_attempt(current_user(request), attempt_id, object_body(request.data)))
 
 
 class AttemptLanguageView(APIView):

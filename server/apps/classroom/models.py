@@ -23,12 +23,20 @@ class Community(models.Model):
     join_code = models.CharField(max_length=8, unique=True)
     translation_enabled = models.BooleanField(default=True)
     paste_enabled = models.BooleanField(default=True)
+    # Vigilancia de foco en exámenes y retos. Sin límite no hay entrega automática.
+    focus_watch = models.BooleanField(default=False)
+    focus_limit = models.PositiveSmallIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["owner", "subject", "name"], name="uniq_community_owner_subject_name"),
+            models.CheckConstraint(
+                condition=Q(focus_limit__isnull=True)
+                | Q(focus_limit__gte=1, focus_limit__lte=10),
+                name="community_focus_limit",
+            ),
             models.CheckConstraint(
                 condition=Q(subject__in=["fundamentos", "bases", "objetos", "software"]),
                 name="community_subject_known",
@@ -50,6 +58,7 @@ class Membership(models.Model):
     # None hereda el grupo. True o False es la decisión para este alumno.
     translation_enabled = models.BooleanField(null=True, default=None)
     paste_enabled = models.BooleanField(null=True, default=None)
+    focus_watch = models.BooleanField(null=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

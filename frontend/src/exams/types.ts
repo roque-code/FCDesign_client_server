@@ -1,3 +1,5 @@
+import type { FocusReport } from "../api"
+
 export type ExamKind =
   | "choice"
   | "multi"
@@ -113,6 +115,7 @@ export type AttemptView = {
   graded_visible: boolean
   pending: boolean
   questions: AttemptQuestion[]
+  focus?: FocusReport | null
   score?: number | null
   max_score?: number | null
   percent?: number | null

@@ -225,8 +225,21 @@ export type Person = {
   member?: boolean
   translation_enabled?: boolean
   paste_enabled?: boolean
+  focus_watch?: boolean
   presence?: Presence
 }
+
+export type FocusReport = {
+  limit: number | null
+  exits: number
+  away_seconds: number
+  fullscreen_exits: number
+  pastes: number
+  away_now: boolean
+  auto_submitted: boolean
+}
+
+export type FocusEvent = "leave" | "back" | "fullscreen" | "paste"
 
 export type Presence = "active" | "idle" | "offline"
 
@@ -239,6 +252,8 @@ export type CommunitySummary = {
   teacher_count: number
   translation_enabled: boolean
   paste_enabled: boolean
+  focus_watch: boolean
+  focus_limit: number | null
 }
 
 export type Community = CommunitySummary & {
@@ -460,6 +475,7 @@ export type LabMemberWork = {
     next_stage?: string
     elapsed_seconds: number | null
     finished_at: string | null
+    focus?: FocusReport | null
     reflection: string | null
     prediction: { answer: string; is_correct: boolean } | null
     answer: { label: string; value: string }[]
@@ -677,6 +693,7 @@ export type LabAttempt = {
   seconds_left: number | null
   elapsed_seconds: number | null
   finished_at: string | null
+  focus?: FocusReport | null
   cases?: LabCase[]
 }
 
@@ -1086,6 +1103,16 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ paste_enabled: enabled }),
     }),
+  setCommunityFocus: (id: string, change: { focus_watch?: boolean; focus_limit?: number | null }) =>
+    request<Community>(`/api/v1/communities/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(change),
+    }),
+  setMemberFocus: (communityId: string, userId: number, enabled: boolean) =>
+    request<Community>(`/api/v1/communities/${communityId}/members/${userId}/`, {
+      method: "PATCH",
+      body: JSON.stringify({ focus_watch: enabled }),
+    }),
   searchPeople: (query: string, communityId: string) =>
     request<{ results: Person[] }>(
       `/api/v1/people/?q=${encodeURIComponent(query)}&community=${encodeURIComponent(communityId)}`,
@@ -1336,6 +1363,12 @@ export const api = {
     request<LabSession>(`/api/v1/learning/attempts/${attemptId}/expire/`, {
       method: "POST",
       body: JSON.stringify({}),
+    }),
+  focusAttempt: (attemptId: string, event: FocusEvent, reason = "") =>
+    request<LabSession>(`/api/v1/learning/attempts/${attemptId}/focus/`, {
+      method: "POST",
+      body: JSON.stringify({ event, reason }),
+      keepalive: true,
     }),
   closeAttempt: (attemptId: string, reflection: string) =>
     request<LabSession>(`/api/v1/learning/attempts/${attemptId}/close/`, {

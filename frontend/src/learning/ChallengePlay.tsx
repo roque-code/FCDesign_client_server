@@ -8,11 +8,13 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react"
 
-import { ApiError, api, type Diagnostic, type LabAttemptRecord, type LabCase, type LabSession } from "../api"
+import { ApiError, api, type Diagnostic, type FocusEvent, type LabAttemptRecord, type LabCase, type LabSession } from "../api"
 import { editorKeywords, spellText, starterSource } from "../dialect"
 import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
 import { Composer } from "../compose/Composer"
 import { CodeEditor } from "../editor/CodeEditor"
+import { FocusNotice, useFocusWatch } from "../focus/FocusWatch"
+import { enterFullscreen, leaveFullscreen } from "../focus/watch"
 import { runLanguageCases } from "../foreign/cases"
 import { ForeignEditor } from "../foreign/ForeignEditor"
 import { FOREIGN_LANGUAGES, LANGUAGE_LABELS, type ForeignLanguage } from "../foreign/keywords"
@@ -119,6 +121,33 @@ export function ChallengePlay({
   const attemptStatus = session?.attempt.status ?? ""
   const attemptId = session?.attempt.id ?? ""
   const prompt = session?.challenge.prompt ?? ""
+  const watched = attemptStatus === "open" && Boolean(session?.attempt.focus)
+  const { fullscreen } = useFocusWatch(watched, sendFocus)
+
+  function sendFocus(event: FocusEvent, reason?: string) {
+    if (!attemptId) return
+    const id = attemptId
+    void api.focusAttempt(id, event, reason).then(
+      (result) => {
+        if (result.attempt.status !== "open") {
+          apply(result)
+          return
+        }
+        setSession((current) =>
+          current && current.attempt.id === id
+            ? { ...current, attempt: { ...current.attempt, focus: result.attempt.focus } }
+            : current,
+        )
+      },
+      () => undefined,
+    )
+  }
+
+  useEffect(() => {
+    if (attemptStatus && attemptStatus !== "open") leaveFullscreen()
+  }, [attemptStatus])
+
+  useEffect(() => () => leaveFullscreen(), [])
 
   useEffect(() => {
     if (prompt.includes("![") || prompt.includes("\n#") || prompt.length > 700) {
@@ -131,6 +160,7 @@ export function ChallengePlay({
     void api.startAttempt(challengeId, pathId).then(
       (result) => {
         if (cancelled) return
+        if (result.attempt.status === "open" && result.attempt.focus) enterFullscreen()
         setSession(result)
         if (result.attempt.cases?.length) setCases(result.attempt.cases)
         const saved = result.attempt.language
@@ -350,6 +380,7 @@ export function ChallengePlay({
           {t("backToRoute")}
         </button>
       </div>
+      {watched && attempt.focus ? <FocusNotice report={attempt.focus} fullscreen={fullscreen} /> : null}
       <div className="lab-phone-tabs" role="tablist" aria-label={t("challengeSections")}>
         {(
           [
@@ -419,8 +450,12 @@ export function ChallengePlay({
           <div className="stage-panel">
             {timedOut ? (
               <article className="result-card">
-                <p className="enunciado-kicker">{t("timeWord")}</p>
-                <h2>{t("timeUp")}</h2>
+                <p className="enunciado-kicker">{t(attempt.focus?.auto_submitted ? "resultWord" : "timeWord")}</p>
+                <h2>
+                  {attempt.focus?.auto_submitted
+                    ? t("focusAutoSubmitted", { count: attempt.focus.exits })
+                    : t("timeUp")}
+                </h2>
                 {attempt.elapsed_seconds != null ? (
                   <p>{t("usedTime", { time: formatClock(attempt.elapsed_seconds) })}</p>
                 ) : null}

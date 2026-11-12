@@ -16,7 +16,16 @@ from django.utils import timezone
 from apps.accounts.models import Profile
 from apps.accounts.services import standing_of
 from apps.billing.services import consume_execution
+from apps.classroom.focus import (
+    apply_event,
+    close_focus,
+    focus_event,
+    focus_report,
+    focus_start,
+    watching,
+)
 from apps.classroom.models import Membership
+from apps.classroom.services import focus_rules
 from apps.language.services import diagnostic_payload
 from apps.learning.models import (
     Challenge,
@@ -175,7 +184,12 @@ def start_attempt(user, challenge_id, path_id: object = None) -> dict[str, objec
             _abandon(current)
             current = None
         if current is None:
-            current = ChallengeAttempt.objects.create(user=user, challenge=challenge, path=path)
+            current = ChallengeAttempt.objects.create(
+                user=user,
+                challenge=challenge,
+                path=path,
+                focus=focus_start(focus_rules(user)),
+            )
         elif current.status == ChallengeAttempt.OPEN and current.path_id != path.id:
             current.path = path
             current.save(update_fields=["path"])
@@ -388,6 +402,28 @@ def expire_attempt(user, attempt_id) -> dict[str, object]:
     attempt = _owned_attempt(user, attempt_id)
     if attempt.status == ChallengeAttempt.OPEN and _late(attempt):
         _abandon(attempt)
+    return _bundle(attempt)
+
+
+def focus_attempt(user, attempt_id, data: dict[str, Any]) -> dict[str, object]:
+    """Registra una salida o un regreso. Al llegar al límite del grupo el reto se cierra."""
+    event, reason = focus_event(data)
+    with transaction.atomic():
+        found = _owned_attempt(user, attempt_id)
+        ChallengeAttempt.objects.select_for_update().get(pk=found.pk)
+        attempt = _owned_attempt(user, attempt_id)
+        if attempt.status != ChallengeAttempt.OPEN or not watching(attempt.focus):
+            return _bundle(attempt)
+        if _late(attempt):
+            _abandon(attempt)
+            return _bundle(attempt)
+        now = timezone.now()
+        attempt.focus, reached = apply_event(attempt.focus, event, reason, now)
+        if reached:
+            attempt.focus = close_focus(attempt.focus, now)
+            _abandon(attempt, _FOCUS_NOTE)
+        else:
+            attempt.save(update_fields=["focus"])
     return _bundle(attempt)
 
 
@@ -623,6 +659,8 @@ def _open_attempt(user, attempt_id) -> ChallengeAttempt:
             raise DomainError(
                 "Se agotó el tiempo de este intento.", code="conflict", status_code=409
             )
+        if isinstance(attempt.focus, dict) and attempt.focus.get("auto_submitted") is True:
+            raise DomainError(_FOCUS_NOTE, code="conflict", status_code=409)
         raise DomainError("Este intento ya está cerrado.", code="conflict", status_code=409)
     return attempt
 
@@ -655,13 +693,17 @@ def _stamp_elapsed(attempt: ChallengeAttempt) -> None:
     attempt.elapsed_seconds = max(0, int((finished - attempt.started_at).total_seconds()))
 
 
-def _abandon(attempt: ChallengeAttempt) -> None:
+_FOCUS_NOTE = "Se entregó automáticamente al salir de la plataforma."
+
+
+def _abandon(attempt: ChallengeAttempt, note: str = "Se agotó el tiempo.") -> None:
     _record_progress(attempt)
-    note = "Se agotó el tiempo."
     attempt.status = ChallengeAttempt.ABANDONED
     attempt.summary = f"{attempt.summary} {note}" if attempt.summary else note
     _stamp_elapsed(attempt)
-    attempt.save(update_fields=["status", "score", "summary", "finished_at", "elapsed_seconds"])
+    attempt.save(
+        update_fields=["status", "score", "summary", "finished_at", "elapsed_seconds", "focus"]
+    )
 
 
 def _restrictions(challenge: Challenge) -> dict[str, Any]:
@@ -750,6 +792,11 @@ def _solution_next(attempt: ChallengeAttempt) -> bool:
     return len(remaining) == 1 and _SOLUTION_MARK in remaining[0].body
 
 
+def _focus_of(attempt: ChallengeAttempt) -> dict[str, object] | None:
+    until = timezone.now() if attempt.status == ChallengeAttempt.OPEN else attempt.finished_at
+    return focus_report(attempt.focus, until)
+
+
 def _state(attempt: ChallengeAttempt) -> dict[str, object]:
     hints = [
         {
@@ -783,6 +830,7 @@ def _state(attempt: ChallengeAttempt) -> dict[str, object]:
         "seconds_left": _seconds_left(attempt),
         "elapsed_seconds": attempt.elapsed_seconds,
         "finished_at": None if attempt.finished_at is None else attempt.finished_at.isoformat(),
+        "focus": _focus_of(attempt),
     }
     solution = _solution(attempt)
     if solution is not None:

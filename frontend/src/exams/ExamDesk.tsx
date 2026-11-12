@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 
-import { accessOf, api, ApiError, type Account, type CommunitySummary, type Person } from "../api"
+import { accessOf, api, ApiError, type Account, type CommunitySummary, type FocusEvent, type Person } from "../api"
+import { FocusNotice, FocusSummary, focusSummary, useFocusWatch } from "../focus/FocusWatch"
+import { enterFullscreen, leaveFullscreen } from "../focus/watch"
 import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
 import { saveDownload } from "../saveFile"
 import { AccountIdentity } from "../shell/Identity"
@@ -11,6 +13,7 @@ import {
   examClose,
   examCreate,
   examExport,
+  examFocus,
   examGrade,
   examGrades,
   examImport,
@@ -141,6 +144,24 @@ export function ExamDesk({
   const [page, setPage] = useState(0)
   const [clock, setClock] = useState("")
   const expired = useRef("")
+  const watched = !teacher && playing?.state === "open" && Boolean(playing.focus)
+  const { fullscreen } = useFocusWatch(watched, sendFocus)
+
+  function sendFocus(event: FocusEvent, reason?: string) {
+    if (!playing) return
+    const id = playing.id
+    void examFocus(id, { event, reason, answers: event === "leave" ? packet(playing.questions) : undefined })
+      .then((view) => {
+        if (view.state !== "open") {
+          leaveFullscreen()
+          setPlaying(prepare(view))
+          void reload().catch(fail)
+          return
+        }
+        setPlaying((current) => (current && current.id === id ? { ...current, focus: view.focus } : current))
+      })
+      .catch(() => undefined)
+  }
 
   function fail(caught: unknown) {
     setError(caught instanceof ApiError ? translatedMessage(caught.message) : t("examsLoadError"))
@@ -302,6 +323,7 @@ export function ExamDesk({
     setError("")
     try {
       const view = card.open_attempt_id ? await examAttempt(card.open_attempt_id) : await examStart(card.id)
+      if (view.state === "open" && view.focus) enterFullscreen()
       setPlaying(prepare(view))
       setPage(0)
       setResults(null)
@@ -346,6 +368,7 @@ export function ExamDesk({
     setError("")
     try {
       const view = await examSubmit(playing.id, packet(playing.questions))
+      leaveFullscreen()
       setPlaying(prepare(view))
       await reload()
     } catch (caught) {
@@ -402,6 +425,7 @@ export function ExamDesk({
               className="top-leave"
               type="button"
               onClick={() => {
+                leaveFullscreen()
                 setEditing(null)
                 setPlaying(null)
                 setResults(null)
@@ -469,6 +493,7 @@ export function ExamDesk({
             onExport={(format) => void download(format)}
           />
         ) : null}
+        {watched && playing?.focus ? <FocusNotice report={playing.focus} fullscreen={fullscreen} /> : null}
         {playing ? (
           <Player
             attempt={playing}
@@ -1006,6 +1031,9 @@ function Player({
           {attempt.passed == null ? "" : attempt.passed ? ` · ${t("examsPassed")}` : ` · ${t("examsFailed")}`}
         </p>
       ) : null}
+      {done && attempt.focus?.auto_submitted ? (
+        <p className="note">{t("focusAutoSubmitted", { count: attempt.focus.exits })}</p>
+      ) : null}
       {done && attempt.pending ? <p className="note">{t("examsPending")}</p> : null}
       {done && !attempt.graded_visible ? <p className="note">{t("examsResultHidden")}</p> : null}
       {visible.map((question, index) => (
@@ -1102,6 +1130,7 @@ function Grades({
             <th>{t("examsEmailColumn")}</th>
             <th>{t("examsScore")}</th>
             <th>{t("examsStatus")}</th>
+            <th>{t("focusColumn")}</th>
             <th></th>
           </tr>
         </thead>
@@ -1112,6 +1141,12 @@ function Grades({
               <td>{row.student.email}</td>
               <td>{row.official.percent == null ? "—" : `${row.official.percent}%`}</td>
               <td>{row.attempts.length === 0 ? t("examsNotStarted") : row.official.pending ? t("examsPending") : t("examsAssigned")}</td>
+              <td className="exam-focus-cell">
+                {row.attempts
+                  .filter((attempt) => attempt.focus)
+                  .map((attempt) => (row.attempts.length > 1 ? `${attempt.number}: ` : "") + focusSummary(t, attempt.focus!))
+                  .join(" / ") || "—"}
+              </td>
               <td>
                 {row.attempts.length ? (
                   <button type="button" onClick={() => setOpenId(openId === String(row.student.id) ? "" : String(row.student.id))}>
@@ -1153,6 +1188,7 @@ function AttemptGrade({
     <article className="exam-question">
       <h3>{t("examsAttempt", { count: attempt.number })} · {stamp(attempt.submitted_at, locale)}</h3>
       <p>{attempt.percent == null ? t("examsPending") : `${attempt.score}/${attempt.max_score} · ${attempt.percent}%`}</p>
+      <FocusSummary report={attempt.focus} />
       {attempt.questions.map((question) => (
         <div key={question.id} className="exam-review">
           <p><strong>{question.prompt}</strong></p>

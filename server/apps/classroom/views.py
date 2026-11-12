@@ -17,9 +17,11 @@ from apps.classroom.services import (
     regenerate_join_code,
     remove_member,
     search_people,
+    set_community_focus,
     set_community_paste,
     set_community_subject,
     set_community_translation,
+    set_member_focus,
     set_member_paste,
     set_member_translation,
     student_projects,
@@ -68,6 +70,8 @@ class CommunityDetailView(APIView):
             )
         if "paste_enabled" in data:
             community = set_community_paste(user, community_id, data.get("paste_enabled"), address)
+        if "focus_watch" in data or "focus_limit" in data:
+            community = set_community_focus(user, community_id, data, address)
         if "subject" in data:
             community = set_community_subject(user, community_id, data.get("subject"), address)
         if community is None:
@@ -104,6 +108,10 @@ class MemberDetailView(APIView):
         if "paste_enabled" in data:
             community = set_member_paste(
                 user, community_id, user_id, data.get("paste_enabled"), address
+            )
+        if "focus_watch" in data:
+            community = set_member_focus(
+                user, community_id, user_id, data.get("focus_watch"), address
             )
         if community is None:
             raise DomainError("Indica el acceso que quieres cambiar.")

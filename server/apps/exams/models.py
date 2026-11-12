@@ -199,6 +199,7 @@ class ExamAttempt(models.Model):
     max_score = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     percent = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     passed = models.BooleanField(null=True, blank=True)
+    focus = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ["exam", "student", "number"]
