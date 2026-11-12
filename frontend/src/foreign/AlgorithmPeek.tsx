@@ -8,7 +8,7 @@ import { groupNames, studentLabel, studentsIn } from "../workbench/studentGroups
 
 type PeekProject = { id: string; name: string; count: number; algorithms?: Algorithm[] }
 
-const VIEW: Pick<Preferences, "font_size" | "indent_size" | "theme"> = { font_size: 14, indent_size: 4, theme: "light" }
+const VIEW: Pick<Preferences, "indent_size" | "theme"> = { indent_size: 4, theme: "light" }
 const ignore = () => undefined
 
 export function AlgorithmPeek({ students, seeStudents }: { students: ClassroomStudent[]; seeStudents: boolean }) {
@@ -31,8 +31,8 @@ export function AlgorithmPeek({ students, seeStudents }: { students: ClassroomSt
       if (!active) return
       if (found.status === "fulfilled") setWords(found.value)
       if (prefs.status === "fulfilled") {
-        const { font_size, indent_size, theme } = prefs.value
-        setView({ font_size: Math.min(font_size, 15), indent_size, theme })
+        const { indent_size, theme } = prefs.value
+        setView({ indent_size, theme })
       }
     })
     return () => {
@@ -171,7 +171,6 @@ export function AlgorithmPeek({ students, seeStudents }: { students: ClassroomSt
             source={algorithm.source}
             keywords={editorKeywords(locale, words.keywords)}
             stdlib={words.stdlib}
-            fontSize={view.font_size}
             indentSize={view.indent_size}
             theme={view.theme}
             jump={null}

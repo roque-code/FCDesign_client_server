@@ -316,7 +316,7 @@
   background: var(--panel);
   color: var(--ink);
   font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
-  font-size: 0.8rem;
+  font-size: var(--editor-font-size);
   line-height: 1.5;
   white-space: pre;
 }

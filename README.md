@@ -48,6 +48,7 @@ El mapa del sistema que corre hoy está en [arquitectura](docs/arquitectura.md).
 | [Gramática](docs/gramatica.md) | EBNF, léxico, grafías en inglés, operadores, perfiles y traducción |
 | [Manual del lenguaje](docs/Manual-del-lenguaje.docx) | Instrucciones, palabras reservadas, figuras, bloques, funciones y traducción, con ejemplos |
 | [Manual del alumno](docs/manual-alumno/Manual-del-alumno.docx) | Materias, exámenes, mensajes, bases de datos, pasar un algoritmo a un reto, programas guardados de Lenguajes, calificaciones, registro de salidas, recarga, celular y cada menú del alumno, con captura y ejemplo |
+| [Resumen ejecutivo de funcionalidades](docs/Resumen-ejecutivo-funcionalidades.docx) | Cada menú del alumno y del docente, con sus acciones, restricciones y validaciones, lo que decide el nivel y lo que la aplicación no hace. Para presentar la aplicación. El PDF está en [Resumen-ejecutivo-funcionalidades.pdf](docs/Resumen-ejecutivo-funcionalidades.pdf) |
 | [Manual del docente](docs/manual-docente/Manual-del-docente.docx) | Materias, comunidades por materia con quién está conectado y vigilancia de salidas, repaso por grupo y alumno con calificación, programas de alumnos en Lenguajes, CSV de calificaciones, exámenes, mensajes, banco con enunciado en Markdown, rutas, avance, operadores y descarga de retos |
 | [AST](docs/ast.md) | Nodos, ámbitos y diagnósticos |
 | [Análisis de requerimientos](docs/analisis-de-requerimientos.md) | Requerimientos de la aplicación y de la base de datos |  

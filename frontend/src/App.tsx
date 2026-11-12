@@ -5,6 +5,7 @@ import { AuthScreen } from "./auth/AuthScreen"
 import { AdminHome } from "./admin/AdminHome"
 import { ChatScreen } from "./chat/ChatScreen"
 import { Composer, type DiagramRequest } from "./compose/Composer"
+import { useAccountEditorFont } from "./editor/fontSize"
 import { ErStudio } from "./erd/ErStudio"
 import { LocaleProvider, readStoredLocale, storeLocale, translate, translatedMessage, type Locale } from "./i18n"
 import { ForeignBench } from "./foreign/ForeignBench"
@@ -42,6 +43,7 @@ export function App() {
   const holdAccount = useCallback((next: Account) => {
     setAccount(asAccount(next))
   }, [])
+  useAccountEditorFont(account && account.role !== "admin" ? account.id : null)
 
   useEffect(() => {
     function onEnd(event: Event) {

@@ -6,6 +6,7 @@ import { EditorView, keymap } from "@codemirror/view"
 import { basicSetup } from "codemirror"
 import { useEffect, useRef } from "react"
 
+import { useEditorFont } from "../editor/fontSize"
 import { blockBulkPaste, trustedEdit } from "../editor/pasteGuard"
 import type { ForeignLanguage } from "./keywords"
 import { foreignSupport } from "./support"
@@ -42,6 +43,7 @@ export function ForeignEditor({
   label?: string
   readOnly?: boolean
 }) {
+  const fontSize = useEditorFont()
   const host = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
@@ -88,5 +90,5 @@ export function ForeignEditor({
     view.dispatch({ changes: { from: 0, to: current.length, insert: source }, annotations: trustedEdit.of(true) })
   }, [source])
 
-  return <div ref={host} className="foreign-editor" data-language={language} data-paste-blocked={pasteBlocked ? "true" : undefined} data-readonly={readOnly ? "true" : undefined} />
+  return <div ref={host} className="foreign-editor" style={{ fontSize }} data-language={language} data-paste-blocked={pasteBlocked ? "true" : undefined} data-readonly={readOnly ? "true" : undefined} />
 }

@@ -357,7 +357,7 @@ function CaseEditor({ payload, t, onChange }: { payload: ExamPayload; t: EditorP
       </label>
       <label>
         {t("examsStarter")}
-        <textarea value={payload.starter ?? ""} rows={5} spellCheck={false} onChange={(event) => onChange({ ...payload, starter: event.target.value })} />
+        <textarea className="code-field" value={payload.starter ?? ""} rows={5} spellCheck={false} onChange={(event) => onChange({ ...payload, starter: event.target.value })} />
       </label>
       {cases.map((item, index) => (
         <div className="exam-case" key={`${item.name}-${index}`}>
@@ -577,6 +577,7 @@ export function AnswerField({
       <label>
         {t("examsCode")}
         <textarea
+          className="code-field"
           rows={10}
           spellCheck={false}
           value={String(answer.source ?? "")}

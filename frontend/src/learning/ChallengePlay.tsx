@@ -594,7 +594,6 @@ export function ChallengePlay({
                       source={code}
                       keywords={keywords}
                       stdlib={stdlib}
-                      fontSize={15}
                       indentSize={4}
                       theme="light"
                       jump={null}

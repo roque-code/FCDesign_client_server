@@ -19,6 +19,7 @@
   --code-string: #0f766e;
   --code-comment: #8a93a3;
   --code-number: #c2410c;
+  --editor-font-size: 16px;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   background: var(--paper);
   color: var(--ink);
@@ -1687,6 +1688,14 @@ button.fold {
 .translate-tabs button[aria-selected="true"] {
   background: var(--accent-soft);
   color: var(--ink);
+}
+
+.code-field,
+.challenge-source,
+.translate-dialog textarea {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: var(--editor-font-size);
+  line-height: 1.45;
 }
 
 .translate-dialog textarea {

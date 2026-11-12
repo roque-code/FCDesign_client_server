@@ -21,6 +21,7 @@ import {
 import { applyConsoleOutput } from "../console/output"
 import { FlowView } from "../diagram/FlowView"
 import { FeedbackForm, FeedbackNotes, GradesDownload, MyGradesMenu, useMyFeedback } from "../feedback/Feedback"
+import { shareEditorFont } from "../editor/fontSize"
 import { FocusStatus, useExerciseFocus } from "../focus/FocusWatch"
 import { CodeEditor } from "../editor/CodeEditor"
 import { editorKeywords } from "../dialect"
@@ -360,6 +361,7 @@ export function Workbench({
       )
       setProjects(listed)
       setPrefs(preference)
+      shareEditorFont(preference.font_size)
       savedLanguage.current = {
         requireSemicolons: preference.require_semicolons,
         indexBase: preference.index_base === 0 ? 0 : 1,
@@ -1426,6 +1428,7 @@ export function Workbench({
                     onChange={(event) => {
                       const font_size = Number(event.target.value)
                       setPrefs({ ...prefs, font_size })
+                      shareEditorFont(font_size)
                       void api.updatePreferences({ font_size }).catch((caught: unknown) => {
                         setError(messageOf(caught, t("requestError")))
                       })
@@ -1868,7 +1871,6 @@ export function Workbench({
             source={source}
             keywords={editorKeywords(locale, keywords)}
             stdlib={stdlib}
-            fontSize={prefs.font_size}
             indentSize={prefs.indent_size}
             theme={prefs.theme}
             jump={jump}

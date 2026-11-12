@@ -10,6 +10,7 @@ import { useEffect, useRef } from "react"
 import { canonicalKeyword, commitSource, mapCaret, presentSource, type Dialect } from "../dialect"
 import { useLocale } from "../i18n"
 import { canonicalize, keywordSet } from "../words"
+import { useEditorFont } from "./fontSize"
 import { consumeToken, type HighlightMode } from "./highlight"
 import { blockBulkPaste, trustedEdit } from "./pasteGuard"
 import { instructionCanonicals, instructionSource } from "./snippets"
@@ -145,7 +146,6 @@ type Props = {
   source: string
   keywords: string[]
   stdlib: string[]
-  fontSize: number
   indentSize: number
   theme: "light" | "dark"
   jump: { line: number; token: number } | null
@@ -163,7 +163,6 @@ export function CodeEditor({
   source,
   keywords,
   stdlib,
-  fontSize,
   indentSize,
   theme,
   jump,
@@ -177,6 +176,7 @@ export function CodeEditor({
   semicolons = true,
 }: Props) {
   const locale = useLocale()
+  const fontSize = useEditorFont()
   const keywordKey = keywords.join("\n")
   const stdlibKey = stdlib.join("\n")
   const host = useRef<HTMLDivElement>(null)
