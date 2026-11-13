@@ -71,6 +71,44 @@ function AttemptHistory({ records }: { records: LabAttemptRecord[] }) {
 function messageOf(error: unknown, fallback: string): string {
   return error instanceof ApiError ? translatedMessage(error.message) : fallback
 }
+
+const NARROW_QUERY = "(max-width: 980px)"
+const PANELS_KEY = "traza.build-panels"
+
+type BuildPanels = { brief: boolean; cases: boolean; mentor: boolean }
+
+function readBuildPanels(): BuildPanels {
+  const open: BuildPanels = { brief: true, cases: true, mentor: true }
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(PANELS_KEY) ?? "null")
+    if (!saved || typeof saved !== "object") return open
+    const value = saved as Record<string, unknown>
+    return {
+      brief: value.brief !== false,
+      cases: value.cases !== false,
+      mentor: value.mentor !== false,
+    }
+  } catch {
+    return open
+  }
+}
+
+function storeBuildPanels(panels: BuildPanels) {
+  try {
+    localStorage.setItem(PANELS_KEY, JSON.stringify(panels))
+  } catch {
+    /* El navegador puede bloquear el almacenamiento; los paneles quedan como están en esta pantalla. */
+  }
+}
+
+function clampIn(value: number, box: Element | null, fallback: number, min: number, reserve: number, axis: "width" | "height") {
+  const size = box?.getBoundingClientRect()[axis] || fallback
+  return Math.round(Math.min(Math.max(value, min), Math.max(min, size - reserve)))
+}
+
+function sideWidth(share: number, min: number, max: number) {
+  return Math.round(Math.min(max, Math.max(min, window.innerWidth * share)))
+}
 export function ChallengePlay({
   challengeId,
   pathId,
@@ -108,12 +146,18 @@ export function ChallengePlay({
   const [langCases, setLangCases] = useState<LabCase[] | null>(null)
   const [grade, setGrade] = useState<number | null>(null)
   const [promptHeight, setPromptHeight] = useState<number | null>(168)
-  const [casesWidth, setCasesWidth] = useState(288)
-  const [mentorWidth, setMentorWidth] = useState(320)
-  const [editorHeight, setEditorHeight] = useState(260)
+  const [mentorWidth, setMentorWidth] = useState(() => sideWidth(0.22, 220, 320))
+  const [panels, setPanels] = useState<BuildPanels>(readBuildPanels)
+  const [briefWidth, setBriefWidth] = useState(() => sideWidth(0.26, 240, 380))
+  const [briefHeight, setBriefHeight] = useState(340)
+  const [mentorHeight, setMentorHeight] = useState(300)
+  const [resultsHeight, setResultsHeight] = useState(180)
+  const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW_QUERY).matches)
   const frameRef = useRef<HTMLDivElement>(null)
   const enunciadoRef = useRef<HTMLElement>(null)
-  const stageRef = useRef<HTMLElement>(null)
+  const leftRef = useRef<HTMLDivElement>(null)
+  const rightRef = useRef<HTMLDivElement>(null)
+  const centerRef = useRef<HTMLElement>(null)
   const [keywords, setKeywords] = useState<string[]>([])
   const [stdlib, setStdlib] = useState<string[]>([])
   const expiredOnce = useRef(false)
@@ -148,6 +192,19 @@ export function ChallengePlay({
   }, [attemptStatus])
 
   useEffect(() => () => leaveFullscreen(), [])
+
+  useEffect(() => {
+    const query = window.matchMedia(NARROW_QUERY)
+    const apply = () => setNarrow(query.matches)
+    query.addEventListener("change", apply)
+    return () => query.removeEventListener("change", apply)
+  }, [])
+
+  useEffect(() => {
+    storeBuildPanels(panels)
+    const frame = requestAnimationFrame(() => window.dispatchEvent(new Event("resize")))
+    return () => cancelAnimationFrame(frame)
+  }, [panels])
 
   useEffect(() => {
     if (prompt.includes("![") || prompt.includes("\n#") || prompt.length > 700) {
@@ -363,14 +420,362 @@ export function ChallengePlay({
     return Math.round(Math.min(Math.max(value, 160), Math.max(160, width - 280)))
   }
 
-  function clampEditor(value: number) {
-    const height = stageRef.current?.getBoundingClientRect().height ?? 640
-    return Math.round(Math.min(Math.max(value, 140), Math.max(140, height - 140)))
+  const clampBriefWidth = (value: number) => clampIn(value, frameRef.current, 1200, 220, 420 + (panels.mentor ? mentorWidth : 0), "width")
+  const clampBriefHeight = (value: number) => clampIn(value, leftRef.current, 640, 96, 110, "height")
+  const clampMentorHeight = (value: number) => clampIn(value, rightRef.current, 640, 120, 110, "height")
+  const clampResults = (value: number) => clampIn(value, centerRef.current, 640, 72, 260, "height")
+
+  const timer =
+    attempt.status === "open" && left != null ? (
+      <p className={left <= 30 ? "timer timer-low" : "timer"} aria-live="polite">
+        <span>{t("timeWord")}</span>
+        {formatClock(left)}
+      </p>
+    ) : null
+
+  const promptBody = (
+    <div className="enunciado-body">
+      <p className="enunciado-kicker">
+        {t("promptKicker")} · {ACTIVITY[activity] ? t(ACTIVITY[activity]) : activity} · {challenge.concept}
+      </p>
+      <h2>{challenge.title}</h2>
+      <PromptText text={challenge.prompt} />
+    </div>
+  )
+
+  const stageHead = (
+    <div className="stage-head">
+      {!finished && !timedOut && attempt.score != null ? (
+        <p className="note">{t("currentScore", { score: attempt.score })}</p>
+      ) : null}
+      <div className="stage-pills" aria-label={t("stages")}>
+        {stages.map((stage) => {
+          const index = stages.indexOf(stage)
+          const currentIndex = stages.indexOf(current as StageName)
+          const state = finished || index < currentIndex ? "done" : index === currentIndex ? "current" : "ahead"
+          return (
+            <span key={stage} className={`stage-pill stage-${state}`}>
+              {t(STAGE[stage])}
+            </span>
+          )
+        })}
+      </div>
+    </div>
+  )
+
+  function mentorPanel(style?: CSSProperties) {
+    return (
+      <aside className="mentor" style={style}>
+        <p className="enunciado-kicker">{t("help")}</p>
+        <h2>{t("mentor")}</h2>
+        <p>
+          {attempt.hints_left} {attempt.hints_left === 1 ? t("hintOne") : t("hintMany")}
+        </p>
+        {attempt.hints.length === 0 ? <p>{t("noHelpYet")}</p> : null}
+        <ol className="hint-list">
+          {attempt.hints.map((hint, index) => (
+            <li key={`${hint.level}-${index}`} className={hint.solution ? "hint-solution" : undefined}>
+              {hint.body}
+            </li>
+          ))}
+        </ol>
+        <button
+          type="button"
+          disabled={busy || finished || timedOut || attempt.hints_left === 0}
+          onClick={() => void run(() => api.revealHint(attempt.id))}
+        >
+          {attempt.hints_left === 0
+            ? t("noHints")
+            : attempt.hints_left === 1 && attempt.solution_next
+              ? t("seeSolution")
+              : t("askHint")}
+        </button>
+      </aside>
+    )
   }
 
-  function clampCases(value: number) {
-    const width = stageRef.current?.getBoundingClientRect().width ?? 720
-    return Math.round(Math.min(Math.max(value, 160), Math.max(160, width - 240)))
+  const diagnosticsList =
+    diagnostics.length > 0 && !finished && !timedOut ? (
+      <ul className="lab-diagnostics">
+        {diagnostics.map((item, index) => (
+          <li key={`${item.code}-${item.line}-${index}`} className={item.severity === "error" ? "error" : "warning"}>
+            {item.message}
+          </li>
+        ))}
+      </ul>
+    ) : null
+
+  const phoneTabs = (
+    <div className="lab-phone-tabs" role="tablist" aria-label={t("challengeSections")}>
+      {(
+        [
+          ["problema", t("problemTab")],
+          ["construccion", t("construction")],
+          ["ayuda", t("help")],
+        ] as const
+      ).map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={phonePane === id}
+          onClick={() => setPhonePane(id)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+
+  if (showCanvas && !finished && !timedOut) {
+    const history = session.history ?? []
+    const showBrief = narrow || panels.brief
+    const showCases = narrow || panels.cases
+    const showMentor = narrow || panels.mentor
+    const leftOpen = showBrief || showCases
+    const rightOpen = showMentor || history.length > 0
+    const hasResults = Boolean(cases) || Boolean(note) || diagnostics.length > 0 || Boolean(error)
+    const columns = [
+      leftOpen ? `${briefWidth}px 10px` : "",
+      "minmax(0, 1fr)",
+      rightOpen ? `10px ${mentorWidth}px` : "",
+    ]
+      .filter(Boolean)
+      .join(" ")
+    const toggles = [
+      ["brief", t("promptKicker")],
+      ["cases", t("casesWord")],
+      ["mentor", t("mentor")],
+    ] as const
+
+    return (
+      <div className="lab-challenge build-layout" data-phone={phonePane}>
+        <div className="challenge-leave build-toolbar">
+          <div className="panel-toggles" role="group" aria-label={t("buildPanels")}>
+            {toggles.map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={panels[id]}
+                title={t(panels[id] ? "hidePanel" : "showPanel", { name: label })}
+                onClick={() => setPanels((open) => ({ ...open, [id]: !open[id] }))}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {timer}
+          <button type="button" onClick={onDone}>
+            {t("backToRoute")}
+          </button>
+        </div>
+        {watched && attempt.focus ? <FocusNotice report={attempt.focus} fullscreen={fullscreen} /> : null}
+        {phoneTabs}
+        <div className="build-board" ref={frameRef} style={{ gridTemplateColumns: columns }}>
+          {leftOpen ? (
+            <div className="build-left" ref={leftRef}>
+              {showBrief ? (
+                <section
+                  className="enunciado build-brief"
+                  style={showCases ? { height: briefHeight, flex: "0 0 auto" } : undefined}
+                >
+                  {promptBody}
+                </section>
+              ) : null}
+              {showBrief && showCases ? (
+                <PanelSplitter
+                  row
+                  label={t("adjustPrompt")}
+                  value={briefHeight}
+                  min={96}
+                  max={clampBriefHeight(10_000)}
+                  onChange={(next) => setBriefHeight(clampBriefHeight(next))}
+                />
+              ) : null}
+              {showCases ? (
+                <aside className="build-cases" aria-label={t("testCases")}>
+                  <h3>{t("howToAdvance")}</h3>
+                  {specCases.length > 0 ? (
+                    <ul className="build-spec">
+                      <li>{t("proveAll")}</li>
+                      <li>{t("outputExact")}</li>
+                      <li>{t("explainGate")}</li>
+                      <li>{t("languageAfterCheck")}</li>
+                      <li>{t("stayCheck")}</li>
+                    </ul>
+                  ) : (
+                    <ul className="build-spec">
+                      <li>{t("proveProgram")}</li>
+                      <li>{t("noCaseThenLanguage")}</li>
+                      <li>{t("explainAfterOpen")}</li>
+                    </ul>
+                  )}
+                  {specCases.length > 0 ? (
+                    <>
+                      <h3>{t("casesWord")}</h3>
+                      <ul className="case-list">
+                        {specCases.map((item) => (
+                          <li key={item.name}>
+                            <strong>{item.name}</strong>
+                            <span>
+                              {item.inputs.length > 0 ? t("caseInputs", { values: item.inputs.join(", ") }) : t("noInputs")}
+                            </span>
+                            <pre className="lab-output">{item.expected_output}</pre>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+                </aside>
+              ) : null}
+            </div>
+          ) : null}
+          {leftOpen ? (
+            <PanelSplitter
+              before
+              label={t("adjustBrief")}
+              value={briefWidth}
+              min={220}
+              max={clampBriefWidth(10_000)}
+              onChange={(next) => setBriefWidth(clampBriefWidth(next))}
+            />
+          ) : null}
+          <section className="build-center" ref={centerRef}>
+            {stageHead}
+            <div className="build-work">
+              <div className="build-work-head">
+                <h2>{current === "construir" ? t("build") : t("check")}</h2>
+                {tools.length > 1 ? (
+                  <div className="practice-actions" role="tablist" aria-label={t("tools")}>
+                    {tools.map((tool) => (
+                      <button
+                        key={tool}
+                        type="button"
+                        className={buildMode === tool ? "primary" : ""}
+                        aria-pressed={buildMode === tool}
+                        onClick={() => setMode(tool)}
+                      >
+                        {TOOL_LABEL[tool] ? t(TOOL_LABEL[tool]) : tool}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              {tools.includes("codigo") ? (
+                <div className="stage-canvas is-build" hidden={buildMode !== "codigo"}>
+                  <CodeEditor
+                    source={code}
+                    keywords={keywords}
+                    stdlib={stdlib}
+                    indentSize={4}
+                    theme="light"
+                    jump={null}
+                    breakpoints={[]}
+                    currentLine={null}
+                    onToggleBreakpoint={() => undefined}
+                    onChange={setCode}
+                    onCursor={() => undefined}
+                    pasteBlocked={pasteBlocked}
+                  />
+                  {pasteBlocked ? <p className="note">{t("pasteBlockedNote")}</p> : null}
+                </div>
+              ) : null}
+              {tools.includes("diagrama") ? (
+                <div className="stage-canvas is-build" hidden={buildMode !== "diagrama"}>
+                  <Composer
+                    embedded
+                    isolated
+                    active={buildMode === "diagrama"}
+                    incoming={null}
+                    allowedBlocks={challenge.allowed_blocks}
+                    pasteBlocked={pasteBlocked}
+                    onBack={() => undefined}
+                    onOpenInEditor={() => undefined}
+                    onSource={setDiagramSource}
+                  />
+                  {pasteBlocked ? <p className="note">{t("pasteBlockedNote")}</p> : null}
+                </div>
+              ) : null}
+              {tools.includes("bloques") ? (
+                <div className="stage-canvas is-build" hidden={buildMode !== "bloques"}>
+                  <BlockWorkspace onCount={() => undefined} onState={setWorkspace} allowed={challenge.allowed_blocks} />
+                </div>
+              ) : null}
+              <button
+                type="button"
+                className="primary build-prove"
+                disabled={
+                  busy ||
+                  (buildMode === "bloques" && !workspace) ||
+                  (buildMode === "codigo" && code.trim() === "") ||
+                  (buildMode === "diagrama" && diagramSource.trim() === "")
+                }
+                onClick={() => void prove()}
+              >
+                {t("prove")}
+              </button>
+              {hasResults ? (
+                <PanelSplitter
+                  row
+                  before={false}
+                  label={t("adjustEditor")}
+                  value={resultsHeight}
+                  min={72}
+                  max={clampResults(10_000)}
+                  onChange={(next) => setResultsHeight(clampResults(next))}
+                />
+              ) : null}
+              {hasResults ? (
+                <div className="build-results" style={{ height: resultsHeight }}>
+                  {note && cases ? <p className={cases.some((item) => !item.passed) ? "error" : "note"}>{note}</p> : null}
+                  {cases ? (
+                    <ul className="case-list">
+                      {cases.map((item) => (
+                        <li key={item.name}>
+                          {item.passed ? t("passed") : t("mismatch")} · {item.name}
+                          <pre className="lab-output">{item.output}</pre>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {diagnosticsList}
+                  {error ? <p className="error">{error}</p> : null}
+                </div>
+              ) : null}
+            </div>
+          </section>
+          {rightOpen ? (
+            <PanelSplitter
+              label={t("adjustHelp")}
+              value={mentorWidth}
+              min={200}
+              max={clampMentor(10_000)}
+              onChange={(next) => setMentorWidth(clampMentor(next))}
+            />
+          ) : null}
+          {rightOpen ? (
+            <div className="build-right" ref={rightRef}>
+              {showMentor ? mentorPanel(history.length > 0 ? { height: mentorHeight, flex: "0 0 auto" } : undefined) : null}
+              {showMentor && history.length > 0 ? (
+                <PanelSplitter
+                  row
+                  label={t("adjustMentorSplit")}
+                  value={mentorHeight}
+                  min={120}
+                  max={clampMentorHeight(10_000)}
+                  onChange={(next) => setMentorHeight(clampMentorHeight(next))}
+                />
+              ) : null}
+              {history.length > 0 ? (
+                <div className="build-attempts">
+                  <AttemptHistory records={history} />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -381,44 +786,15 @@ export function ChallengePlay({
         </button>
       </div>
       {watched && attempt.focus ? <FocusNotice report={attempt.focus} fullscreen={fullscreen} /> : null}
-      <div className="lab-phone-tabs" role="tablist" aria-label={t("challengeSections")}>
-        {(
-          [
-            ["problema", t("problemTab")],
-            ["construccion", t("construction")],
-            ["ayuda", t("help")],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={phonePane === id}
-            onClick={() => setPhonePane(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {phoneTabs}
       <div className="lab-split" ref={frameRef}>
       <section
         className="enunciado"
         ref={enunciadoRef}
         style={promptHeight == null ? undefined : { height: promptHeight }}
       >
-        <div className="enunciado-body">
-          <p className="enunciado-kicker">
-            {t("promptKicker")} · {ACTIVITY[activity] ? t(ACTIVITY[activity]) : activity} · {challenge.concept}
-          </p>
-          <h2>{challenge.title}</h2>
-          <PromptText text={challenge.prompt} />
-        </div>
-        {attempt.status === "open" && left != null ? (
-          <p className={left <= 30 ? "timer timer-low" : "timer"} aria-live="polite">
-            <span>{t("timeWord")}</span>
-            {formatClock(left)}
-          </p>
-        ) : null}
+        {promptBody}
+        {timer}
       </section>
       <PanelSplitter
         label={t("adjustPrompt")}
@@ -429,24 +805,8 @@ export function ChallengePlay({
         onChange={(next) => setPromptHeight(clampPrompt(next))}
       />
       <div className="lab-main path-play" style={{ "--mentor-width": `${mentorWidth}px` } as CSSProperties}>
-        <section className="stage-column" ref={stageRef}>
-          <div className="stage-head">
-            {!finished && !timedOut && attempt.score != null ? (
-              <p className="note">{t("currentScore", { score: attempt.score })}</p>
-            ) : null}
-            <div className="stage-pills" aria-label={t("stages")}>
-              {stages.map((stage) => {
-                const index = stages.indexOf(stage)
-                const currentIndex = stages.indexOf(current as StageName)
-                const state = finished || index < currentIndex ? "done" : index === currentIndex ? "current" : "ahead"
-                return (
-                  <span key={stage} className={`stage-pill stage-${state}`}>
-                    {t(STAGE[stage])}
-                  </span>
-                )
-              })}
-            </div>
-          </div>
+        <section className="stage-column">
+          {stageHead}
           <div className="stage-panel">
             {timedOut ? (
               <article className="result-card">
@@ -564,149 +924,6 @@ export function ChallengePlay({
                   {activity === "build" || activity === "predict" ? t("reply") : t("check")}
                 </button>
               </form>
-            ) : null}
-            {!finished && !timedOut && showCanvas ? (
-              <div className="build-stage" style={{ "--cases-width": `${casesWidth}px` } as CSSProperties}>
-                <div className="build-work">
-                <h2>{current === "construir" ? t("build") : t("check")}</h2>
-                {tools.length > 1 ? (
-                  <div className="practice-actions" role="tablist" aria-label={t("tools")}>
-                    {tools.map((tool) => (
-                      <button
-                        key={tool}
-                        type="button"
-                        className={buildMode === tool ? "primary" : ""}
-                        aria-pressed={buildMode === tool}
-                        onClick={() => setMode(tool)}
-                      >
-                        {TOOL_LABEL[tool] ? t(TOOL_LABEL[tool]) : tool}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-                {tools.includes("codigo") ? (
-                  <div
-                    className="stage-canvas is-build"
-                    hidden={buildMode !== "codigo"}
-                    style={buildMode === "codigo" ? { height: editorHeight, flex: "0 0 auto" } : undefined}
-                  >
-                    <CodeEditor
-                      source={code}
-                      keywords={keywords}
-                      stdlib={stdlib}
-                      indentSize={4}
-                      theme="light"
-                      jump={null}
-                      breakpoints={[]}
-                      currentLine={null}
-                      onToggleBreakpoint={() => undefined}
-                      onChange={setCode}
-                      onCursor={() => undefined}
-                      pasteBlocked={pasteBlocked}
-                    />
-                    {pasteBlocked ? <p className="note">{t("pasteBlockedNote")}</p> : null}
-                  </div>
-                ) : null}
-                {tools.includes("codigo") && buildMode === "codigo" ? (
-                  <PanelSplitter
-                    row
-                    label={t("adjustEditor")}
-                    value={editorHeight}
-                    min={140}
-                    max={clampEditor(10_000)}
-                    onChange={(next) => setEditorHeight(clampEditor(next))}
-                  />
-                ) : null}
-                {tools.includes("diagrama") ? (
-                  <div className="stage-canvas is-build" hidden={buildMode !== "diagrama"}>
-                    <Composer
-                      embedded
-                      isolated
-                      active={buildMode === "diagrama"}
-                      incoming={null}
-                      allowedBlocks={challenge.allowed_blocks}
-                      pasteBlocked={pasteBlocked}
-                      onBack={() => undefined}
-                      onOpenInEditor={() => undefined}
-                      onSource={setDiagramSource}
-                    />
-                    {pasteBlocked ? <p className="note">{t("pasteBlockedNote")}</p> : null}
-                  </div>
-                ) : null}
-                {tools.includes("bloques") ? (
-                  <div className="stage-canvas is-build" hidden={buildMode !== "bloques"}>
-                    <BlockWorkspace
-                      onCount={() => undefined}
-                      onState={setWorkspace}
-                      allowed={challenge.allowed_blocks}
-                    />
-                  </div>
-                ) : null}
-                <button
-                  type="button"
-                  className="primary"
-                  disabled={
-                    busy ||
-                    (buildMode === "bloques" && !workspace) ||
-                    (buildMode === "codigo" && code.trim() === "") ||
-                    (buildMode === "diagrama" && diagramSource.trim() === "")
-                  }
-                  onClick={() => void prove()}
-                >
-                  {t("prove")}
-                </button>
-                {note && cases ? <p className={cases.some((item) => !item.passed) ? "error" : "note"}>{note}</p> : null}
-                {cases ? (
-                  <ul className="case-list">
-                    {cases.map((item) => (
-                      <li key={item.name}>
-                        {item.passed ? t("passed") : t("mismatch")} · {item.name}
-                        <pre className="lab-output">{item.output}</pre>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-                </div>
-                <PanelSplitter
-                  label={t("adjustCases")}
-                  value={casesWidth}
-                  min={160}
-                  max={clampCases(10_000)}
-                  onChange={(next) => setCasesWidth(clampCases(next))}
-                />
-                <aside className="build-cases" aria-label={t("testCases")}>
-                  <h3>{t("howToAdvance")}</h3>
-                  {specCases.length > 0 ? (
-                    <ul className="build-spec">
-                      <li>{t("proveAll")}</li>
-                      <li>{t("outputExact")}</li>
-                      <li>{t("explainGate")}</li>
-                      <li>{t("languageAfterCheck")}</li>
-                      <li>{t("stayCheck")}</li>
-                    </ul>
-                  ) : (
-                    <ul className="build-spec">
-                      <li>{t("proveProgram")}</li>
-                      <li>{t("noCaseThenLanguage")}</li>
-                      <li>{t("explainAfterOpen")}</li>
-                    </ul>
-                  )}
-                  {specCases.length > 0 ? (
-                    <>
-                      <h3>{t("casesWord")}</h3>
-                      <ul className="case-list">
-                        {specCases.map((item) => (
-                          <li key={item.name}>
-                            <strong>{item.name}</strong>
-                            <span>{item.inputs.length > 0 ? t("caseInputs", { values: item.inputs.join(", ") }) : t("noInputs")}</span>
-                            <pre className="lab-output">{item.expected_output}</pre>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  ) : null}
-                </aside>
-              </div>
             ) : null}
             {!finished && !timedOut && activity === "predict" && current === "comprobar" ? (
               <>
@@ -832,15 +1049,7 @@ export function ChallengePlay({
                 </button>
               </form>
             ) : null}
-            {diagnostics.length > 0 && !finished && !timedOut ? (
-              <ul className="lab-diagnostics">
-                {diagnostics.map((item, index) => (
-                  <li key={`${item.code}-${item.line}-${index}`} className={item.severity === "error" ? "error" : "warning"}>
-                    {item.message}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+            {diagnosticsList}
             {error ? <p className="error">{error}</p> : null}
             <AttemptHistory records={session.history ?? []} />
           </div>
@@ -852,32 +1061,7 @@ export function ChallengePlay({
           max={clampMentor(10_000)}
           onChange={(next) => setMentorWidth(clampMentor(next))}
         />
-        <aside className="mentor">
-          <p className="enunciado-kicker">{t("help")}</p>
-          <h2>{t("mentor")}</h2>
-          <p>
-            {attempt.hints_left} {attempt.hints_left === 1 ? t("hintOne") : t("hintMany")}
-          </p>
-          {attempt.hints.length === 0 ? <p>{t("noHelpYet")}</p> : null}
-          <ol className="hint-list">
-            {attempt.hints.map((hint, index) => (
-              <li key={`${hint.level}-${index}`} className={hint.solution ? "hint-solution" : undefined}>
-                {hint.body}
-              </li>
-            ))}
-          </ol>
-          <button
-            type="button"
-            disabled={busy || finished || timedOut || attempt.hints_left === 0}
-            onClick={() => void run(() => api.revealHint(attempt.id))}
-          >
-            {attempt.hints_left === 0
-              ? t("noHints")
-              : attempt.hints_left === 1 && attempt.solution_next
-                ? t("seeSolution")
-                : t("askHint")}
-          </button>
-        </aside>
+        {mentorPanel()}
       </div>
       </div>
     </div>
@@ -887,6 +1071,7 @@ export function ChallengePlay({
 function PanelSplitter({
   label,
   row = false,
+  before = row,
   value,
   min,
   max,
@@ -894,6 +1079,8 @@ function PanelSplitter({
 }: {
   label: string
   row?: boolean
+  /** El panel que cambia de tamaño está antes del separador: arriba o a la izquierda. */
+  before?: boolean
   value: number
   min: number
   max: number
@@ -914,7 +1101,7 @@ function PanelSplitter({
     page.style.userSelect = "none"
     const origin = row ? event.clientY : event.clientX
     const start = value
-    const sign = row ? 1 : -1
+    const sign = before ? 1 : -1
     const move = (ev: PointerEvent) => {
       const point = row ? ev.clientY : ev.clientX
       onChange(start + sign * (point - origin))
@@ -933,8 +1120,10 @@ function PanelSplitter({
 
   function nudge(event: ReactKeyboardEvent<HTMLButtonElement>) {
     const step = event.shiftKey ? 48 : 16
-    const grow = row ? event.key === "ArrowDown" : event.key === "ArrowLeft"
-    const shrink = row ? event.key === "ArrowUp" : event.key === "ArrowRight"
+    const forward = row ? event.key === "ArrowDown" : event.key === "ArrowRight"
+    const back = row ? event.key === "ArrowUp" : event.key === "ArrowLeft"
+    const grow = before ? forward : back
+    const shrink = before ? back : forward
     if (!grow && !shrink) return
     event.preventDefault()
     onChange(value + (grow ? step : -step))
