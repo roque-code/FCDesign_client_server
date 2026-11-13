@@ -19,6 +19,7 @@ from apps.accounts.services import (
     register_user,
     request_password_reset,
     resend_confirmation,
+    reset_notice,
     signup_payload,
     update_profile,
     update_signup_policy,
@@ -158,9 +159,7 @@ class PasswordResetView(APIView):
     def post(self, request: Request) -> Response:
         data = object_body(request.data)
         request_password_reset(data.get("email"), client_ip(request))
-        return Response(
-            {"message": "Si el correo está registrado, enviamos instrucciones para restablecerla."}
-        )
+        return Response({"message": reset_notice()})
 
 
 class PasswordResetConfirmView(APIView):

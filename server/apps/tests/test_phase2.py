@@ -106,7 +106,11 @@ def test_password_reset_uses_the_memory_mailbox(client):
     )
     assert unknown.status_code == 200
     assert len(mail.outbox) == 1
-    lines = dict(line.split("=", 1) for line in mail.outbox[0].body.splitlines())
+    body = mail.outbox[0].body
+    assert "uid=" not in body
+    link = next(line for line in body.splitlines() if "?restablecer=" in line)
+    lines = {key: values[0] for key, values in parse_qs(urlparse(link).query).items()}
+    lines["uid"] = lines["restablecer"]
     confirm = client.post(
         "/api/v1/auth/password-reset/confirm/",
         {"uid": lines["uid"], "token": lines["token"], "password": "Otra-clave-2"},

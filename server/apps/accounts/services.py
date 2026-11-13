@@ -2,6 +2,7 @@
 
 import base64
 import binascii
+import logging
 from smtplib import SMTPException
 from urllib.parse import urlencode
 
@@ -22,6 +23,7 @@ from apps.editor.models import EditorPreference
 from apps.projects.examples import seed_examples
 from config.errors import DomainError
 
+logger = logging.getLogger(__name__)
 
 def clean_email(value: object) -> str:
     if not isinstance(value, str):
@@ -137,10 +139,19 @@ def confirmation_notice() -> str:
     return message
 
 
+def reset_notice() -> str:
+    message = "Si el correo está registrado, enviamos instrucciones para restablecerla."
+    mailbox = settings.TRAZA_MAIL_UI
+    if mailbox:
+        message += f" En este entorno el mensaje está en {mailbox}."
+    return message
+
+
 def _deliver(subject: str, body: str, recipient: str) -> None:
     try:
         send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [recipient])
     except (OSError, SMTPException) as exc:
+        logger.warning("No se pudo enviar «%s» a %s: %r", subject, recipient, exc)
         raise DomainError(
             "No se pudo enviar el correo. Inténtalo de nuevo en unos minutos."
         ) from exc
@@ -322,15 +333,23 @@ def request_password_reset(email: object, ip_address: str | None) -> None:
     try:
         cleaned = clean_email(email)
     except DomainError:
+        logger.warning("Restablecer contraseña: el correo %r no es válido.", email)
         return
     user = User.objects.filter(email__iexact=cleaned).first()
     if user is None:
+        # La respuesta no lo dice para no revelar qué correos tienen cuenta.
+        logger.warning("Restablecer contraseña: %s no tiene cuenta; no se envía nada.", cleaned)
         return
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
     _deliver(
         "Restablecer contraseña de Aulivana-FCDdesign",
-        f"uid={uid}\ntoken={token}\n{_open_links('restablecer', uid, token)}\n",
+        (
+            "Pediste cambiar la contraseña de tu cuenta.\n\n"
+            "Abre este enlace para elegir una nueva. Vale 3 días y sirve una sola vez.\n\n"
+            f"{_open_links('restablecer', uid, token)}\n\n"
+            "Si no lo pediste, ignora este mensaje: la contraseña sigue igual.\n"
+        ),
         user.email,
     )
     record(
