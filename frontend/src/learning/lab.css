@@ -1094,8 +1094,27 @@
   background: var(--sheet);
 }
 
+.build-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
 .build-prove {
   flex: 0 0 auto;
+}
+
+.build-save-state,
+.build-runs-left {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.build-console {
+  display: grid;
+  gap: 0.55rem;
 }
 
 .build-results {

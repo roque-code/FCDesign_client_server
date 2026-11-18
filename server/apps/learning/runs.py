@@ -6,13 +6,12 @@ from django.conf import settings
 
 from apps.billing.services import consume_execution
 from apps.executions.live import advance, feed, publish, replace_session, signal_pause, signal_stop
-from apps.language.services import diagnostic_payload
+from apps.language.services import diagnostic_payload, profile_for_user
 from apps.learning.live import LabRun, begin, peek_run
 from apps.learning.services import load_workspace
 from config.errors import DomainError
 from language_core.block_adapter import Adapted, adapt_workspace
 from language_core.debugger import DebugRejected, open_program
-from language_core.grammar import STRICT
 from language_core.runtime import Limits
 
 _ACTIONS = {"step", "continue", "pause", "stop", "restart"}
@@ -24,9 +23,10 @@ def start_run(user, data: dict[str, object]) -> dict[str, object]:
     if adapted.program is None or any(item.severity == "error" for item in adapted.diagnostics):
         return _refused(adapted)
     consume_execution(user)
+    profile, config = profile_for_user(user)
     if settings.EXECUTION_RUNNER == "redis":
-        return _launch_lab(user.pk, adapted)
-    session = open_program(adapted.program, adapted.source, adapted.diagnostics)
+        return _launch_lab(user.pk, adapted, config)
+    session = open_program(adapted.program, adapted.source, adapted.diagnostics, profile=profile)
     live = begin(
         user.pk,
         session,
@@ -51,7 +51,8 @@ def control_run(user, run_id: str, action: object) -> dict[str, object]:
     if action == "stop":
         signal_stop(live)
     if action == "restart":
-        session = open_program(live.program, live.source, live.origin)
+        profile, _config = profile_for_user(user)
+        session = open_program(live.program, live.source, live.origin, profile=profile)
         replace_session(live, session)
         return _public(live)
     try:
@@ -64,7 +65,8 @@ def control_run(user, run_id: str, action: object) -> dict[str, object]:
 def submit_run_input(user, run_id: str, text: object) -> dict[str, object]:
     if not isinstance(text, str):
         raise DomainError("El dato no es válido.")
-    if len(text) > Limits.from_profile(STRICT).max_string_length:
+    profile, _config = profile_for_user(user)
+    if len(text) > Limits.from_profile(profile).max_string_length:
         raise DomainError("El dato es demasiado largo.")
     if settings.EXECUTION_RUNNER == "redis":
         return _input_lab(user.pk, run_id, text)
@@ -151,7 +153,7 @@ def _public(live: LabRun) -> dict[str, object]:
     }
 
 
-def _launch_lab(user_id: int, adapted: Adapted) -> dict[str, object]:
+def _launch_lab(user_id: int, adapted: Adapted, profile: dict[str, object]) -> dict[str, object]:
     from apps.executions.bus import BusTimeout, drop_kind, launch
 
     drop_kind(user_id, "lab")
@@ -160,7 +162,7 @@ def _launch_lab(user_id: int, adapted: Adapted) -> dict[str, object]:
         state = launch(
             user_id=user_id,
             source=adapted.source,
-            profile={"profile_key": "strict"},
+            profile=profile,
             breakpoints=set(),
             interactive=True,
             kind="lab",

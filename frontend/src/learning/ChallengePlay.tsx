@@ -8,21 +8,46 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react"
 
-import { ApiError, api, type Diagnostic, type FocusEvent, type LabAttemptRecord, type LabCase, type LabSession } from "../api"
+import {
+  ApiError,
+  api,
+  accessOf,
+  bumpRunUsage,
+  canExecuteToday,
+  withRunUsage,
+  type Account,
+  type Diagnostic,
+  type FocusEvent,
+  type LabAttemptRecord,
+  type LabCase,
+  type LabRun,
+  type LabSession,
+  type Preferences,
+} from "../api"
 import { editorKeywords, spellText, starterSource } from "../dialect"
 import { translatedMessage, useLocale, useT, type MessageKey } from "../i18n"
-import { Composer } from "../compose/Composer"
+import { Composer, type DiagramRequest } from "../compose/Composer"
 import { CodeEditor } from "../editor/CodeEditor"
 import { FocusNotice, useFocusWatch } from "../focus/FocusWatch"
 import { enterFullscreen, leaveFullscreen } from "../focus/watch"
 import { runLanguageCases } from "../foreign/cases"
 import { ForeignEditor } from "../foreign/ForeignEditor"
 import { FOREIGN_LANGUAGES, LANGUAGE_LABELS, type ForeignLanguage } from "../foreign/keywords"
-import { inInstalledApp, localImport } from "../runtime"
+import {
+  inInstalledApp,
+  localControlLab,
+  localImport,
+  localInputLab,
+  localLabRun,
+  localStartLab,
+  openLabEvents,
+} from "../runtime"
 import { BlockWorkspace } from "./BlockWorkspace"
 import { PromptText } from "./PromptText"
 import { SolutionCard } from "./SolutionCard"
 import { formatClock, formatWhen, stagesFor, type StageName } from "./trace"
+
+const AUTOSAVE_MS = 3000
 
 const ACTIVITY: Record<string, MessageKey> = {
   classify: "classify",
@@ -112,12 +137,16 @@ function sideWidth(share: number, min: number, max: number) {
 export function ChallengePlay({
   challengeId,
   pathId,
+  account,
+  onAccount,
   onDone,
   onStanding,
   pasteBlocked = false,
 }: {
   challengeId: string
   pathId?: string
+  account: Account
+  onAccount: (account: Account) => void
   onDone: () => void
   onStanding?: (standing: { points: number; rank: number }) => void
   pasteBlocked?: boolean
@@ -133,6 +162,7 @@ export function ChallengePlay({
   const [order, setOrder] = useState<string[]>([])
   const [reflection, setReflection] = useState("")
   const [workspace, setWorkspace] = useState<object | null>(null)
+  const [blockRestore, setBlockRestore] = useState<{ key: number; state: object } | null>(null)
   const [cases, setCases] = useState<LabCase[] | null>(null)
   const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([])
   const [output, setOutput] = useState("")
@@ -145,6 +175,15 @@ export function ChallengePlay({
   const [langSource, setLangSource] = useState("")
   const [langCases, setLangCases] = useState<LabCase[] | null>(null)
   const [grade, setGrade] = useState<number | null>(null)
+  const [autoState, setAutoState] = useState<"idle" | "saving" | "saved" | "dirty">("idle")
+  const [labRun, setLabRun] = useState<LabRun | null>(null)
+  const [runInput, setRunInput] = useState("")
+  const [playing, setPlaying] = useState(false)
+  const [prefs, setPrefs] = useState<Pick<Preferences, "require_semicolons" | "index_base">>({
+    require_semicolons: true,
+    index_base: 1,
+  })
+  const [diagramIncoming, setDiagramIncoming] = useState<DiagramRequest | null>(null)
   const [promptHeight, setPromptHeight] = useState<number | null>(168)
   const [mentorWidth, setMentorWidth] = useState(() => sideWidth(0.22, 220, 320))
   const [panels, setPanels] = useState<BuildPanels>(readBuildPanels)
@@ -161,6 +200,18 @@ export function ChallengePlay({
   const [keywords, setKeywords] = useState<string[]>([])
   const [stdlib, setStdlib] = useState<string[]>([])
   const expiredOnce = useRef(false)
+  const draftLoaded = useRef(false)
+  const saveTimer = useRef<number | null>(null)
+  const streamRef = useRef<EventSource | null>(null)
+  const seenEvents = useRef(0)
+  const codeRef = useRef(code)
+  const diagramRef = useRef(diagramSource)
+  const workspaceRef = useRef(workspace)
+  const modeRef = useRef(mode)
+  codeRef.current = code
+  diagramRef.current = diagramSource
+  workspaceRef.current = workspace
+  modeRef.current = mode
   const attemptClock = session?.attempt.seconds_left ?? null
   const attemptStatus = session?.attempt.status ?? ""
   const attemptId = session?.attempt.id ?? ""
@@ -214,6 +265,7 @@ export function ChallengePlay({
 
   useEffect(() => {
     let cancelled = false
+    draftLoaded.current = false
     void api.startAttempt(challengeId, pathId).then(
       (result) => {
         if (cancelled) return
@@ -229,6 +281,44 @@ export function ChallengePlay({
         }
         const items = result.challenge.task.items ?? []
         if (result.challenge.activity_type === "order") setOrder(items.map((item) => item.id))
+        const draft = result.attempt.draft
+        if (draft && !draftLoaded.current) {
+          draftLoaded.current = true
+          setMode(draft.tool)
+          if (draft.tool === "codigo") setCode(draft.source || starterSource(locale))
+          if (draft.tool === "diagrama" && draft.source) {
+            setDiagramSource(draft.source)
+            void api.preferences().then(
+              (preference) => {
+                if (cancelled) return
+                setPrefs({
+                  require_semicolons: preference.require_semicolons,
+                  index_base: preference.index_base === 0 ? 0 : 1,
+                })
+                setDiagramIncoming({
+                  name: result.challenge.title,
+                  source: draft.source,
+                  semicolons: preference.require_semicolons,
+                  token: Date.now(),
+                })
+              },
+              () => {
+                if (cancelled) return
+                setDiagramIncoming({
+                  name: result.challenge.title,
+                  source: draft.source,
+                  semicolons: true,
+                  token: Date.now(),
+                })
+              },
+            )
+          }
+          if (draft.tool === "bloques" && draft.blocks) {
+            setWorkspace(draft.blocks)
+            setBlockRestore({ key: Date.now(), state: draft.blocks })
+          }
+          setAutoState("saved")
+        }
       },
       (caught: unknown) => {
         if (!cancelled) setError(messageOf(caught, t("challengeContinueError")))
@@ -237,7 +327,7 @@ export function ChallengePlay({
     return () => {
       cancelled = true
     }
-  }, [challengeId, pathId])
+  }, [challengeId, pathId, locale])
 
   useEffect(() => {
     if (session?.challenge.activity_type !== "build") return
@@ -247,6 +337,16 @@ export function ChallengePlay({
         if (cancelled) return
         setKeywords(editorKeywords(locale, words.keywords))
         setStdlib(words.stdlib)
+      },
+      () => undefined,
+    )
+    void api.preferences().then(
+      (result) => {
+        if (cancelled) return
+        setPrefs({
+          require_semicolons: result.require_semicolons,
+          index_base: result.index_base === 0 ? 0 : 1,
+        })
       },
       () => undefined,
     )
@@ -316,6 +416,60 @@ export function ChallengePlay({
     }
   }
 
+  const buildTools = session?.challenge.task.tools?.length ? session.challenge.task.tools : ["bloques"]
+  const openAttempt = session?.attempt.status === "open"
+  const attemptFinished = session?.attempt.status === "completed"
+  const attemptTimedOut =
+    session?.attempt.status === "abandoned" ||
+    (session?.attempt.time_limit_seconds != null && left === 0)
+
+  function markDirty() {
+    if (!openAttempt || attemptFinished || attemptTimedOut) return
+    setAutoState("dirty")
+  }
+
+  function flushSave(keepalive = false) {
+    if (saveTimer.current != null) {
+      window.clearTimeout(saveTimer.current)
+      saveTimer.current = null
+    }
+    const current = session
+    if (!current || current.attempt.status !== "open") return
+    const available = current.challenge.task.tools?.length ? current.challenge.task.tools : ["bloques"]
+    const tool = (modeRef.current && available.includes(modeRef.current) ? modeRef.current : available[0]) ?? "codigo"
+    const source = tool === "diagrama" ? diagramRef.current : codeRef.current
+    const body =
+      tool === "bloques"
+        ? { tool, workspace: workspaceRef.current ?? {} }
+        : { tool, source, workspace: workspaceRef.current ?? {} }
+    if (tool === "bloques" && !workspaceRef.current) return
+    if (tool !== "bloques" && source.trim() === "") return
+    setAutoState("saving")
+    void api
+      .saveBuild(current.attempt.id, body, keepalive)
+      .then(() => setAutoState("saved"))
+      .catch(() => setAutoState("dirty"))
+  }
+
+  useEffect(() => {
+    if (autoState !== "dirty" || !session || session.attempt.status !== "open") return
+    if (saveTimer.current != null) window.clearTimeout(saveTimer.current)
+    saveTimer.current = window.setTimeout(() => flushSave(), AUTOSAVE_MS)
+    return () => {
+      if (saveTimer.current != null) window.clearTimeout(saveTimer.current)
+    }
+  }, [autoState, code, diagramSource, workspace, mode, session?.attempt.id, session?.attempt.status])
+
+  useEffect(() => {
+    const onHide = () => flushSave(true)
+    window.addEventListener("pagehide", onHide)
+    return () => {
+      window.removeEventListener("pagehide", onHide)
+      flushSave(true)
+      streamRef.current?.close()
+    }
+  }, [session?.attempt.id])
+
   if (!session) {
     return (
       <div className="lab-challenge">
@@ -336,12 +490,12 @@ export function ChallengePlay({
   const activity = challenge.activity_type
   const stages = stagesFor(activity)
   const current = attempt.next_stage
-  const finished = attempt.status === "completed"
-  const timedOut = attempt.status === "abandoned" || (attempt.time_limit_seconds != null && left === 0)
+  const finished = attemptFinished
+  const timedOut = attemptTimedOut
   const items = challenge.task.items ?? []
   const itemText = new Map(items.map((item) => [item.id, item.text]))
   const showCanvas = activity === "build" && (current === "construir" || current === "comprobar")
-  const tools = challenge.task.tools?.length ? challenge.task.tools : ["bloques"]
+  const tools = buildTools
   const specCases = challenge.task.cases ?? []
   const buildMode = mode && tools.includes(mode) ? mode : (tools[0] ?? "bloques")
 
@@ -369,7 +523,175 @@ export function ChallengePlay({
     void run(() => api.saveStage(attempt.id, "razonar", { text }))
   }
 
+  function languageProfile() {
+    return {
+      profile_key: "strict",
+      require_semicolons: prefs.require_semicolons,
+      index_base: prefs.index_base,
+    }
+  }
+
+  async function canvasWorkspace(): Promise<object | null> {
+    if (buildMode === "bloques") return workspace
+    const source = buildMode === "codigo" ? code : diagramSource
+    const imported = inInstalledApp()
+      ? await localImport(source, languageProfile())
+      : await api.importLab(source)
+    setDiagnostics(imported.diagnostics)
+    return imported.workspace
+  }
+
+  async function validateCode() {
+    setBusy(true)
+    setError("")
+    setCases(null)
+    setLabRun(null)
+    try {
+      const canvas = await canvasWorkspace()
+      if (!canvas) {
+        setNote(t("notYetMatch"))
+        return
+      }
+      setDiagnostics([])
+      setNote(t("foreignCheckClean"))
+      setOutput("")
+    } catch (caught) {
+      setError(messageOf(caught, t("challengeContinueError")))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function stopRun() {
+    if (!labRun?.id || busy) return
+    setBusy(true)
+    try {
+      rememberRun(
+        inInstalledApp()
+          ? await localControlLab(labRun.id, "stop")
+          : await api.controlLab(labRun.id, "stop"),
+      )
+      streamRef.current?.close()
+    } catch (caught) {
+      setError(messageOf(caught, t("labRunError")))
+    } finally {
+      setBusy(false)
+      setPlaying(false)
+    }
+  }
+
+  function rememberRun(result: LabRun) {
+    seenEvents.current = result.event_cursor
+    setLabRun(result)
+    if (result.output) setOutput(result.output)
+    if (result.diagnostics?.length) setDiagnostics(result.diagnostics)
+  }
+
+  function openRunStream(id: string) {
+    streamRef.current?.close()
+    const sourceStream = openLabEvents(id)
+    streamRef.current = sourceStream
+    const apply = (event: Event) => {
+      const message = event as MessageEvent
+      const cursor = Number(message.lastEventId)
+      if (!Number.isFinite(cursor) || cursor <= seenEvents.current) return
+      const missed = cursor > seenEvents.current + 1
+      seenEvents.current = cursor
+      const data = JSON.parse(message.data) as {
+        execution_id?: string
+        status: string
+        output?: string
+        text?: string
+        output_reset?: boolean
+      }
+      setLabRun((current) =>
+        current && current.id === (data.execution_id ?? id)
+          ? {
+              ...current,
+              status: data.status === "running" ? current.status : data.status,
+              output:
+                data.output_reset
+                  ? data.output ?? data.text ?? ""
+                  : `${current.output}${data.output ?? data.text ?? ""}`,
+            }
+          : current,
+      )
+      setOutput((current) =>
+        data.output_reset ? data.output ?? data.text ?? "" : `${current}${data.output ?? data.text ?? ""}`,
+      )
+      if (missed) {
+        void (inInstalledApp() ? localLabRun(id) : api.labRun(id)).then((result) => {
+          seenEvents.current = Math.max(seenEvents.current, result.event_cursor ?? cursor)
+          rememberRun(result)
+        })
+      }
+      if (["completed", "error", "cancelled", "timeout"].includes(data.status)) sourceStream.close()
+    }
+    for (const name of ["paused", "output", "input_requested", "finished", "error", "cancelled"]) {
+      sourceStream.addEventListener(name, apply)
+    }
+  }
+
+  async function executeCode() {
+    if (busy || playing || !canExecuteToday(account)) return
+    setBusy(true)
+    setPlaying(true)
+    setError("")
+    setCases(null)
+    setNote("")
+    try {
+      const canvas = await canvasWorkspace()
+      if (!canvas) {
+        setNote(t("notYetMatch"))
+        return
+      }
+      const result = inInstalledApp()
+        ? await (async () => {
+            const quota = await api.consumeExecution()
+            onAccount(withRunUsage(account, quota.used))
+            return localStartLab(canvas, languageProfile())
+          })()
+        : await api.startLab(canvas)
+      if (!inInstalledApp()) onAccount(bumpRunUsage(account))
+      rememberRun(result)
+      if (result.status === "paused" && result.id) {
+        await openRunStream(result.id)
+        rememberRun(
+          inInstalledApp()
+            ? await localControlLab(result.id, "continue")
+            : await api.controlLab(result.id, "continue"),
+        )
+      } else if (result.id) {
+        openRunStream(result.id)
+      }
+    } catch (caught) {
+      setError(messageOf(caught, t("labRunError")))
+    } finally {
+      setBusy(false)
+      setPlaying(false)
+    }
+  }
+
+  async function sendRunInput(event: FormEvent) {
+    event.preventDefault()
+    if (!labRun?.id || busy) return
+    setBusy(true)
+    try {
+      rememberRun(
+        inInstalledApp()
+          ? await localInputLab(labRun.id, runInput)
+          : await api.inputLab(labRun.id, runInput),
+      )
+      setRunInput("")
+    } catch (caught) {
+      setError(messageOf(caught, t("labRunError")))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function prove() {
+    flushSave()
     if (buildMode === "bloques") {
       await run(() => api.checkAttempt(attempt.id, workspace ?? {}, buildMode))
       return
@@ -377,8 +699,11 @@ export function ChallengePlay({
     const source = buildMode === "codigo" ? code : diagramSource
     setBusy(true)
     setError("")
+    setLabRun(null)
     try {
-      const imported = inInstalledApp() ? await localImport(source) : await api.importLab(source)
+      const imported = inInstalledApp()
+        ? await localImport(source, languageProfile())
+        : await api.importLab(source)
       if (!imported.workspace) {
         setDiagnostics(imported.diagnostics)
         setNote(t("notYetMatch"))
@@ -534,7 +859,18 @@ export function ChallengePlay({
     const showMentor = narrow || panels.mentor
     const leftOpen = showBrief || showCases
     const rightOpen = showMentor || history.length > 0
-    const hasResults = Boolean(cases) || Boolean(note) || diagnostics.length > 0 || Boolean(error)
+    const hasResults =
+      Boolean(cases) ||
+      Boolean(note) ||
+      diagnostics.length > 0 ||
+      Boolean(error) ||
+      Boolean(labRun) ||
+      Boolean(output)
+    const runLimit = accessOf(account).limits.max_executions_per_day
+    const runsLeft = runLimit == null ? null : Math.max(0, runLimit - (account.usage.executions_today ?? 0))
+    const canStop =
+      Boolean(labRun?.id) &&
+      ["running", "paused", "waiting_input", "starting"].includes(labRun?.status ?? "")
     const columns = [
       leftOpen ? `${briefWidth}px 10px` : "",
       "minmax(0, 1fr)",
@@ -673,9 +1009,13 @@ export function ChallengePlay({
                     breakpoints={[]}
                     currentLine={null}
                     onToggleBreakpoint={() => undefined}
-                    onChange={setCode}
+                    onChange={(next) => {
+                      setCode(next)
+                      markDirty()
+                    }}
                     onCursor={() => undefined}
                     pasteBlocked={pasteBlocked}
+                    semicolons={prefs.require_semicolons}
                   />
                   {pasteBlocked ? <p className="note">{t("pasteBlockedNote")}</p> : null}
                 </div>
@@ -686,34 +1026,92 @@ export function ChallengePlay({
                     embedded
                     isolated
                     active={buildMode === "diagrama"}
-                    incoming={null}
+                    incoming={diagramIncoming}
                     allowedBlocks={challenge.allowed_blocks}
                     pasteBlocked={pasteBlocked}
                     onBack={() => undefined}
                     onOpenInEditor={() => undefined}
-                    onSource={setDiagramSource}
+                    onSource={(next) => {
+                      setDiagramSource(next)
+                      markDirty()
+                    }}
                   />
                   {pasteBlocked ? <p className="note">{t("pasteBlockedNote")}</p> : null}
                 </div>
               ) : null}
               {tools.includes("bloques") ? (
                 <div className="stage-canvas is-build" hidden={buildMode !== "bloques"}>
-                  <BlockWorkspace onCount={() => undefined} onState={setWorkspace} allowed={challenge.allowed_blocks} />
+                  <BlockWorkspace
+                    onCount={() => undefined}
+                    onState={(next) => {
+                      setWorkspace(next)
+                      markDirty()
+                    }}
+                    allowed={challenge.allowed_blocks}
+                    restore={blockRestore}
+                  />
                 </div>
               ) : null}
-              <button
-                type="button"
-                className="primary build-prove"
-                disabled={
-                  busy ||
-                  (buildMode === "bloques" && !workspace) ||
-                  (buildMode === "codigo" && code.trim() === "") ||
-                  (buildMode === "diagrama" && diagramSource.trim() === "")
-                }
-                onClick={() => void prove()}
-              >
-                {t("prove")}
-              </button>
+              <div className="build-actions">
+                <button
+                  type="button"
+                  disabled={
+                    busy ||
+                    playing ||
+                    (buildMode === "bloques" && !workspace) ||
+                    (buildMode === "codigo" && code.trim() === "") ||
+                    (buildMode === "diagrama" && diagramSource.trim() === "")
+                  }
+                  onClick={() => void validateCode()}
+                >
+                  {t("validate")}
+                </button>
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={
+                    busy ||
+                    playing ||
+                    !canExecuteToday(account) ||
+                    (buildMode === "bloques" && !workspace) ||
+                    (buildMode === "codigo" && code.trim() === "") ||
+                    (buildMode === "diagrama" && diagramSource.trim() === "")
+                  }
+                  onClick={() => void executeCode()}
+                >
+                  {t("run")}
+                </button>
+                <button type="button" disabled={!canStop || busy} onClick={() => void stopRun()}>
+                  {t("stop")}
+                </button>
+                <button
+                  type="button"
+                  className="primary build-prove"
+                  disabled={
+                    busy ||
+                    (buildMode === "bloques" && !workspace) ||
+                    (buildMode === "codigo" && code.trim() === "") ||
+                    (buildMode === "diagrama" && diagramSource.trim() === "")
+                  }
+                  onClick={() => void prove()}
+                >
+                  {t("prove")}
+                </button>
+                <span className="build-save-state" aria-live="polite">
+                  {autoState === "saving"
+                    ? t("saving")
+                    : autoState === "saved"
+                      ? t("saved")
+                      : autoState === "dirty"
+                        ? t("programUnsaved")
+                        : null}
+                </span>
+                {runsLeft != null ? (
+                  <span className="build-runs-left">
+                    {runsLeft === 1 ? t("executionsLeftOne") : t("executionsLeft", { count: runsLeft })}
+                  </span>
+                ) : null}
+              </div>
               {hasResults ? (
                 <PanelSplitter
                   row
@@ -727,7 +1125,9 @@ export function ChallengePlay({
               ) : null}
               {hasResults ? (
                 <div className="build-results" style={{ height: resultsHeight }}>
-                  {note && cases ? <p className={cases.some((item) => !item.passed) ? "error" : "note"}>{note}</p> : null}
+                  {note ? (
+                    <p className={cases?.some((item) => !item.passed) ? "error" : "note"}>{note}</p>
+                  ) : null}
                   {cases ? (
                     <ul className="case-list">
                       {cases.map((item) => (
@@ -737,6 +1137,29 @@ export function ChallengePlay({
                         </li>
                       ))}
                     </ul>
+                  ) : null}
+                  {labRun || output ? (
+                    <div className="build-console">
+                      <pre className="lab-output">{output || labRun?.output || t("noOutput")}</pre>
+                      {labRun?.status === "waiting_input" && labRun.pending_input ? (
+                        <form className="lab-input" onSubmit={(event) => void sendRunInput(event)}>
+                          <label>
+                            {t("readNamed", {
+                              name: labRun.pending_input.name,
+                              type: labRun.pending_input.type,
+                            })}
+                            <input
+                              value={runInput}
+                              onChange={(event) => setRunInput(event.target.value)}
+                              autoComplete="off"
+                            />
+                          </label>
+                          <button type="submit" disabled={busy}>
+                            {t("send")}
+                          </button>
+                        </form>
+                      ) : null}
+                    </div>
                   ) : null}
                   {diagnosticsList}
                   {error ? <p className="error">{error}</p> : null}

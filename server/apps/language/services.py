@@ -89,6 +89,21 @@ def profile_for_algorithm(algorithm) -> tuple[LanguageProfile, dict[str, Any]]:
     return core_profile_from_config(algorithm.language_profile.key, config), config
 
 
+def profile_for_user(user) -> tuple[LanguageProfile, dict[str, Any]]:
+    """Mismas reglas de índice y punto y coma que la configuración global del editor."""
+    from apps.editor.models import EditorPreference
+
+    config = dict(STRICT_CONFIG)
+    config["profile_key"] = "strict"
+    try:
+        preference = user.editor_preference
+    except EditorPreference.DoesNotExist:
+        return core_profile_from_config("strict", config), config
+    config["require_semicolons"] = bool(preference.require_semicolons)
+    config["index_base"] = 0 if preference.index_base == 0 else 1
+    return core_profile_from_config("strict", config), config
+
+
 def clean_language_option(current: object, data: dict[str, Any]) -> dict[str, object]:
     options = dict(current) if isinstance(current, dict) else {}
     if "require_semicolons" in data:

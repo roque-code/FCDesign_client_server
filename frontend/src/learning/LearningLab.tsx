@@ -105,6 +105,8 @@ export function LearningLab({
           key={`${challengeId}-${reloadToken}`}
           challengeId={challengeId}
           pathId={pathId ?? undefined}
+          account={account}
+          onAccount={onAccount}
           onStanding={(standing) => onAccount({ ...account, ...standing })}
           pasteBlocked={pasteBlockedFor(account)}
           onDone={() => {

@@ -15,6 +15,7 @@ from apps.learning.progress import (
     paths_payload,
     reveal_hint,
     run_prediction,
+    save_build,
     save_stage,
     start_attempt,
     submit_language,
@@ -89,6 +90,11 @@ class AttemptHintView(APIView):
 class AttemptCheckView(APIView):
     def post(self, request: Request, attempt_id) -> Response:
         return Response(check_attempt(current_user(request), attempt_id, object_body(request.data)))
+
+
+class AttemptBuildView(APIView):
+    def post(self, request: Request, attempt_id) -> Response:
+        return Response(save_build(current_user(request), attempt_id, object_body(request.data)))
 
 
 class AttemptRunView(APIView):

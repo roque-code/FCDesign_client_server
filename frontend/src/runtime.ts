@@ -129,12 +129,15 @@ export function localPreview(workspace: object): Promise<LabPreview> {
   return localJson("/local/v1/lab/preview", { workspace })
 }
 
-export function localImport(source: string): Promise<{ workspace: object | null; diagnostics: Diagnostic[] }> {
-  return localJson("/local/v1/lab/import", { source })
+export function localImport(
+  source: string,
+  profile?: LanguageBody,
+): Promise<{ workspace: object | null; diagnostics: Diagnostic[] }> {
+  return localJson("/local/v1/lab/import", profile ? { source, profile } : { source })
 }
 
-export function localStartLab(workspace: object): Promise<LabRun> {
-  return localJson("/local/v1/lab/runs", { workspace })
+export function localStartLab(workspace: object, profile?: LanguageBody): Promise<LabRun> {
+  return localJson("/local/v1/lab/runs", profile ? { workspace, profile } : { workspace })
 }
 
 export function localControlLab(id: string, action: string): Promise<LabRun> {

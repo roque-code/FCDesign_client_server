@@ -26,7 +26,7 @@ from apps.classroom.focus import (
 )
 from apps.classroom.models import Membership
 from apps.classroom.services import focus_rules
-from apps.language.services import diagnostic_payload
+from apps.language.services import diagnostic_payload, profile_for_user
 from apps.learning.models import (
     Challenge,
     ChallengeAttempt,
@@ -45,7 +45,6 @@ from config.errors import DomainError
 from language_core.ast_nodes import dump
 from language_core.block_adapter import adapt_workspace
 from language_core.debugger import drive
-from language_core.grammar import STRICT
 from language_core.interpreter import Interpreter
 from language_core.runtime import Cancellation, Limits
 
@@ -292,7 +291,8 @@ def check_attempt(user, attempt_id, data: dict[str, Any]) -> dict[str, object]:
         _record_progress(attempt)
         return _bundle(attempt, passed=passed, cases=[], diagnostics=diagnostics)
     consume_execution(user)
-    cases = _grade_cases(adapted.program, adapted.source, attempt.challenge)
+    profile, _config = profile_for_user(user)
+    cases = _grade_cases(adapted.program, adapted.source, attempt.challenge, profile)
     passed = _every_case_passed(cases) and not missing
     outputs = [str(item["output"]) for item in cases]
     graded: dict[str, object] = {"passed": passed, "outputs": outputs}
@@ -391,7 +391,8 @@ def run_prediction(user, attempt_id) -> dict[str, object]:
     adapted = adapt_workspace(starter)
     if adapted.program is None:
         raise DomainError("No se pudo preparar el programa.")
-    result = _execute(adapted.program, adapted.source, [])
+    profile, _config = profile_for_user(user)
+    result = _execute(adapted.program, adapted.source, [], profile)
     _remember(attempt, "comprobar", {"passed": True, "output": result.output})
     _save_tree(attempt, starter, adapted)
     _record_progress(attempt)
@@ -835,6 +836,9 @@ def _state(attempt: ChallengeAttempt) -> dict[str, object]:
     solution = _solution(attempt)
     if solution is not None:
         state["solution"] = solution
+    draft = _draft(attempt)
+    if draft is not None:
+        state["draft"] = draft
     checked = _checked_cases(attempt)
     if checked:
         state["cases"] = checked
@@ -884,15 +888,23 @@ def _solution(
     """La forma en que el alumno construyó la respuesta, para mostrarla junto a la nota."""
     if only_completed and attempt.status != ChallengeAttempt.COMPLETED:
         return None
+    return _build_snapshot(attempt)
+
+
+def _draft(attempt: ChallengeAttempt) -> dict[str, object] | None:
+    """Borrador del intento abierto, para recuperar el editor al volver."""
+    if attempt.status != ChallengeAttempt.OPEN:
+        return None
+    return _build_snapshot(attempt)
+
+
+def _build_snapshot(attempt: ChallengeAttempt) -> dict[str, object] | None:
     if attempt.challenge.activity_type != Challenge.BUILD:
         return None
-    snap = (
-        attempt.snapshots.filter(schema_version=1)
-        .exclude(pseudocode="")
-        .order_by("-created_at")
-        .first()
-    )
+    snap = attempt.snapshots.filter(schema_version=1).order_by("-created_at").first()
     if snap is None or not isinstance(snap.blockly_json, dict):
+        return None
+    if not snap.pseudocode and snap.blockly_json == {}:
         return None
     tool = "codigo"
     saved = _latest(attempt, "comprobar")
@@ -902,13 +914,69 @@ def _solution(
             chosen = _chosen_tool(answer)
             if chosen is not None:
                 tool = chosen
+    draft = _latest(attempt, "borrador")
+    if isinstance(draft, dict):
+        answer = draft.get("answer")
+        if isinstance(answer, dict):
+            chosen = _chosen_tool(answer)
+            if chosen is not None:
+                tool = chosen
     payload: dict[str, object] = {"tool": tool, "source": snap.pseudocode}
-    if tool == "bloques":
+    if tool == "bloques" or (not snap.pseudocode and snap.blockly_json):
         payload["blocks"] = snap.blockly_json
+        if tool != "bloques" and not snap.pseudocode:
+            payload["tool"] = "bloques"
     language = _language_public(attempt)
     if language is not None:
         payload["language"] = language
     return payload
+
+
+def save_build(user, attempt_id, data: dict[str, Any]) -> dict[str, object]:
+    """Guarda el avance sin calificar ni gastar ejecuciones."""
+    attempt = _open_attempt(user, attempt_id)
+    if attempt.challenge.activity_type != Challenge.BUILD:
+        raise DomainError("Este reto no se guarda así.")
+    if _next(attempt) not in ("construir", "comprobar", "lenguaje", "explicar"):
+        raise DomainError("Todavía no puedes guardar el programa.", code="conflict", status_code=409)
+    tool = _chosen_tool(data) or "codigo"
+    source = data.get("source")
+    raw = data.get("workspace")
+    workspace = raw if isinstance(raw, dict) else {}
+    if tool == "bloques":
+        workspace = load_workspace(data)
+        adapted = adapt_workspace(workspace)
+        text = adapted.source
+        tree = "" if adapted.program is None else dump(adapted.program)
+        bindings = [
+            {"block_id": item.block_id, "line": item.line, "column": item.column}
+            for item in adapted.bindings
+        ]
+    else:
+        if not isinstance(source, str):
+            raise DomainError("Falta el código.")
+        if len(source.encode("utf-8")) > 256 * 1024:
+            raise DomainError("El código es demasiado grande.")
+        text = source
+        tree = ""
+        bindings = []
+        if workspace:
+            adapted = adapt_workspace(workspace)
+            tree = "" if adapted.program is None else dump(adapted.program)
+            bindings = [
+                {"block_id": item.block_id, "line": item.line, "column": item.column}
+                for item in adapted.bindings
+            ]
+    WorkspaceSnapshot.objects.create(
+        attempt=attempt,
+        schema_version=1,
+        blockly_json=workspace,
+        ast_dump=tree,
+        pseudocode=text,
+        bindings=bindings,
+    )
+    _remember(attempt, "borrador", {"tool": tool})
+    return _bundle(attempt)
 
 
 def _history(user, challenge: Challenge) -> list[dict[str, object]]:
@@ -1087,14 +1155,28 @@ def _named(concept: str, diagnostics) -> list[dict[str, object]]:
     return named
 
 
-def _grade_cases(program, source: str, challenge: Challenge) -> list[dict[str, object]]:
+def _grade_cases(program, source: str, challenge: Challenge, profile) -> list[dict[str, object]]:
     """Corre cada caso definido. Uno que coincide no absuelve a los demás."""
     rows: list[dict[str, object]] = []
     for case in challenge.test_cases.order_by("position"):
-        result = _execute(program, source, list(case.inputs))
+        result = _execute(program, source, list(case.inputs), profile)
+        output = _case_output(result)
         ok = result.status == "completed" and result.output == case.expected_output
-        rows.append({"name": case.name, "kind": case.kind, "passed": ok, "output": result.output})
+        rows.append({"name": case.name, "kind": case.kind, "passed": ok, "output": output})
     return rows
+
+
+def _case_output(result) -> str:
+    text = result.output
+    if result.status != "error":
+        return text
+    errors = [item for item in result.diagnostics if item.severity == "error"]
+    if not errors:
+        return text
+    message = errors[-1].message
+    if not message or message in text:
+        return text
+    return f"{text}{message}\n"
 
 
 def _every_case_passed(cases: list[dict[str, object]]) -> bool:
@@ -1263,15 +1345,18 @@ def _build_matches_every_case(attempt: ChallengeAttempt) -> bool:
         return False
     if not attempt.challenge.test_cases.exists():
         return True
-    return _every_case_passed(_grade_cases(adapted.program, adapted.source, attempt.challenge))
+    profile, _config = profile_for_user(attempt.user)
+    return _every_case_passed(
+        _grade_cases(adapted.program, adapted.source, attempt.challenge, profile)
+    )
 
 
-def _execute(program, source: str, inputs: list[str]):
-    limits = Limits.from_profile(STRICT)
+def _execute(program, source: str, inputs: list[str], profile):
+    limits = Limits.from_profile(profile)
     interpreter = Interpreter(
         program,
         source,
-        STRICT,
+        profile,
         limits,
         Cancellation(),
         time.monotonic,

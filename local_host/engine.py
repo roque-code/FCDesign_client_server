@@ -189,7 +189,9 @@ class Host:
             raise HostError("El archivo debe ser texto.")
         if len(source.encode("utf-8")) > MAX_SOURCE:
             raise HostError("El archivo supera 64 KiB.")
-        imported = workspace_from_source(source)
+        profile_body = _profile_body(body.get("profile"))
+        profile = profile_from_mapping(_profile_name(profile_body), profile_body)
+        imported = workspace_from_source(source, profile=profile)
         return {
             "workspace": imported.workspace,
             "diagnostics": [_diagnostic(item) for item in imported.diagnostics],
@@ -201,13 +203,16 @@ class Host:
         adapted = adapt_workspace(workspace)
         if adapted.program is None or any(item.severity == "error" for item in adapted.diagnostics):
             return _lab_refused(adapted.source, adapted.bindings, adapted.diagnostics)
-        session = open_program(adapted.program, adapted.source, adapted.diagnostics)
+        profile_body = _profile_body(body.get("profile"))
+        profile = profile_from_mapping(_profile_name(profile_body), profile_body)
+        session = open_program(adapted.program, adapted.source, adapted.diagnostics, profile=profile)
         live = self._keep(session, interactive=True)
         live.kind = "lab"
         live.source = adapted.source
         live.program = adapted.program
         live.origin = tuple(adapted.diagnostics)
         live.bindings = _bindings(adapted.bindings)
+        live.profile = dict(profile_body)
         return _lab_view(live)
 
     def control_lab(self, session_id: str, body: dict[str, Any]) -> dict[str, object]:

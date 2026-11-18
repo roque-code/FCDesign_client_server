@@ -15,6 +15,7 @@ from apps.learning.authoring_views import (
     ChallengeFigureView,
 )
 from apps.learning.course_views import (
+    AttemptBuildView,
     AttemptCheckView,
     AttemptCloseView,
     AttemptExpireView,
@@ -126,6 +127,11 @@ urlpatterns = [
         "learning/attempts/<uuid:attempt_id>/check/",
         AttemptCheckView.as_view(),
         name="learning-attempt-check",
+    ),
+    path(
+        "learning/attempts/<uuid:attempt_id>/build/",
+        AttemptBuildView.as_view(),
+        name="learning-attempt-build",
     ),
     path(
         "learning/attempts/<uuid:attempt_id>/run/",

@@ -34,8 +34,7 @@ class PreviewView(APIView):
 
 class ImportView(APIView):
     def post(self, request: Request) -> Response:
-        current_user(request)
-        return Response(import_source(object_body(request.data)))
+        return Response(import_source(object_body(request.data), current_user(request)))
 
 
 class RunStartView(APIView):

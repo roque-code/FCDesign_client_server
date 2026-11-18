@@ -640,6 +640,7 @@ def open_program(
     source: str,
     diagnostics: tuple[Diagnostic, ...] | list[Diagnostic],
     *,
+    profile: object | None = None,
     limits: object | None = None,
     cancellation: object | None = None,
     clock: object | None = None,
@@ -654,18 +655,19 @@ def open_program(
     from language_core.interpreter import Interpreter
     from language_core.runtime import Cancellation, Limits
 
+    chosen = profile or STRICT
     notes = tuple(diagnostics)
     errors = [item for item in notes if item.severity == "error"]
     if not isinstance(program, Program) or errors:
         return DebugSession.failed(notes)
-    active_limits = limits if isinstance(limits, Limits) else Limits.from_profile(STRICT)
+    active_limits = limits if isinstance(limits, Limits) else Limits.from_profile(chosen)  # type: ignore[arg-type]
     active_cancel = cancellation if isinstance(cancellation, Cancellation) else Cancellation()
     active_clock = clock if callable(clock) else time.monotonic
     active_rng = rng if isinstance(rng, random.Random) else random.Random()
     interpreter = Interpreter(
         program,
         source,
-        STRICT,
+        chosen,  # type: ignore[arg-type]
         active_limits,
         active_cancel,
         active_clock,

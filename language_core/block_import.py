@@ -66,7 +66,7 @@ class Imported:
     diagnostics: tuple[Diagnostic, ...]
 
 
-def workspace_from_source(source: str) -> Imported:
+def workspace_from_source(source: str, *, profile=None) -> Imported:
     """Arma el JSON de `serialization.workspaces.load` a partir del texto."""
     text = source[1:] if source.startswith("\ufeff") else source
     if len(text.encode("utf-8")) > MAX_IMPORT_BYTES:
@@ -79,7 +79,7 @@ def workspace_from_source(source: str) -> Imported:
             None,
             (_plain(text, "error", "El archivo está vacío.", "Elige un archivo de pseudocódigo."),),
         )
-    compiled = compile_source(text, STRICT)
+    compiled = compile_source(text, profile or STRICT)
     program = compiled.program
     if program is None:
         return Imported(None, compiled.diagnostics)

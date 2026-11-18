@@ -688,6 +688,7 @@ export type LabAttempt = {
   prediction: { answer: string; is_correct: boolean } | null
   reflection: string | null
   solution?: LabSolution | null
+  draft?: LabSolution | null
   language?: LabLanguage | null
   time_limit_seconds: number | null
   seconds_left: number | null
@@ -1361,6 +1362,16 @@ export const api = {
     request<LabSession>(attemptCheckPath(attemptId), {
       method: "POST",
       body: JSON.stringify({ workspace, tool }),
+    }),
+  saveBuild: (
+    attemptId: string,
+    body: { tool: string; source?: string; workspace?: object },
+    keepalive = false,
+  ) =>
+    request<LabSession>(`/api/v1/learning/attempts/${attemptId}/build/`, {
+      method: "POST",
+      body: JSON.stringify(body),
+      keepalive,
     }),
   runAttempt: (attemptId: string) =>
     request<LabSession>(`/api/v1/learning/attempts/${attemptId}/run/`, {
