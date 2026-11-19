@@ -50,7 +50,14 @@ class MemberProgressView(APIView):
 
 class MemberWorkView(APIView):
     def get(self, request: Request, user_id: int, challenge_id) -> Response:
-        return Response(member_work(current_user(request), user_id, challenge_id))
+        return Response(
+            member_work(
+                current_user(request),
+                user_id,
+                challenge_id,
+                request.query_params.get("path_id"),
+            )
+        )
 
 
 class PathView(APIView):

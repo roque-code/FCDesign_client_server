@@ -141,8 +141,10 @@ def test_el_docente_ve_solo_a_quien_ya_puede_ver():
     by_name = {item["name"]: item for item in grouped["routes"]}
     assert "Sin asignar" not in by_name
     assert [item["id"] for item in by_name["Repaso grupo"]["students"]] == [student_id]
-    assert by_name["Repaso grupo"]["students"][0]["completed"] == 1
+    # El avance de Fundamentos no se copia: el mismo reto en otra ruta empieza sin resolver.
+    assert by_name["Repaso grupo"]["students"][0]["completed"] == 0
     assert by_name["Repaso grupo"]["students"][0]["total"] == 1
+    assert by_name["Fundamentos"]["students"][0]["completed"] == 1
     assert sorted(item["id"] for item in by_name["Fundamentos"]["students"]) == sorted(
         [student_id, other_id]
     )
@@ -151,10 +153,10 @@ def test_el_docente_ve_solo_a_quien_ya_puede_ver():
     names = [item["name"] for item in again["paths"]]
     assert names == ["Fundamentos", ROUTE_NAME, CONTEST_ROUTE_NAME, "Repaso grupo"]
     custom = next(item for item in again["paths"] if item["name"] == "Repaso grupo")
-    assert custom["completed"] == 1
+    assert custom["completed"] == 0
     assert custom["total"] == 1
-    assert custom["challenges"][0]["state"] == "completed"
-    assert custom["challenges"][0]["score"] == 80
+    assert custom["challenges"][0]["state"] == "available"
+    assert custom["challenges"][0]["score"] is None
 
 
 def test_el_docente_lee_la_respuesta_y_el_codigo():

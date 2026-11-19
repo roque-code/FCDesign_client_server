@@ -12,7 +12,7 @@ from django.utils import timezone
 from apps.accounts.models import Profile
 from apps.classroom.models import Community
 from apps.learning.models import Challenge, ChallengeAttempt, LearningPath, PathEntry
-from apps.learning.progress import visible_paths
+from apps.learning.progress import _path_scope, visible_paths
 from apps.learning.roster import _communities_of, _member_ids, _require_teacher
 from config.errors import DomainError
 
@@ -45,7 +45,11 @@ def gradebook_csv(teacher, path_id, lang: str, community: str = "") -> tuple[str
         raise DomainError("No se encontró la ruta.", code=NOT_FOUND, status_code=404)
     on_path = _only_community(teacher, on_path, community)
     activities = _activities(path, [student.pk for student in on_path])
-    scores = _scores([student.pk for student in on_path], [item[0].pk for item in activities])
+    scores = _scores(
+        [student.pk for student in on_path],
+        [item[0].pk for item in activities],
+        path,
+    )
     communities = _communities_of(teacher)
     chosen = community.strip()
     headers = [
@@ -125,7 +129,11 @@ def _activities(path: LearningPath, user_ids: list[int]) -> list[tuple[Challenge
         .order_by("position")
     )
     if entries:
-        solved = _solved(user_ids, [entry.challenge_id for entry in entries if entry.withdrawn])
+        solved = _solved(
+            user_ids,
+            [entry.challenge_id for entry in entries if entry.withdrawn],
+            path,
+        )
         return [
             (entry.challenge, entry.opens_at, entry.closes_at)
             for entry in entries
@@ -137,7 +145,7 @@ def _activities(path: LearningPath, user_ids: list[int]) -> list[tuple[Challenge
     return [(challenge, None, None) for challenge in rows]
 
 
-def _solved(user_ids: list[int], challenge_ids: list) -> set:
+def _solved(user_ids: list[int], challenge_ids: list, path: LearningPath) -> set:
     if not user_ids or not challenge_ids:
         return set()
     return set(
@@ -145,19 +153,27 @@ def _solved(user_ids: list[int], challenge_ids: list) -> set:
             user_id__in=user_ids,
             challenge_id__in=challenge_ids,
             status=ChallengeAttempt.COMPLETED,
-        ).values_list("challenge_id", flat=True)
+        )
+        .filter(_path_scope(path))
+        .values_list("challenge_id", flat=True)
     )
 
 
-def _scores(user_ids: list[int], challenge_ids: list) -> dict[tuple[int, object], int]:
+def _scores(
+    user_ids: list[int], challenge_ids: list, path: LearningPath
+) -> dict[tuple[int, object], int]:
     found: dict[tuple[int, object], int] = {}
     if not user_ids or not challenge_ids:
         return found
-    rows = ChallengeAttempt.objects.filter(
-        user_id__in=user_ids,
-        challenge_id__in=challenge_ids,
-        status=ChallengeAttempt.COMPLETED,
-    ).order_by("-finished_at", "-started_at")
+    rows = (
+        ChallengeAttempt.objects.filter(
+            user_id__in=user_ids,
+            challenge_id__in=challenge_ids,
+            status=ChallengeAttempt.COMPLETED,
+        )
+        .filter(_path_scope(path))
+        .order_by("-finished_at", "-started_at")
+    )
     for row in rows:
         if row.score is None:
             continue

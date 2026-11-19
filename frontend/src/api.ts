@@ -1341,8 +1341,10 @@ export const api = {
       }`,
     ),
   labMember: (userId: number) => request<LabMemberProgress>(`/api/v1/learning/roster/${userId}/`),
-  labMemberWork: (userId: number, challengeId: string) =>
-    request<LabMemberWork>(`/api/v1/learning/roster/${userId}/challenges/${challengeId}/`),
+  labMemberWork: (userId: number, challengeId: string, pathId?: string) =>
+    request<LabMemberWork>(
+      `/api/v1/learning/roster/${userId}/challenges/${challengeId}/${pathId ? `?path_id=${encodeURIComponent(pathId)}` : ""}`,
+    ),
   startAttempt: (challengeId: string, pathId?: string) =>
     request<LabSession>(`/api/v1/learning/challenges/${challengeId}/attempts/`, {
       method: "POST",

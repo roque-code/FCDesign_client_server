@@ -154,6 +154,7 @@ def test_el_docente_asigna_la_ruta_a_una_comunidad_y_a_un_alumno():
     ChallengeAttempt.objects.create(
         user_id=member_id,
         challenge=first,
+        path_id=path_id,
         status=ChallengeAttempt.COMPLETED,
         score=90,
         finished_at=timezone.now(),
@@ -294,6 +295,7 @@ def test_el_horario_del_reto_se_puede_cambiar_y_limita_el_inicio():
     ChallengeAttempt.objects.create(
         user_id=_student_id,
         challenge_id=ids[0],
+        path_id=path_id,
         status=ChallengeAttempt.COMPLETED,
         score=70,
         finished_at=timezone.now(),
@@ -389,6 +391,7 @@ def test_un_reto_con_horario_no_espera_a_los_ligados():
     ChallengeAttempt.objects.create(
         user_id=student_id,
         challenge_id=ids[0],
+        path_id=path_id,
         status=ChallengeAttempt.COMPLETED,
         score=80,
         finished_at=timezone.now(),
@@ -443,6 +446,7 @@ def test_retirar_un_reto_resuelto_conserva_puntos_y_avance():
     ChallengeAttempt.objects.create(
         user_id=solved_id,
         challenge=challenge,
+        path_id=path_id,
         status=ChallengeAttempt.COMPLETED,
         score=80,
         summary="Puntuación 80.",
@@ -1019,3 +1023,93 @@ def test_el_mismo_reto_se_puede_volver_a_asignar_sin_borrar_el_historial():
     fresh = patched.json()["challenges"]
     assert fresh[0]["closes_at"] == rows[0]["closes_at"]
     assert fresh[1]["closes_at"] != fresh[0]["closes_at"]
+
+
+def test_el_mismo_reto_en_dos_rutas_se_califica_por_separado():
+    teacher = _teacher("doble-ruta-profe@ejemplo.test", "Profe Doble")
+    student, student_id = _student("doble-ruta-alumno@ejemplo.test", "Alumno Doble")
+    challenge_id = _catalog_ids()[0]
+    group = teacher.post("/api/v1/communities/", {"name": "Grupo Doble"}, format="json")
+    assert group.status_code == 201, group.content
+    assert (
+        teacher.post(
+            f"/api/v1/communities/{group.json()['id']}/members/",
+            {"user_id": student_id},
+            format="json",
+        ).status_code
+        == 201
+    )
+
+    path_ids: list[str] = []
+    for name in ("Ruta Alfa", "Ruta Beta"):
+        created = teacher.post(
+            "/api/v1/learning/authored/",
+            {"name": name, "description": "El mismo reto"},
+            format="json",
+        )
+        assert created.status_code == 201, created.content
+        path_id = created.json()["id"]
+        path_ids.append(path_id)
+        assert (
+            teacher.put(
+                f"/api/v1/learning/authored/{path_id}/challenges/",
+                {"challenge_ids": [challenge_id]},
+                format="json",
+            ).status_code
+            == 200
+        )
+        assert (
+            teacher.put(
+                f"/api/v1/learning/authored/{path_id}/assignments/",
+                {"community_ids": [group.json()["id"]], "student_ids": []},
+                format="json",
+            ).status_code
+            == 200
+        )
+
+    first_path, second_path = path_ids
+    ChallengeAttempt.objects.create(
+        user_id=student_id,
+        challenge_id=challenge_id,
+        path_id=first_path,
+        status=ChallengeAttempt.COMPLETED,
+        score=90,
+        finished_at=timezone.now(),
+    )
+
+    def states_of(path_id: str) -> dict:
+        listed = student.get("/api/v1/learning/paths/").json()["results"]
+        return next(item for item in listed if item["id"] == path_id)["challenges"][0]
+
+    assert states_of(first_path)["state"] == "completed"
+    assert states_of(second_path)["state"] == "available"
+    assert states_of(second_path)["in_progress"] is False
+
+    opened = student.post(
+        f"/api/v1/learning/challenges/{challenge_id}/attempts/",
+        {"path_id": second_path},
+        format="json",
+    )
+    assert opened.status_code == 200, opened.content
+    assert opened.json()["attempt"]["status"] == "open"
+    assert opened.json()["attempt"]["id"] != str(
+        ChallengeAttempt.objects.filter(path_id=first_path).get().id
+    )
+    assert states_of(first_path)["state"] == "completed"
+    assert states_of(second_path)["in_progress"] is True
+
+    ChallengeAttempt.objects.filter(pk=opened.json()["attempt"]["id"]).update(
+        status=ChallengeAttempt.COMPLETED,
+        score=70,
+        finished_at=timezone.now(),
+    )
+    assert states_of(first_path)["state"] == "completed"
+    assert states_of(second_path)["state"] == "completed"
+    assert (
+        ChallengeAttempt.objects.filter(
+            user_id=student_id,
+            challenge_id=challenge_id,
+            status=ChallengeAttempt.COMPLETED,
+        ).count()
+        == 2
+    )

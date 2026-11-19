@@ -92,6 +92,7 @@ def test_la_libreta_tiene_una_fila_por_alumno_y_la_nota_del_intento():
     ChallengeAttempt.objects.create(
         user=user,
         challenge=first,
+        path_id=path_id,
         status=ChallengeAttempt.COMPLETED,
         score=80,
         summary="Puntuación 80.",
@@ -101,6 +102,7 @@ def test_la_libreta_tiene_una_fila_por_alumno_y_la_nota_del_intento():
     ChallengeAttempt.objects.create(
         user=user,
         challenge=first,
+        path_id=path_id,
         status=ChallengeAttempt.COMPLETED,
         score=10,
         summary="Puntuación 10.",
@@ -140,6 +142,7 @@ def test_la_libreta_tiene_una_fila_por_alumno_y_la_nota_del_intento():
     solved = ChallengeAttempt.objects.create(
         user=get_user_model().objects.get(pk=second_id),
         challenge=second_challenge,
+        path_id=path_id,
         status=ChallengeAttempt.COMPLETED,
         score=50,
         summary="Puntuación 50.",

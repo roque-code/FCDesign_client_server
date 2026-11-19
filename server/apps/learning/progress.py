@@ -53,31 +53,33 @@ _LANGUAGE_WEIGHTS = LANGUAGE_WEIGHTS
 _SOLUTION_MARK = "Esta es la solución explicada"
 
 
+def _path_scope(path: LearningPath) -> Q:
+    """Intentos de esta ruta. Los viejos sin ruta solo cuentan en la ruta del reto."""
+    return Q(path=path) | Q(path__isnull=True, challenge__unit__path=path)
+
+
 def path_payload(user, path: LearningPath | None = None) -> dict[str, object]:
     chosen = path or _path()
     if path is not None and not can_see_path(user, chosen):
         raise DomainError("No se encontró la ruta.", code="not_found", status_code=404)
     placements = _placements(chosen, user)
     challenges = [challenge for challenge, _entry in placements]
+    scoped = ChallengeAttempt.objects.filter(user=user, challenge__in=challenges).filter(
+        _path_scope(chosen)
+    )
     completed = set(
-        ChallengeAttempt.objects.filter(
-            user=user, status=ChallengeAttempt.COMPLETED, challenge__in=challenges
-        ).values_list("challenge_id", flat=True)
+        scoped.filter(status=ChallengeAttempt.COMPLETED).values_list("challenge_id", flat=True)
     )
     closed_counts = {
         row["challenge_id"]: row["total"]
-        for row in ChallengeAttempt.objects.filter(
-            user=user,
-            challenge__in=challenges,
+        for row in scoped.filter(
             status__in=[ChallengeAttempt.COMPLETED, ChallengeAttempt.ABANDONED],
         )
         .values("challenge_id")
         .annotate(total=Count("id"))
     }
     in_progress = set(
-        ChallengeAttempt.objects.filter(
-            user=user, status=ChallengeAttempt.OPEN, challenge__in=challenges
-        ).values_list("challenge_id", flat=True)
+        scoped.filter(status=ChallengeAttempt.OPEN).values_list("challenge_id", flat=True)
     )
     now = timezone.now()
     rows: list[dict[str, object]] = []
@@ -178,7 +180,7 @@ def start_attempt(user, challenge_id, path_id: object = None) -> dict[str, objec
     _ensure_open(user, challenge, path)
     with transaction.atomic():
         get_user_model().objects.select_for_update().get(pk=user.pk)
-        current = _existing_attempt(user, challenge)
+        current = _existing_attempt(user, challenge, path)
         if current is not None and current.status == ChallengeAttempt.OPEN and _late(current):
             _abandon(current)
             current = None
@@ -189,10 +191,6 @@ def start_attempt(user, challenge_id, path_id: object = None) -> dict[str, objec
                 path=path,
                 focus=focus_start(focus_rules(user)),
             )
-        elif current.status == ChallengeAttempt.OPEN and current.path_id != path.id:
-            current.path = path
-            current.save(update_fields=["path"])
-            _record_progress(current)
     return _bundle(current)
 
 
@@ -463,12 +461,14 @@ def close_attempt(user, attempt_id, reflection: object) -> dict[str, object]:
 
 
 def _award_points(user, attempt: ChallengeAttempt) -> None:
+    path = attempt.path or attempt.challenge.unit.path
     repeated = (
         ChallengeAttempt.objects.filter(
             user=user,
             challenge=attempt.challenge,
             status=ChallengeAttempt.COMPLETED,
         )
+        .filter(_path_scope(path))
         .exclude(pk=attempt.pk)
         .exists()
     )
@@ -479,9 +479,13 @@ def _award_points(user, attempt: ChallengeAttempt) -> None:
     profile.save(update_fields=["points", "updated_at"])
 
 
-def _existing_attempt(user, challenge: Challenge) -> ChallengeAttempt | None:
-    rows = ChallengeAttempt.objects.filter(user=user, challenge=challenge).annotate(
-        progress=Count("snapshots")
+def _existing_attempt(
+    user, challenge: Challenge, path: LearningPath
+) -> ChallengeAttempt | None:
+    rows = (
+        ChallengeAttempt.objects.filter(user=user, challenge=challenge)
+        .filter(_path_scope(path))
+        .annotate(progress=Count("snapshots"))
     )
     completed = (
         rows.filter(status=ChallengeAttempt.COMPLETED)
@@ -522,7 +526,9 @@ def _placements(path: LearningPath, user=None) -> list[tuple[Challenge, PathEntr
                     user=user,
                     status=ChallengeAttempt.COMPLETED,
                     challenge_id__in=withdrawn_ids,
-                ).values_list("challenge_id", flat=True)
+                )
+                .filter(_path_scope(path))
+                .values_list("challenge_id", flat=True)
             )
     return [
         (entry.challenge, entry)
@@ -576,9 +582,13 @@ def _span(entry: PathEntry, now) -> str:
 
 
 def _ensure_open(user, challenge: Challenge, path: LearningPath) -> None:
-    done = ChallengeAttempt.objects.filter(
-        user=user, challenge=challenge, status=ChallengeAttempt.COMPLETED
-    ).exists()
+    done = (
+        ChallengeAttempt.objects.filter(
+            user=user, challenge=challenge, status=ChallengeAttempt.COMPLETED
+        )
+        .filter(_path_scope(path))
+        .exists()
+    )
     if done:
         return
     copies = [
@@ -608,9 +618,13 @@ def _ensure_unlocked(user, challenge: Challenge, path: LearningPath | None = Non
     chosen = path or challenge.unit.path
     if not can_see_path(user, chosen) or not _on_path(chosen, challenge, user):
         raise DomainError("No se encontró el reto.", code="not_found", status_code=404)
-    if ChallengeAttempt.objects.filter(
-        user=user, challenge=challenge, status=ChallengeAttempt.COMPLETED
-    ).exists():
+    if (
+        ChallengeAttempt.objects.filter(
+            user=user, challenge=challenge, status=ChallengeAttempt.COMPLETED
+        )
+        .filter(_path_scope(chosen))
+        .exists()
+    ):
         return
     placements = _placements(chosen, user)
     index = next((i for i, (item, _entry) in enumerate(placements) if item.id == challenge.id), None)
@@ -631,9 +645,13 @@ def _ensure_unlocked(user, challenge: Challenge, path: LearningPath | None = Non
             previous = item
     if previous is None:
         return
-    done = ChallengeAttempt.objects.filter(
-        user=user, challenge=previous, status=ChallengeAttempt.COMPLETED
-    ).exists()
+    done = (
+        ChallengeAttempt.objects.filter(
+            user=user, challenge=previous, status=ChallengeAttempt.COMPLETED
+        )
+        .filter(_path_scope(chosen))
+        .exists()
+    )
     if not done:
         raise DomainError(
             "Termina el reto anterior para abrir este.",
@@ -775,7 +793,7 @@ def _bundle(attempt: ChallengeAttempt, **extra: object) -> dict[str, object]:
     payload: dict[str, object] = {
         "challenge": _public_challenge(challenge),
         "attempt": _state(attempt),
-        "history": _history(attempt.user, challenge),
+        "history": _history(attempt.user, challenge, attempt.path or challenge.unit.path),
         "points": standing["points"],
         "rank": standing["rank"],
     }
@@ -979,12 +997,16 @@ def save_build(user, attempt_id, data: dict[str, Any]) -> dict[str, object]:
     return _bundle(attempt)
 
 
-def _history(user, challenge: Challenge) -> list[dict[str, object]]:
-    rows = ChallengeAttempt.objects.filter(
-        user=user,
-        challenge=challenge,
-        status__in=[ChallengeAttempt.COMPLETED, ChallengeAttempt.ABANDONED],
-    ).order_by("started_at")
+def _history(user, challenge: Challenge, path: LearningPath) -> list[dict[str, object]]:
+    rows = (
+        ChallengeAttempt.objects.filter(
+            user=user,
+            challenge=challenge,
+            status__in=[ChallengeAttempt.COMPLETED, ChallengeAttempt.ABANDONED],
+        )
+        .filter(_path_scope(path))
+        .order_by("started_at")
+    )
     history: list[dict[str, object]] = []
     for number, row in enumerate(rows, start=1):
         history.append(

@@ -8,14 +8,23 @@ from django.db.models import Count, Max
 from apps.accounts.models import Profile
 from apps.accounts.services import standing_of
 from apps.classroom.models import Membership
-from apps.learning.models import Challenge, ChallengeAttempt, ConceptMastery, PathEntry, Reflection
+from apps.learning.models import (
+    Challenge,
+    ChallengeAttempt,
+    ConceptMastery,
+    LearningPath,
+    PathEntry,
+    Reflection,
+)
 from apps.learning.progress import (
     _focus_of,
     _language_public,
     _next,
+    _path_scope,
     _public_challenge,
     _sequence,
     _solution,
+    can_see_path,
     path_payload,
     visible_paths,
 )
@@ -105,11 +114,15 @@ def _route_activity(path, user_ids: list[int]) -> dict[int, dict[str, object]]:
     done: dict[int, set] = {user_id: set() for user_id in user_ids}
     last: dict[int, object] = {}
     if relevant:
-        rows = ChallengeAttempt.objects.filter(
-            user_id__in=user_ids,
-            challenge_id__in=relevant,
-            status=ChallengeAttempt.COMPLETED,
-        ).values_list("user_id", "challenge_id", "finished_at")
+        rows = (
+            ChallengeAttempt.objects.filter(
+                user_id__in=user_ids,
+                challenge_id__in=relevant,
+                status=ChallengeAttempt.COMPLETED,
+            )
+            .filter(_path_scope(path))
+            .values_list("user_id", "challenge_id", "finished_at")
+        )
         for user_id, challenge_id, finished in rows:
             done[user_id].add(challenge_id)
             current = last.get(user_id)
@@ -231,11 +244,17 @@ def member_progress(teacher, user_id: int) -> dict[str, object]:
     if user_id not in set(_member_ids(teacher)):
         raise DomainError("No se encontró a esa persona.", code=NOT_FOUND, status_code=404)
     member = get_user_model().objects.select_related("profile").get(pk=user_id)
-    scores: dict[str, int | None] = {}
-    attempts = ChallengeAttempt.objects.filter(user=member).order_by("-started_at")
-    for attempt in attempts:
-        scores.setdefault(str(attempt.challenge_id), attempt.score)
-    paths = [_scored_path(member, path, scores) for path in visible_paths(member)]
+    paths: list[dict[str, object]] = []
+    for path in visible_paths(member):
+        scores: dict[str, int | None] = {}
+        attempts = (
+            ChallengeAttempt.objects.filter(user=member)
+            .filter(_path_scope(path))
+            .order_by("-started_at")
+        )
+        for attempt in attempts:
+            scores.setdefault(str(attempt.challenge_id), attempt.score)
+        paths.append(_scored_path(member, path, scores))
     mastery = [
         {"concept": row.concept.name, "level": row.level}
         for row in ConceptMastery.objects.filter(user=member)
@@ -244,35 +263,66 @@ def member_progress(teacher, user_id: int) -> dict[str, object]:
     ]
     communities = _communities_of(teacher).get(member.pk, [])
     progress = _progress_rows([member.pk]).get(member.pk, {})
+    progress = {
+        "completed": sum(int(item["completed"]) for item in paths),
+        "last_activity": progress.get("last_activity"),
+    }
     return {
-        "person": _person(member, communities, progress, sum(int(item["total"]) for item in paths)),
+        "person": _person(
+            member,
+            communities,
+            progress,
+            sum(int(item["total"]) for item in paths),
+        ),
         "paths": paths,
         "mastery": mastery,
     }
 
 
-def member_work(teacher, user_id: int, challenge_id) -> dict[str, object]:
+def member_work(teacher, user_id: int, challenge_id, path_id: object = None) -> dict[str, object]:
     _require_teacher(teacher)
     if user_id not in set(_member_ids(teacher)):
         raise DomainError("No se encontró a esa persona.", code=NOT_FOUND, status_code=404)
     member = get_user_model().objects.select_related("profile").get(pk=user_id)
     try:
-        challenge = Challenge.objects.select_related("unit__concept").get(
+        challenge = Challenge.objects.select_related("unit__concept", "unit__path").get(
             pk=challenge_id, is_published=True
         )
     except Challenge.DoesNotExist as exc:
         raise DomainError("No se encontró el reto.", code=NOT_FOUND, status_code=404) from exc
-    attempt = (
-        ChallengeAttempt.objects.filter(user=member, challenge=challenge)
-        .order_by("-started_at")
-        .first()
-    )
-    if attempt is None and not _on_visible_path(member, challenge):
+    path = _work_path(member, challenge, path_id)
+    rows = ChallengeAttempt.objects.filter(user=member, challenge=challenge)
+    if path is not None:
+        rows = rows.filter(_path_scope(path))
+    attempt = rows.order_by("-started_at").first()
+    if attempt is None and path is None and not _on_visible_path(member, challenge):
+        raise DomainError("No se encontró el reto.", code=NOT_FOUND, status_code=404)
+    if attempt is None and path is not None and not _challenge_on_path(member, path, challenge):
         raise DomainError("No se encontró el reto.", code=NOT_FOUND, status_code=404)
     return {
         "challenge": _public_challenge(challenge),
         "attempt": None if attempt is None else _attempt_work(challenge, attempt),
     }
+
+
+def _work_path(member, challenge: Challenge, path_id: object) -> LearningPath | None:
+    if path_id is None or path_id == "":
+        return None
+    try:
+        path = LearningPath.objects.get(pk=path_id)
+    except (LearningPath.DoesNotExist, ValueError, TypeError) as exc:
+        raise DomainError("No se encontró la ruta.", code=NOT_FOUND, status_code=404) from exc
+    if not can_see_path(member, path) or not _challenge_on_path(member, path, challenge):
+        raise DomainError("No se encontró el reto.", code=NOT_FOUND, status_code=404)
+    return path
+
+
+def _challenge_on_path(member, path: LearningPath, challenge: Challenge) -> bool:
+    target = str(challenge.id)
+    payload = path_payload(member, path)
+    challenges = payload["challenges"]
+    assert isinstance(challenges, list)
+    return any(isinstance(item, dict) and item.get("id") == target for item in challenges)
 
 
 def _on_visible_path(member, challenge: Challenge) -> bool:

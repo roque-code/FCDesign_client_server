@@ -254,7 +254,7 @@ export function TeacherRoster() {
     setBusy(true)
     setError("")
     try {
-      setReview(await api.labMemberWork(userId, challengeId))
+      setReview(await api.labMemberWork(userId, challengeId, opened?.routeId))
     } catch (caught) {
       setError(messageOf(caught, t("rosterLoadError")))
     } finally {
