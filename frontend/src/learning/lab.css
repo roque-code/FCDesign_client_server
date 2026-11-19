@@ -1030,7 +1030,9 @@
   height: 10px;
 }
 
-.build-left > .build-brief {
+.build-left > .build-brief,
+.build-right > .challenge-prompt,
+.challenge-right > .challenge-prompt {
   display: block;
   flex: 1 1 auto;
   min-height: 0;
@@ -1039,14 +1041,96 @@
   border-bottom: 0;
 }
 
-.build-brief h2 {
+.build-brief h2,
+.challenge-prompt h2 {
   font-size: 1.2rem;
 }
 
-.build-brief .enunciado-text {
+.build-brief .enunciado-text,
+.challenge-prompt .enunciado-text {
   max-width: none;
   max-height: none;
   font-size: 1rem;
+}
+
+.challenge-stages {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.85rem 0.9rem 0.55rem;
+}
+
+.challenge-guide-mentor {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 0.9rem 0.85rem;
+}
+
+.challenge-guide-mentor > .mentor {
+  border: 0;
+  border-radius: 0;
+  max-height: none;
+  padding: 0.55rem 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.challenge-stages ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.28rem;
+}
+
+.challenge-stage {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.42rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  background: var(--paper);
+  font-size: 0.92rem;
+}
+
+.challenge-stage-current {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.challenge-stage-done {
+  color: var(--muted);
+}
+
+.challenge-stage-ahead {
+  opacity: 0.72;
+}
+
+.stage-head-compact {
+  flex: 0 0 auto;
+  padding: 0.65rem 1rem 0;
+}
+
+.stage-head-compact h2 {
+  margin: 0;
+}
+
+.challenge-stage-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.85rem 1rem 1.1rem;
+}
+
+.challenge-right {
+  background: var(--sheet);
+}
+
+.challenge-right > .challenge-prompt .timer {
+  margin-top: 0.75rem;
 }
 
 .build-left > .build-cases {
@@ -2660,18 +2744,21 @@
     overflow: auto;
   }
 
-  .build-layout[data-phone="problema"] .build-center,
-  .build-layout[data-phone="problema"] .build-right,
-  .build-layout[data-phone="construccion"] .build-left,
-  .build-layout[data-phone="construccion"] .build-right,
-  .build-layout[data-phone="ayuda"] .build-left,
-  .build-layout[data-phone="ayuda"] .build-center {
+  .challenge-layout[data-phone="problema"] .build-center,
+  .challenge-layout[data-phone="problema"] .build-left,
+  .challenge-layout[data-phone="construccion"] .build-left,
+  .challenge-layout[data-phone="construccion"] .build-right,
+  .challenge-layout[data-phone="ayuda"] .build-center,
+  .challenge-layout[data-phone="ayuda"] .build-right {
     display: none;
   }
 
   .build-left > .build-brief,
   .build-left > .build-cases,
+  .build-left > .challenge-stages,
+  .build-left > .challenge-guide-mentor,
   .build-right > .mentor,
+  .build-right > .challenge-prompt,
   .build-attempts {
     height: auto !important;
     flex: 0 0 auto !important;
@@ -2679,11 +2766,12 @@
     overflow: visible;
   }
 
-  .build-layout[data-phone="problema"] .build-brief {
+  .challenge-layout[data-phone="problema"] .challenge-prompt {
     display: block;
   }
 
-  .build-layout[data-phone="ayuda"] .build-right > .mentor {
+  .challenge-layout[data-phone="ayuda"] .challenge-guide-mentor,
+  .challenge-layout[data-phone="ayuda"] .build-left > .mentor {
     display: grid;
   }
 
