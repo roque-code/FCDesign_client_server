@@ -32,15 +32,20 @@ import { FocusNotice, useFocusWatch } from "../focus/FocusWatch"
 import { enterFullscreen, leaveFullscreen } from "../focus/watch"
 import { runLanguageCases } from "../foreign/cases"
 import { ForeignEditor } from "../foreign/ForeignEditor"
-import { FOREIGN_LANGUAGES, LANGUAGE_LABELS, type ForeignLanguage } from "../foreign/keywords"
+import { FOREIGN_LANGUAGES, LANGUAGE_LABELS, LANGUAGE_STARTERS, type ForeignLanguage } from "../foreign/keywords"
 import {
   inInstalledApp,
   localControlLab,
+  localForeignCheck,
+  localForeignClose,
+  localForeignInput,
+  localForeignOpen,
   localImport,
   localInputLab,
   localLabRun,
   localStartLab,
   openLabEvents,
+  type ForeignCheck,
 } from "../runtime"
 import { BlockWorkspace } from "./BlockWorkspace"
 import { PromptText } from "./PromptText"
@@ -48,6 +53,7 @@ import { SolutionCard } from "./SolutionCard"
 import { formatClock, formatWhen, stagesFor, type StageName } from "./trace"
 
 const AUTOSAVE_MS = 3000
+const SYNTAX_ONLY = new Set<ForeignLanguage>(["python", "javascript", "typescript"])
 
 const ACTIVITY: Record<string, MessageKey> = {
   classify: "classify",
@@ -172,9 +178,15 @@ export function ChallengePlay({
   const [code, setCode] = useState(() => starterSource(locale))
   const [diagramSource, setDiagramSource] = useState("")
   const [langId, setLangId] = useState<ForeignLanguage>("python")
-  const [langSource, setLangSource] = useState("")
+  const [langSource, setLangSource] = useState(() => LANGUAGE_STARTERS.python)
+  const [langDrafts, setLangDrafts] = useState<Partial<Record<ForeignLanguage, string>>>({})
   const [langCases, setLangCases] = useState<LabCase[] | null>(null)
   const [grade, setGrade] = useState<number | null>(null)
+  const [langChecking, setLangChecking] = useState(false)
+  const [langWaiting, setLangWaiting] = useState(false)
+  const [langActive, setLangActive] = useState(false)
+  const [langInput, setLangInput] = useState("")
+  const foreignSession = useRef("")
   const [autoState, setAutoState] = useState<"idle" | "saving" | "saved" | "dirty">("idle")
   const [labRun, setLabRun] = useState<LabRun | null>(null)
   const [runInput, setRunInput] = useState("")
@@ -264,8 +276,10 @@ export function ChallengePlay({
         if (result.attempt.cases?.length) setCases(result.attempt.cases)
         const saved = result.attempt.language
         if (saved && (FOREIGN_LANGUAGES as readonly string[]).includes(saved.language)) {
-          setLangId(saved.language as ForeignLanguage)
+          const language = saved.language as ForeignLanguage
+          setLangId(language)
           setLangSource(saved.source)
+          setLangDrafts((current) => ({ ...current, [language]: saved.source }))
           setGrade(saved.percent)
           if (saved.cases?.length) setLangCases(saved.cases)
         }
@@ -457,6 +471,9 @@ export function ChallengePlay({
       window.removeEventListener("pagehide", onHide)
       flushSave(true)
       streamRef.current?.close()
+      const foreign = foreignSession.current
+      foreignSession.current = ""
+      if (foreign) void localForeignClose(foreign)
     }
   }, [session?.attempt.id])
 
@@ -707,8 +724,127 @@ export function ChallengePlay({
     }
   }
 
+  function closeForeignSession() {
+    const current = foreignSession.current
+    foreignSession.current = ""
+    setLangWaiting(false)
+    setLangActive(false)
+    if (current) void localForeignClose(current)
+  }
+
+  function foreignReport(checked: ForeignCheck): string {
+    const found = checked.diagnostics
+    if (checked.status === "ok" && found.length === 0) {
+      return SYNTAX_ONLY.has(langId) ? t("foreignCheckSyntaxClean") : t("foreignCheckClean")
+    }
+    if (found.length === 0) return `${checked.stderr}${checked.stdout}` || checked.message
+    return t("foreignCheckFound", { count: found.length })
+  }
+
+  async function validateLanguageCode() {
+    if (busy || langSource.trim() === "") return
+    closeForeignSession()
+    setBusy(true)
+    setLangChecking(true)
+    setError("")
+    setNote("")
+    setOutput("")
+    setDiagnostics([])
+    setLangCases(null)
+    try {
+      const checked = await localForeignCheck(langId, langSource)
+      setDiagnostics(
+        checked.diagnostics.map((item, index) => ({
+          severity: item.severity,
+          code: `foreign-${index}`,
+          message: item.line ? `${t("foreignCheckLine", { line: item.line })}: ${item.message}` : item.message,
+          line: item.line ?? 1,
+          column: item.column ?? 1,
+          suggestion: null,
+        })),
+      )
+      setNote(foreignReport(checked))
+      if (checked.stdout || checked.stderr) setOutput(`${checked.stdout}${checked.stderr}`)
+    } catch (caught) {
+      setError(messageOf(caught, t("foreignCheckFailed")))
+    } finally {
+      setBusy(false)
+      setLangChecking(false)
+    }
+  }
+
+  async function executeLanguageCode() {
+    if (busy || langSource.trim() === "" || !canExecuteToday(account)) return
+    closeForeignSession()
+    setBusy(true)
+    setError("")
+    setNote("")
+    setOutput("")
+    setDiagnostics([])
+    setLangCases(null)
+    setLangInput("")
+    try {
+      if (inInstalledApp()) {
+        const quota = await api.consumeExecution()
+        onAccount(withRunUsage(account, quota.used))
+      }
+      const payload = await localForeignOpen(langId, langSource)
+      if (!inInstalledApp()) onAccount(bumpRunUsage(account))
+      foreignSession.current = payload.session || ""
+      setLangWaiting(payload.status === "waiting")
+      setLangActive(Boolean(payload.session) || payload.status === "waiting")
+      setOutput(`${payload.stdout}${payload.stderr}` || payload.message || t("noOutput"))
+      if (payload.status === "error" || payload.status === "missing") {
+        setError(payload.message || t("foreignFailed"))
+        setLangActive(false)
+        foreignSession.current = ""
+      } else if (payload.status !== "waiting") {
+        foreignSession.current = ""
+        setLangActive(false)
+      }
+    } catch (caught) {
+      setError(messageOf(caught, t("foreignFailed")))
+      setLangActive(false)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function sendLanguageInput(event: FormEvent) {
+    event.preventDefault()
+    const current = foreignSession.current
+    if (!current || busy) return
+    const text = langInput
+    setLangInput("")
+    setBusy(true)
+    setError("")
+    try {
+      const payload = await localForeignInput(current, text)
+      setLangWaiting(payload.status === "waiting")
+      setOutput((currentOut) => {
+        const chunk = `${payload.stdout}${payload.stderr}`
+        return chunk ? `${currentOut}${chunk}` : currentOut || payload.message || t("noOutput")
+      })
+      if (payload.status !== "waiting") {
+        foreignSession.current = ""
+        setLangActive(false)
+        if (payload.status === "error" || payload.status === "missing") {
+          setError(payload.message || t("foreignFailed"))
+        }
+      }
+    } catch (caught) {
+      foreignSession.current = ""
+      setLangWaiting(false)
+      setLangActive(false)
+      setError(messageOf(caught, t("foreignFailed")))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function proveLanguage() {
     const spec = challenge.task.cases ?? []
+    closeForeignSession()
     setBusy(true)
     setError("")
     try {
@@ -1308,7 +1444,17 @@ export function ChallengePlay({
                 </p>
                 <label>
                   {t("foreignTitle")}
-                  <select value={langId} onChange={(event) => setLangId(event.target.value as ForeignLanguage)}>
+                  <select
+                    value={langId}
+                    onChange={(event) => {
+                      const next = event.target.value as ForeignLanguage
+                      setLangDrafts((current) => ({ ...current, [langId]: langSource }))
+                      setLangId(next)
+                      setLangSource(langDrafts[next] ?? LANGUAGE_STARTERS[next])
+                      setLangCases(null)
+                      setGrade(null)
+                    }}
+                  >
                     {FOREIGN_LANGUAGES.map((item) => (
                       <option key={item} value={item}>
                         {LANGUAGE_LABELS[item]}
@@ -1321,15 +1467,65 @@ export function ChallengePlay({
                   <ForeignEditor
                     language={langId}
                     source={langSource}
-                    onChange={setLangSource}
+                    onChange={(next) => {
+                      setLangSource(next)
+                      setLangDrafts((current) => ({ ...current, [langId]: next }))
+                    }}
                     pasteBlocked={pasteBlocked}
                     label={t("languagePaste")}
                   />
                 </div>
                 {pasteBlocked ? <p className="note">{t("pasteBlockedNote")}</p> : null}
-                <button type="submit" className="primary" disabled={busy || langSource.trim() === ""}>
-                  {t("prove")}
-                </button>
+                <div className="build-actions">
+                  <button
+                    type="button"
+                    disabled={busy || langSource.trim() === ""}
+                    title={t("foreignCheckTitle")}
+                    onClick={() => void validateLanguageCode()}
+                  >
+                    {busy && langChecking ? t("foreignChecking") : t("validate")}
+                  </button>
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={busy || langSource.trim() === "" || !canExecuteToday(account)}
+                    title={!canExecuteToday(account) ? t("executionsGone") : undefined}
+                    onClick={() => void executeLanguageCode()}
+                  >
+                    {busy && !langChecking && !langWaiting ? t("foreignRunning") : t("run")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!langActive && !langWaiting}
+                    title={t("stopTitle")}
+                    onClick={() => {
+                      closeForeignSession()
+                      setBusy(false)
+                    }}
+                  >
+                    {t("stop")}
+                  </button>
+                  <button type="submit" className="primary" disabled={busy || langSource.trim() === ""}>
+                    {t("prove")}
+                  </button>
+                </div>
+                {note && current === "lenguaje" ? <p className="note">{note}</p> : null}
+                {output && current === "lenguaje" ? <pre className="lab-output">{output}</pre> : null}
+                {langWaiting ? (
+                  <form className="lab-input" onSubmit={(event) => void sendLanguageInput(event)}>
+                    <label>
+                      {t("yourAnswer")}
+                      <input
+                        value={langInput}
+                        onChange={(event) => setLangInput(event.target.value)}
+                        autoComplete="off"
+                      />
+                    </label>
+                    <button type="submit" disabled={busy}>
+                      {t("send")}
+                    </button>
+                  </form>
+                ) : null}
                 {grade != null ? (
                   <p className={specCases.length === 0 || grade === 100 ? "note" : "error"}>
                     {specCases.length === 0 ? t("languageDelivered") : t("languageGrade", { percent: grade })}

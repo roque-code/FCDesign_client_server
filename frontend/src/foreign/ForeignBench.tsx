@@ -38,7 +38,7 @@ import { groupNames, studentLabel, studentsIn } from "../workbench/studentGroups
 import { AlgorithmPeek } from "./AlgorithmPeek"
 import { runLanguageCases } from "./cases"
 import { ForeignEditor } from "./ForeignEditor"
-import { FOREIGN_LANGUAGES, LANGUAGE_LABELS, type ForeignLanguage } from "./keywords"
+import { FOREIGN_LANGUAGES, LANGUAGE_LABELS, LANGUAGE_STARTERS, type ForeignLanguage } from "./keywords"
 import { isForeignLanguage, sortPrograms, withProgram } from "./programs"
 
 const EXTENSIONS: Record<ForeignLanguage, string> = {
@@ -49,16 +49,6 @@ const EXTENSIONS: Record<ForeignLanguage, string> = {
   c: "c",
   cpp: "cpp",
   csharp: "cs",
-}
-
-const STARTERS: Record<ForeignLanguage, string> = {
-  python: 'print("hola")\n',
-  javascript: 'console.log("hola")\n',
-  typescript: 'console.log("hola")\n',
-  java: 'public class Programa {\n    public static void main(String[] args) {\n        System.out.println("hola");\n    }\n}\n',
-  c: '#include <stdio.h>\n\nint main(void) {\n    printf("hola\\n");\n    return 0;\n}\n',
-  cpp: '#include <iostream>\n\nint main() {\n    std::cout << "hola\\n";\n    return 0;\n}\n',
-  csharp: 'Console.WriteLine("hola");\n',
 }
 
 type Link = { id: string; name: string; saved: string }
@@ -78,7 +68,7 @@ const drafts = new Map<ForeignLanguage, string>()
 const links = new Map<ForeignLanguage, Link>()
 
 function draftOf(language: ForeignLanguage): string {
-  return drafts.get(language) ?? STARTERS[language]
+  return drafts.get(language) ?? LANGUAGE_STARTERS[language]
 }
 
 function languageLabel(language: string): string {
@@ -402,7 +392,7 @@ export function ForeignBench({
     if (!isForeignLanguage(item.language)) return
     const target = item.language
     const queued = pendingSave.current?.language === target ? pendingSave.current.text : null
-    const kept = queued ?? links.get(target)?.saved ?? STARTERS[target]
+    const kept = queued ?? links.get(target)?.saved ?? LANGUAGE_STARTERS[target]
     const draft = target === language ? source : draftOf(target)
     if (draft !== kept && !window.confirm(t("programDiscard", { language: LANGUAGE_LABELS[target] }))) return
     setProgramNote("")
@@ -478,7 +468,7 @@ export function ForeignBench({
     flushSave()
     setAutoState("idle")
     setMarks([])
-    edit(STARTERS[language])
+    edit(LANGUAGE_STARTERS[language])
     linkTo(language, null)
     setProgramNote("")
   }

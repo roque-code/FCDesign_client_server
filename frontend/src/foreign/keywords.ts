@@ -421,6 +421,17 @@ export const LANGUAGE_LABELS: Record<ForeignLanguage, string> = {
   csharp: "C#",
 }
 
+/** Plantilla inicial de hola mundo en cada lenguaje. */
+export const LANGUAGE_STARTERS: Record<ForeignLanguage, string> = {
+  python: 'print("hola")\n',
+  javascript: 'console.log("hola")\n',
+  typescript: 'console.log("hola")\n',
+  java: 'public class Programa {\n    public static void main(String[] args) {\n        System.out.println("hola");\n    }\n}\n',
+  c: '#include <stdio.h>\n\nint main(void) {\n    printf("hola\\n");\n    return 0;\n}\n',
+  cpp: '#include <iostream>\n\nint main() {\n    std::cout << "hola\\n";\n    return 0;\n}\n',
+  csharp: 'Console.WriteLine("hola");\n',
+}
+
 const TABLES = {
   python: PYTHON_KEYWORDS,
   javascript: JAVASCRIPT_KEYWORDS,
