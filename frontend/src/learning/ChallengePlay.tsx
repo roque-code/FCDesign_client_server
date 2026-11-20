@@ -861,9 +861,11 @@ export function ChallengePlay({
   ]
     .filter(Boolean)
     .join(" ")
+  const studentBuild = attempt.draft ?? attempt.solution ?? null
+  const languageSide = current === "lenguaje" && !finished && !timedOut && studentBuild != null
   const toggles: [keyof ChallengePanels, string][] = [
     ["guide", t("stages")],
-    ["prompt", t("promptKicker")],
+    ["prompt", languageSide ? t("pseudocode") : t("promptKicker")],
   ]
   if (building) toggles.push(["cases", t("casesWord")])
 
@@ -1418,7 +1420,20 @@ export function ChallengePlay({
         ) : null}
         {rightOpen ? (
           <aside className="build-right challenge-right enunciado" ref={rightRef}>
-            <section className="enunciado build-brief challenge-prompt">{promptBody}{timer}</section>
+            {languageSide && studentBuild ? (
+              <section className="enunciado build-brief challenge-prompt challenge-pseudo">
+                <div className="enunciado-body">
+                  <p className="note">{t("languageTranscribeNote")}</p>
+                  <SolutionCard solution={studentBuild} title={challenge.title} preferSource />
+                </div>
+                {timer}
+              </section>
+            ) : (
+              <section className="enunciado build-brief challenge-prompt">
+                {promptBody}
+                {timer}
+              </section>
+            )}
           </aside>
         ) : null}
       </div>

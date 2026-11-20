@@ -17,10 +17,12 @@ export function SolutionCard({
   solution,
   title,
   kicker = "yourBuild",
+  preferSource = false,
 }: {
   solution: LabSolution
   title: string
   kicker?: MessageKey
+  preferSource?: boolean
 }) {
   const t = useT()
   const locale = useLocale()
@@ -29,22 +31,28 @@ export function SolutionCard({
     () => ({ name: title, source: solution.source, semicolons: true, token: 1 }),
     [title, solution.source],
   )
-  const showCode = solution.tool === "codigo" || (solution.tool === "bloques" && !solution.blocks)
+  const hasSource = Boolean(solution.source?.trim())
+  const showCode = preferSource
+    ? hasSource
+    : solution.tool === "codigo" || (solution.tool === "bloques" && !solution.blocks)
+  const blockState = solution.blocks
+  const showBlocks = solution.tool === "bloques" && blockState != null && !(preferSource && hasSource)
+  const showDiagram = solution.tool === "diagrama" && !(preferSource && hasSource)
   return (
     <article className="answer-card">
       <p className="enunciado-kicker">{t(kicker)}</p>
-      <h2>{label}</h2>
-      {solution.tool === "bloques" && solution.blocks ? (
+      <h2>{preferSource && hasSource ? t("pseudocode") : label}</h2>
+      {showBlocks && blockState ? (
         <div className="answer-stage">
           <BlockWorkspace
             readOnly
             onCount={() => undefined}
             onState={() => undefined}
-            restore={{ key: 1, state: solution.blocks }}
+            restore={{ key: 1, state: blockState }}
           />
         </div>
       ) : null}
-      {solution.tool === "diagrama" ? (
+      {showDiagram ? (
         <div className="answer-stage">
           <Composer
             embedded

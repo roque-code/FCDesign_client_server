@@ -1133,6 +1133,18 @@
   margin-top: 0.75rem;
 }
 
+.challenge-pseudo .answer-card {
+  margin: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.challenge-pseudo .lab-code {
+  max-height: none;
+  white-space: pre-wrap;
+}
+
 .build-left > .build-cases {
   flex: 1 1 auto;
   align-content: start;
